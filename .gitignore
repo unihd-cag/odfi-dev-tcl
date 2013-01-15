@@ -1,0 +1,4 @@
+external
+*.tar.gz
+*.run
+dist*

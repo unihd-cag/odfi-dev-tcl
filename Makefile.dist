@@ -1,0 +1,33 @@
+
+#
+# Dist Makefile for tcl
+#
+
+DIST_VERSION := 1.0.0
+DIST_NAME := odfi-dev-tcl
+DIST_MODULE_NAME := odfi-dev-tcl
+DIST_MODULES := external/tcl
+include $(ODFI_MBUILD_HOME)/sw/makefile/Makefile.dist
+
+
+
+
+
+#
+# Package Modules
+# 
+dist: prepare dist_prepare_modules
+
+#
+# Add TCL tm modules to standard library path, with correct naming
+#
+prepare:
+	$(dist-module-prepare-work)
+	@$(call dist-module-add,bin doc)
+	@$(call dist-module-copy-to,tcl/bits.tm,lib/tcl8/8.5/odfi/bits-$(DIST_VERSION).tm)
+	@$(call dist-module-copy-to,tcl/common.tm,lib/tcl8/8.5/odfi/common-$(DIST_VERSION).tm)
+	@$(call dist-module-copy-to,tcl/dom.tm,lib/tcl8/8.5/odfi/dom-$(DIST_VERSION).tm)
+	$(dist-module-package)
+	
+	
+	

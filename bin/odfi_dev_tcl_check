@@ -1,0 +1,10 @@
+#!/usr/bin/env tclsh8.5
+
+# This script only checks the dev tcl libraries are detected
+package require odfi::bits 1.0.0
+package require odfi::common 1.0.0
+package require odfi::dom 1.0.0
+
+odfi::common::logInfo "If you can read this line, everything seems correctly installed"
+
+
