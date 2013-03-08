@@ -4,7 +4,9 @@ loc="$(dirname "$(readlink -f ${BASH_SOURCE[0]})")"
 
 
 ## If the TCL interpreter has beem compiled in the external folder, add it to path
-if [[ -d $loc/external/tcl/bin ]] 
+localTCL=$(which tclsh8.5)
+
+if [[ $localTCL == "" && -d $loc/external/tcl/bin ]] 
 then
 	#echo "Adding Manually setup
 	export PATH=$loc/external/tcl/bin/:$PATH

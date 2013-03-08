@@ -30,6 +30,10 @@ tcllib-1.14.tar.gz:
 	@wget -O tcllib-1.14.tar.gz "http://downloads.sourceforge.net/project/tcllib/tcllib/1.14/tcllib-1.14.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Ftcllib%2Ffiles%2Ftcllib%2F1.14%2F&ts=1331551099&use_mirror=freefr"
 	
 ## Install does everything
+#########################
+
+PREFIX ?= $(shell pwd)
+
 install : dist_install_prepare packages folders all_tcl all_tclxml all_itcl all_tcllib
 
 ## Clean Deletes compilation results
