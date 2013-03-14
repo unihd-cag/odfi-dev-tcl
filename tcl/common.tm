@@ -82,6 +82,46 @@ namespace eval odfi::common {
         
     }
     
+    ## \brief Deletes if necessaray, and creates the object of specified type with given args
+    # 
+    proc newObject {type name args} {
+        
+        ## Delete
+        uplevel 1 "odfi::common::deleteObject $name"
+        
+        ## Create
+        set res [uplevel 1 $type $name $args]
+        return $res
+        
+    }
+    
+    proc ::new {type name args} {
+     
+        ## Delete
+        uplevel 1 "odfi::common::deleteObject $name"
+        
+        ## Create
+        set res [uplevel 1 $type $name $args]
+        return $res
+       
+        
+    }
+    
+    proc ::newAbsolute {type name args} {
+         
+            ## Delete
+            uplevel 1 "odfi::common::deleteObject $name"
+            
+            ## Uplevel namespace
+            set upns [uplevel 1 {namespace current}]
+        
+            ## Create
+            set res [uplevel 1 $type $name $args]
+            return ${upns}::$res
+           
+            
+        }
+    
     
 	## Returns the directory of the current script
 	proc scriptDirectory args {

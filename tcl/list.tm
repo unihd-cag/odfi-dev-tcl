@@ -25,12 +25,32 @@ namespace eval odfi::list {
     # Script is called in one uplevel
     proc each {lst script} {
         
-        for {set i 0} {$i < [llength $lst]} {incr i} {
-            eval "uplevel 1 {set i $i;" "set it [lindex $lst $i];" "$script}"
+    
+        
+        for {set ::odfi::list::i 0} {$::odfi::list::i < [llength $lst]} {incr ::odfi::list::i} {
+            eval "uplevel 1 {" "set it [lindex $lst $::odfi::list::i];" "$script}"
                       
         }
         
     }
+    
+    ## \brief Evaluates script for each key/pair arrayVar, providing $key variable as pointer to key, and $value as value
+    # Script is called in one uplevel
+    proc arrayEach {arrayVar script} {
+        
+        foreach {key value} [array  get $arrayVar] {
+            eval "uplevel 1 {set key $key;set value $value;"  "$script}"
+        }
+        
+    }
+ 
+    
+    ################################################################################
+    ## Classes
+    ################################################################################
+    odfi::common::resetNamespaceClasses [namespace current]
+    
+    
     
     
 }
