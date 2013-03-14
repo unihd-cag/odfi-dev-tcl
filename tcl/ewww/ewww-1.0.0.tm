@@ -119,8 +119,11 @@ namespace eval odfi::ewww {
                     GET {$this serve $sock $ip $uri $auth}
                     default {error "Unsupported method '$method' from $ip"}
                 }
-            } msg]} {
-                puts "Error: $msg"
+            } msg resOptions]} {
+                puts "Error: $msg [dict get $resOptions -errorinfo]"
+
+		#close $sock
+		#error $msg
             }
             close $sock
         }
@@ -150,14 +153,17 @@ namespace eval odfi::ewww {
             ## Search for handler
             #set handler [lsearch -glob $handlers $request(path)]
             
+	    set handler ""
             switch -glob $request(path) $handlers
             
             if {$handler!=""} {
                 
-                puts "Found handler: $handler"
-                $handler serve $this $ip $request $auth
+                puts "Found handler for $request(path): $handler"
+                $handler serve $this $sock $ip $uri $auth
                 
-            }
+            } else {
+		puts "No handler found for $request(path)"
+	    }
             
             #set handler [switch -glob $request(path) $handlers]
             #eval $handler
@@ -173,8 +179,11 @@ namespace eval odfi::ewww {
         ## Handling
         ##################
         
-        public method addHandler {uri handler} {
-            set handlers [concat $uri "set handler $handler" $handlers]
+        public method addHandler  handler {
+
+		lappend handlers [$handler getPath]
+		lappend handlers [list set handler $handler]
+            #set handlers [concat [$handler getPath] [list set handler $handler" $handlers]
            # lappend handlers $uri
            # lappend handlers $script
             
@@ -203,9 +212,13 @@ namespace eval odfi::ewww {
             set closure $cClosure
         }
         
+	   ## \brief Return path this handler
+	public method getPath args {
+		return $path
+	}
         
         ##\brief Common Method not designed for overwritting
-        public method serve {httpd ip request auth} {
+        public method serve {httpd sock ip uri auth} {
             eval $closure
         }
     
@@ -218,19 +231,19 @@ namespace eval odfi::ewww {
     itcl::class HtmlHandler {
             inherit AbstractHandler
         
-        constructor {cPath cClosure} {AbstractHandler::constructor $cClosure} {
+        constructor {cPath cClosure} {AbstractHandler::constructor $cPath $cClosure} {
                  
           
         }
             
             
         ##\brief Serves on doServe
-        public method serve {httpd ip request auth} {
+        public method serve {httpd sock ip uri auth} {
             
             ## Eval Closure, must evaluate to an HTML string
             set html [eval $closure]
             
-            $httpd respond 200 "text/html" $html
+            $httpd respond $sock 200 "text/html" $html
             
         }
             
@@ -243,48 +256,53 @@ namespace eval odfi::ewww {
     itcl::class APIHandler {
             inherit AbstractHandler
         
-        public variable closures
+        public variable closures {}
         
-        constructor {cPath closuresMap} {
+	## \brief base constructor
+        constructor {cPath closuresMap} {AbstractHandler::constructor $cPath {}} {
            
             ## Add Each subpath <-> closure entry to the closures list
-           foreach {subpath closure} $closuresMap {
+           foreach {subpath functionClosure} $closuresMap {
             
-               lappend closures "$cPath/$subpath"
-               lappend closures "set closure $closure"
+               lappend closures "*/$subpath"
+               lappend closures [list set functionClosure $functionClosure]
                
-           }
+           }   
             
-          AbstractHandler::constructor $cPath {
-              
-              ## Find Maping between request path and functions
-              switch -glob $request(path) $closures
-              if {$closure!=""} {
+        }
+
+	##\brief Common Method not designed for overwritting
+        public method serve {httpd sock ip uri auth} {
+		## Find Maping between request path and functions
+	      	array set request [uri::split $uri]
+		set functionClosure ""
+              	switch -glob $request(path) $closures
+
+		puts "Looking for closure in APIHandler for function $request(path)"
+		foreach {subpath closure} $closures {
+            		puts "-- available: $subpath"
+               		
                
-                  ## Evaluate Closure
-                   
+           	}   
+
+              	if {$functionClosure!=""} {
+               
+                  	## Evaluate Closure
+			puts "Found closure in APIHandler for function $request(path)"
+                   	
+			set res [eval $functionClosure]
                   
-              }
-              
-          }
-            
-            
+			## Result must be type + content
+			set contentType [lindex $res 0]
+			set content [lindex $res 1]
+
+			$httpd respond $sock 200 $contentType $content
+
+              	}
         }
-            
-            
-        ##\brief Serves on doServe
-        public method serve {httpd ip request auth} {
-            
-            ## Eval Closure, must evaluate to an HTML string
-            set html [eval $closure]
-            
-            $httpd respond 200 "text/html" $html
-            
-        }
-            
-            
-            
+     
     }
+	
     
     
     

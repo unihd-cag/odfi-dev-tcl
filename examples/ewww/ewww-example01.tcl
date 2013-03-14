@@ -11,22 +11,17 @@ odfi::ewww::Httpd example_httpd 8888
 example_httpd start
 
 
-example_httpd addHandler "/rest/*" [::new odfi::ewww::APIHandler #auto {
+example_httpd addHandler  [::new odfi::ewww::APIHandler #auto "rest/*" {
     
     time {
         
-        set res {"text/html" "Hello world!"}
+        set res [list "text/html" "Time: [clock format [clock seconds]]" "Refresh: 6;URL=/\n"]
         
     }
     
 }]
 
 
-example_httpd addHandler "/time" {
-    
-    respond $sock 200 "Time: [clock format [clock seconds]]" "Refresh: 6;URL=/\n"
-    
-}
 
 vwait forever
 catch {odfi::common::deleteObject example_httpd}
