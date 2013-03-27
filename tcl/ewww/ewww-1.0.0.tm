@@ -38,6 +38,9 @@ namespace eval odfi::ewww {
         variable authList {}
         
         variable listeningSocket
+        
+        ## \brief Started or not started
+        public variable started false
            
         constructor {cPort args} {
             
@@ -82,6 +85,7 @@ namespace eval odfi::ewww {
                 
                 ## No PKI provided, normal socket
                 set listeningSocket [socket -server "${this} accept" $port]
+                set started true
             }
             odfi::common::logInfo "Listening socket: $listeningSocket started on port $port ..."
             
@@ -153,8 +157,8 @@ namespace eval odfi::ewww {
             ## Search for handler
             #set handler [lsearch -glob $handlers $request(path)]
             
-	    set handler ""
-            switch -glob $request(path) $handlers
+            set handler ""
+            switch -glob "/$request(path)" $handlers
             
             if {$handler!=""} {
                 
@@ -162,7 +166,8 @@ namespace eval odfi::ewww {
                 $handler serve $this $sock $ip $uri $auth
                 
             } else {
-		puts "No handler found for $request(path)"
+                
+            puts "No handler found for $request(path)"
 	    }
             
             #set handler [switch -glob $request(path) $handlers]
@@ -174,6 +179,15 @@ namespace eval odfi::ewww {
                     charset=Big-5\nConnection: close\nContent-length: [string length $body]\n$head\n$body"
         }
         
+        ##################
+        ## Getter Setters
+        ##################
+        
+        ## \brief Returns true if started, false otherwise
+        public method isStarted args {
+            return $started
+        }
+        
         
         ##################
         ## Handling
@@ -181,11 +195,13 @@ namespace eval odfi::ewww {
         
         public method addHandler  handler {
 
-		lappend handlers [$handler getPath]
-		lappend handlers [list set handler $handler]
-            #set handlers [concat [$handler getPath] [list set handler $handler" $handlers]
-           # lappend handlers $uri
-           # lappend handlers $script
+            set handlerPath /[$handler getPath]
+            set handlerPath [regsub -all {/+} $handlerPath /]
+    		lappend handlers $handlerPath
+    		lappend handlers [list set handler $handler]
+                #set handlers [concat [$handler getPath] [list set handler $handler" $handlers]
+               # lappend handlers $uri
+               # lappend handlers $script
             
         }
         
@@ -213,13 +229,13 @@ namespace eval odfi::ewww {
         }
         
 	   ## \brief Return path this handler
-	public method getPath args {
-		return $path
-	}
+	   public method getPath args {
+	        return $path
+	        }
         
         ##\brief Common Method not designed for overwritting
         public method serve {httpd sock ip uri auth} {
-            eval $closure
+            odfi::closures::evalClosure $closure
         }
     
         

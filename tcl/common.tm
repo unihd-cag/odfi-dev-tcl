@@ -68,7 +68,7 @@ namespace eval odfi::common {
     proc isClass {object className} {
      
         ## Search
-        if {[llength [itcl::find objects $object -class $className]]==0} {
+        if {[llength [itcl::find objects $object -isa $className]]==0} {
             return 0
         } else {
             return 1
@@ -100,9 +100,12 @@ namespace eval odfi::common {
         ## Delete
         uplevel 1 "odfi::common::deleteObject $name"
         
+        ## Uplevel namespace
+        set upns [uplevel 1 {namespace current}]    
+
         ## Create
         set res [uplevel 1 $type $name $args]
-        return $res
+        return ${upns}::$res
        
         
     }
@@ -356,6 +359,12 @@ namespace eval odfi::common {
             ## Copy single files if there are some
             if {[llength $files]>0} {
                 foreach f $files {
+
+                    ## Ignore directories
+                    if {[file isdirectory $f]} {
+                        continue
+                    }
+
                     if {$force==true} {
                         file copy -force $f $dst
                     } elseif {[file exists $dst/[file tail $f]]==0} {
@@ -407,7 +416,7 @@ namespace eval odfi::common {
 
     }
 	
-    ## \brief If @str is a variable definition string lie: "$var" name, get the value of the variable
+    ## \brief If @str is a variable definition string like: "$var" name, get the value of the variable
     # @return str variable value, or str if not a variable
     proc resolveVariable str {
         
@@ -826,7 +835,7 @@ namespace eval odfi::common {
 	proc execCommand {execCommand {targetChannel stdout}} {
 	
 		## Start Command
-		set execChan [open "|$execCommand"]
+		set execChan [open "|$execCommand 2>@1"]
 		
 		## Pull Output until finished
 		while {1} {

@@ -11,7 +11,8 @@ package ifneeded odfi::dom    1.0.0 [list source [file join $dir dom.tm]]
 package ifneeded odfi::bits   1.0.0 [list source [file join $dir bits.tm]]
 package ifneeded odfi::list   1.0.0 [list source [file join $dir list.tm]]
 
-package ifneeded odfi::ewww   1.0.0 [list source [file join $dir ewww ewww-1.0.0.tm]]
+package ifneeded odfi::ewww             1.0.0 [list source [file join $dir ewww ewww-1.0.0.tm]]
+package ifneeded odfi::ewww::webdata   1.0.0 [list source [file join $dir ewww webdata-1.0.0.tm]]
 
 ## External :Tkcon ####################
 package ifneeded tkcon::odfi 2.5 [subst {
