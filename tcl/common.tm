@@ -11,23 +11,23 @@ namespace eval odfi::common {
     #   resetNamespaceClasses [namespace current]
     # }
     proc resetNamespaceClasses nsName {
-        
-        puts "Reset namespace: $nsName"
-        
+
+        #puts "Reset namespace: $nsName"
+
         ## Reset classes in IO namespace
         foreach cl [itcl::find classes "*"] {
-            
+
             ## Reset only this namespaces classes
             if {[string match "${nsName}::*" $cl]==1} {
-                itcl::delete class $cl
+                catch {itcl::delete class $cl}
                 #puts "-> Found class to reset: $cl"
             }
-            
-            
+
+
         }
     }
-    
-    
+
+
     ## For a given namespace, resets all the defined classes and Objects
     # This is very useful to re-source classes definitions
     # Typical usage:
@@ -35,38 +35,38 @@ namespace eval odfi::common {
     #   resetNamespaceClassesObjects [namespace current]
     # }
     proc resetNamespaceClassesObjects nsName {
-        
-        puts "Reset namespace: $nsName"
-        
+
+       # puts "Reset namespace: $nsName"
+
         ## Reset classes in  namespace
         foreach cl [itcl::find classes "${nsName}::*"] {
-            
+
             #puts "-> Found class to reset: $cl"
             catch {itcl::delete class $cl}
-            
+
             ## Reset only this namespaces classes
             #if {[string match "${nsName}::*" $cl]==1} {
-                
+
                #set classObjects [itcl::find objects -class  $cl]
                # foreach obj $classObjects {
                #     puts "need to delete $obj for $cl"
                 #    itcl::delete object $obj
                 #}
-                
-                
-                
-                
+
+
+
+
               #  itcl::delete class $cl
                 #puts "-> Found class to reset: $cl"
             #}
-            
-            
+
+
         }
     }
-    
+
     ## \brief returns 1 if object is of classname type, otherwise 0
     proc isClass {object className} {
-     
+
         ## Search
         if {[llength [itcl::find objects $object -isa $className]]==0} {
             return 0
@@ -74,64 +74,120 @@ namespace eval odfi::common {
             return 1
         }
     }
-    
+
     ## \brief Deletes object without outputing an error if the object is not found
     proc deleteObject object {
-        
+
         catch {uplevel 1 "itcl::delete object " $object}
-        
+
     }
-    
+
     ## \brief Deletes if necessaray, and creates the object of specified type with given args
-    # 
+    #
     proc newObject {type name args} {
-        
+
         ## Delete
         uplevel 1 "odfi::common::deleteObject $name"
-        
-        ## Create
-        set res [uplevel 1 $type $name $args]
-        return $res
-        
-    }
-    
-    proc ::new {type name args} {
-     
-        ## Delete
-        uplevel 1 "odfi::common::deleteObject $name"
-        
-        ## Uplevel namespace
-        set upns [uplevel 1 {namespace current}]    
 
         ## Create
         set res [uplevel 1 $type $name $args]
-        return ${upns}::$res
-       
-        
+        return $res
+
     }
-    
+
+    proc ::new {type name args} {
+
+        ## Delete
+        uplevel 1 "odfi::common::deleteObject $name"
+
+        ## Uplevel namespace
+        set upns [uplevel 1 {namespace current}]
+
+        ## Create
+        set res [uplevel 1 $type $name $args]
+
+        if {[string match "::*" $res]} {
+            return $res
+        }
+        if {$upns=="::"} {
+            return "::$res"
+        } else {
+            return ${upns}::$res
+        }
+
+
+    }
+
+    ## \brief Returns Object if already exists, otherwise create
+    proc ::newIfNotDefined {type name args} {
+
+        ## Uplevel namespace
+        set upns [uplevel 1 {namespace current}]
+
+        #puts "**************** Looking for defined "
+
+        ## find (if no absolute NS defined, add parent one)
+        ###########
+        set searchName $name
+        #if {[string match "::*" $searchName]==0} {
+        #    set searchName "${upns}::$searchName"
+        #}
+        set existing [uplevel 1 itcl::find objects $searchName]
+        if {[llength $existing]>0} {
+
+            return [lindex $existing 0]
+        } else {
+           # puts "**************** Will create $searchName"
+        }
+
+        ## Create if we come up to here
+        uplevel 1 "odfi::common::deleteObject $name"
+
+        ## Create
+        #puts "newIfNotDefined not found object with args: [llength $args] [llength [split $args]]"
+        #set splittedArgs {}
+        #foreach arg $args {
+        #    lappend splittedArgs $arg
+        #}
+        set res [uplevel 1 $type $name [join $args " "]]
+
+        if {[string match "::*" $res]} {
+            return $res
+        }
+        return ${upns}::$res
+
+
+    }
+
     proc ::newAbsolute {type name args} {
-         
+
             ## Delete
             uplevel 1 "odfi::common::deleteObject $name"
-            
+
             ## Uplevel namespace
             set upns [uplevel 1 {namespace current}]
-        
+
             ## Create
             set res [uplevel 1 $type $name $args]
+
+            if {$upns=="::"} {
+            return "::$res"
+            } else {
+                return ${upns}::$res
+            }
+
             return ${upns}::$res
-           
-            
+
+
         }
-    
-    
+
+
 	## Returns the directory of the current script
 	proc scriptDirectory args {
-		
+
 		return [file dirname [file normalize [info script] ]]
 	}
-	
+
     ### Handle request for a single argument
     proc handleCommandLineOption askedArgument {
 
@@ -393,19 +449,19 @@ namespace eval odfi::common {
 
 	## Appends the content of src into the dst
 	proc append {src dst} {
-		
+
 		## Open Source and Destination
 		set dstChan [open $dst "a"]
 		set srcChan [open $src "r"]
-		
+
 		## Write source into destination
 		puts $dstChan [read $srcChan]
-		
+
 		## Close Source and Destination
 		close $dstChan
 		close $srcChan
 	}
-	
+
     ## This method replaces all ${VAR} bash-like env variable with the $::env(VAR) TCL syntax
     proc resolveEnvVariable src {
 
@@ -415,26 +471,26 @@ namespace eval odfi::common {
         eval return $res
 
     }
-	
+
     ## \brief If @str is a variable definition string like: "$var" name, get the value of the variable
     # @return str variable value, or str if not a variable
     proc resolveVariable str {
-        
+
         if {[string match "\$*" $str]} {
             return [set [string range $str 1 end]]
         }
-        
+
         return $str
-        
+
     }
-    
+
     ## Parses the provided string by:
     ##  * Resolve ${} like environement variables
     ##  * eval the string for eventual tcl commands parsing, only if starting with [
     proc parseRichString str {
-        
+
         set str [resolveEnvVariable $str]
-        
+
         ## IF eval fails, only return the content
         if {[string match "\[*" $str]} {
             return [eval $str]
@@ -442,87 +498,87 @@ namespace eval odfi::common {
             return $str
         }
     }
-    
-	
+
+
 	## Returns the provided path as an absolute path, using the provided
 	# base path as resolution folder for Relative paths
 	proc absolutePath {path {basePath ""}} {
-		
+
 		## Use pwd if basePath is ""
 		if {[string length $basePath]==0} {
 			set basePath [pwd]
 		}
-		
-		
+
+
 		## If Relative -> append to basePath and normalize
 		## Otherwise it should already be absolute
 		if {[file pathtype $path]=="relative"} {
 			set path [file normalize $basePath/$path]
 		}
-		
+
 		## Return
 		return $path
-		
+
 	}
-    
+
     ## \brief Returns the folder path from absolute paths #fromPath to #toPath as a relative path.
     # For Example, "relativePath /a/b/c/d /a/b/e" will return ../../e
     # @param fromPath An absolute folder path
     # @param toPath An absolute folder path
     proc relativePath {fromPath toPath} {
-        
+
         #puts "From path has for length: [string length $fromPath]"
-        
+
         ## Make sure paths are absolute
         ###########
         set fromPath [file normalize $fromPath]
         set toPath [file normalize $toPath]
-        
+
         ## For on the strings until no common part anymore
         ###########
         set commonPathParts 0
         for {set i 0} {$i < [string length $fromPath] && $i < [string length $toPath] } {incr i} {
-         
-            
+
+
             ## Stop condition:
             ##  - character difference
             if {[string index $fromPath $i]!=[string index $toPath $i]} {
                 break
-            }  
-            
+            }
+
             ## If not stoped, and we are on a '/', then we have one path component more in common
             if {[string index $fromPath $i]=="/"} {
                 incr commonPathParts
             }
-            
+
         }
-        
+
         #puts "Path have $commonPathParts in common"
-        
+
         ## Get remaining non common part
         #############
         set fromNonCommon [lrange [file split $fromPath] $commonPathParts end]
         set toNonCommon [lrange [file split $toPath] $commonPathParts end]
-        
+
         #puts "From non common: $fromNonCommon"
         #puts "To non common: $toNonCommon"
-        
-        
+
+
         ## 1. Go back to common part using ../
         ##    There are as much ../ as the length of the non common part
         set relpath ""
         foreach noncommon $fromNonCommon {
             set relpath "../$relpath"
         }
-        
+
         ## Append the toNoncommon part
         set relpath "$relpath/[join $toNonCommon /]"
-        
-        ## Return 
+
+        ## Return
         #################
         return $relpath
-        
-        
+
+
     }
 
 
@@ -535,6 +591,12 @@ namespace eval odfi::common {
     proc logInfo msg {
 
         puts "*I: $msg"
+
+    }
+
+    proc logFine msg {
+
+        puts "*F: $msg"
 
     }
 
@@ -553,7 +615,7 @@ namespace eval odfi::common {
     ## Equivalent to put
     proc print {str {channelId -1}} {
         variable indentation
-        
+
         ## No channelId outputs to stdout
         if {$channelId==-1} {
             set channelId "stdout"
@@ -562,7 +624,7 @@ namespace eval odfi::common {
         ## Output
         puts -nonewline $channelId $indentation$str
     }
-    
+
     ## Equivalent to puts
     ## No channelId outputs to stdout
     proc println {str {channelId -1}} {
@@ -608,7 +670,7 @@ namespace eval odfi::common {
         set resultChannel [chan create "write read" "odfi::common::[StringChannel #auto]"]
 
         upvar inputFile inputFile
-        
+
         ## Stream in the data, and gather everything between <% ... %> an eval
         ################
 
@@ -672,27 +734,27 @@ namespace eval odfi::common {
                     ###########################
                     set script [string trim $script]
                     if {[catch {set evaled [string trim [eval $script]]} res resOptions]} {
-                        
+
                         ## This may be a variable, just output the content to eout
                         if {[string match "invalid command name*" $res]} {
-                            
+
                             #puts "Invalid command, trying to get variable $script"
-                            
+
                             #puts -nonewline $eout "$$script"
                             if {[catch {set evaled [set $script]} res2 resOptions2]} {
-                                
+
                                 #puts "Failed getting variable: $res2"
-                                
+
                                 #puts [info errorstack]
                                 error $res [dict get $resOptions -errorinfo]
                             }
-                            
+
                         } else {
                             #puts [info errorstack]
                             error $res [dict get $resOptions -errorinfo]
                         }
                         #puts "- Error While evaluating script $script. $res"
-                        
+
                     }
 
                     ## If evaluation output is to be ignored, set to ""
@@ -759,46 +821,49 @@ namespace eval odfi::common {
 
     }
 
-	
+
+
+
+
 	## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and returns the result as a string
 	## <% standard eval %>
 	## <%= evaluation result not outputed %>
 	proc embeddedTclFromFileToString {inputFile {caller ""}} {
-		
+
 		## Open source file
 		set inChannel  [open $inputFile "r"]
-		
+
 		## Replace and store result
 		set res [embeddedTclStream $inChannel $caller]
-		
+
 		## Close
 		close $inChannel
-		
+
 		return $res
 	}
-	
+
     ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and writes result to outfile
     ## <% standard eval %>
     ## <%= evaluation result not outputed %>
     proc embeddedTclFromFileToFile {inputFile outputFile {caller ""}} {
 
-            
-            
+
+
         ## Open target file
         set outChannel [open $outputFile "w+"]
         set inChannel  [open $inputFile "r"]
 
         ## Replace and write
         #puts -nonewline $outChannel [embeddedTcl [read $inChannel]]
-       
+
             puts -nonewline $outChannel [embeddedTclStream $inChannel $caller]
-        
-        
+
+
         ## Close
         close $outChannel
         close $inChannel
 
-            
+
     }
 
 
@@ -812,48 +877,74 @@ namespace eval odfi::common {
         ## Foreach List
         ###########################
         foreach inputFile $inputFiles {
-            
+
             ## Process input File and write to output
             set inChannel  [open $inputFile "r"]
-            puts -nonewline $outChannel [embeddedTclStream $inChannel]   
+            puts -nonewline $outChannel [embeddedTclStream $inChannel]
             close $inChannel
-            
+
         }
-       
+
         ## Close Target File
         ###########################
         close $outChannel
 
     }
-	
+
+    ## \brief If args provided, must be the initial content
     proc newStringChannel args {
-        
-        return [chan create "write read" "odfi::common::[StringChannel #auto]"]
-        
+
+        set result [chan create "write read" "odfi::common::[StringChannel #auto]"]
+        if {[string length [lindex $args 0]]>0} {
+            puts "initial value for string channel [string length $args] pm $result "
+            puts $result "[lindex $args 0]"
+            flush $result
+        }
+
+        return $result
+
     }
-    
+
 	proc execCommand {execCommand {targetChannel stdout}} {
-	
+
+        set localChannel false
+
 		## Start Command
 		set execChan [open "|$execCommand 2>@1"]
-		
+
+        ## String channel output if no target channel specified
+        if {$targetChannel==-1} {
+            set targetChannel [odfi::common::newStringChannel]
+            set localChannel true
+        }
+
 		## Pull Output until finished
 		while {1} {
-			
+
 			# Test end
 			if {[eof $execChan]} { break; }
-			
+
 			# Output
 			set line [string trim [gets $execChan]]
 			puts $targetChannel $line
-			
+
 		}
-		
+
+        ## Closre local channel and return result if it is one
+        if {$localChannel==true} {
+
+            flush $targetChannel
+            set res [read $targetChannel]
+            close $targetChannel
+            return $res
+
+        }
+
 	}
 
-    
+
     odfi::common::resetNamespaceClassesObjects [namespace current]
-    
+
     ## A String channel usable to create custom channel that outputs into a string
     # Usage example:
     #      set eout [chan create "write read" "odfi::common::[StringChannel #auto]"]
@@ -875,6 +966,10 @@ namespace eval odfi::common {
             set data ""
             set pos 0
         }
+
+        #public method setData fData {
+        #    set data $fData
+        #}
 
         method initialize {ch mode} {
             return "initialize finalize watch read seek write"

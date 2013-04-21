@@ -1,0 +1,10 @@
+#!/usr/bin/env tclsh8.5
+
+package require odfi::common
+
+
+
+set p1 [file normalize /home/rleys/nfs/projects/airborne/bringup-jni/rf_sysfs]
+set p2 [file normalize /home/rleys/nfs/projects/airborne/bringup-jni/kernel_driver]
+
+puts "Relpath: [odfi::common::relativePath $p1 $p2]"
