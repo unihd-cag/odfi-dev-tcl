@@ -157,9 +157,11 @@ namespace eval odfi::ewww::webdata::html {
                 ## Convert Data elements to Cells td
                 set rowCells [odfi::list::transform $row {
                     #puts "Row: $it"
-                    return "<td>$it</td>"
+                    return "{<td>$it</td>}"
                 }]
-                lappend rowsResult "<tr${class}>[join $rowCells]</tr>"
+                if {[llength $rowCells]>0} {
+                    lappend rowsResult "<tr${class}>[join $rowCells]</tr>"
+                }
             }
             return "
                 <tbody>

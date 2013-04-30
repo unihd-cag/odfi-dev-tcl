@@ -25,7 +25,7 @@ namespace eval odfi::closures {
     # <%= evaluation result not outputed %>
     # @warning Closure base execution level is 1, not 0 (so not this function's level)
     # @return resulting stream
-    proc embeddedTclStream {dataStream {caller ""} } {
+    proc embeddedTclStream {dataStream {execLevel 1} {caller ""} } {
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
 
@@ -91,7 +91,7 @@ namespace eval odfi::closures {
                     set eout $::eout
                     #puts "Eval closure: $script "
 
-                    set execLevel 1
+                    #set execLevel 1
 
 
 
@@ -101,10 +101,10 @@ namespace eval odfi::closures {
                     set script [string trim $script]
 
                    # puts "Calling closure"
-                    if {[catch {set evaled [string trim [odfi::closures::doClosure $script $execLevel]]} res resOptions]} {
+                    if {[catch {set evaled [string trim [odfi::closures::doClosureToString $script $execLevel]]} res resOptions]} {
 
                         ## This may be a variable, just output the content to eout
-                        puts "Invalid command ($res), doing error, first char is [lindex [string trim $script] 0] "
+                        puts "Invalid command ($res), doing error"
 
                         error $res [dict get $resOptions -errorinfo]
 
@@ -181,7 +181,88 @@ namespace eval odfi::closures {
 
     }
 
+    ## Replace embbeded TCL between <% %> markors in source string with evaluated tcl, and returns the result as a string
+    ## <% standard eval %>
+    ## <%= evaluation result not outputed %>
+    proc embeddedTclFromStringToString {inputString {caller ""}} {
 
+        ## Open source file
+        set inChannel  [odfi::common::newStringChannel $inputString]
+
+        ## Replace and store result
+        set res [embeddedTclStream $inChannel 2 $caller]
+
+        ## Close
+        close $inChannel
+
+        return $res
+    }
+
+    ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and returns the result as a string
+    ## <% standard eval %>
+    ## <%= evaluation result not outputed %>
+    proc embeddedTclFromFileToString {inputFile {caller ""}} {
+
+        ## Open source file
+        set inChannel  [open $inputFile "r"]
+
+        ## Replace and store result
+        set res [embeddedTclStream $inChannel 2 $caller]
+
+        ## Close
+        close $inChannel
+
+        return $res
+    }
+
+    ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and writes result to outfile
+    ## <% standard eval %>
+    ## <%= evaluation result not outputed %>
+    proc embeddedTclFromFileToFile {inputFile outputFile {caller ""}} {
+
+
+
+        ## Open target file
+        set outChannel [open $outputFile "w+"]
+        set inChannel  [open $inputFile "r"]
+
+        ## Replace and write
+        #puts -nonewline $outChannel [embeddedTcl [read $inChannel]]
+
+            puts -nonewline $outChannel [embeddedTclStream $inChannel 2 $caller]
+
+
+        ## Close
+        close $outChannel
+        close $inChannel
+
+
+    }
+
+
+    ## Process all files in inputFiles list through the embeded TCL procedure
+    ## and append all results to the target outputFile
+    proc embeddedTclFromFilesToFile {inputFiles outputFile} {
+
+        ## Open target file
+        set outChannel [open $outputFile "w+"]
+
+        ## Foreach List
+        ###########################
+        foreach inputFile $inputFiles {
+
+            ## Process input File and write to output
+            set inChannel  [open $inputFile "r"]
+            puts -nonewline $outChannel [embeddedTclStream $inChannel 2]
+            close $inChannel
+
+        }
+
+        ## Close Target File
+        ###########################
+        close $outChannel
+
+    }
 
 
     ## \brief Evaluates a closure and make magic for variables to be resolvable
@@ -384,10 +465,11 @@ namespace eval odfi::closures {
         ## Try to detect possible errors in closure
         ###############
 
-        ## If starts with a  , add a return because it is only a string
-        if {[string index [string trim "$closure"] 0]=="\""} {
+        ## If starts with a " or a $ , add a return because it is only a string
+        set firstChar [string index [string trim "$closure"] 0]
+        if {$firstChar=="\"" || $firstChar=="$"} {
 
-            puts "use subst to resolve closure as string"
+            #puts "use subst to resolve closure as string"
             set closure [concat return $closure]
         }
 

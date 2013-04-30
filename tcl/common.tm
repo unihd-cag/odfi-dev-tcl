@@ -447,6 +447,19 @@ namespace eval odfi::common {
 
     }
 
+    proc readFileContent {filePath targetVariable} {
+
+        uplevel 1 "set $targetVariable {}"
+        upvar $targetVariable content
+
+        set f [open $filePath]
+        set content [read $f]
+        close $f
+
+
+
+    }
+
 	## Appends the content of src into the dst
 	proc append {src dst} {
 

@@ -100,6 +100,20 @@ namespace eval odfi::ewww::webdata {
         }
 
 
+        ## \brief Deply a new application to the server. The provided closure is used a constructor to application
+        public method application {path closure} {
+
+            ## Create app
+            ####################
+            set app [::new [namespace parent]::WebdataApplication #auto $path $closure]
+
+            ## Deploy
+            ####################
+            deploy $app
+
+        }
+
+
     }
 
 
@@ -169,6 +183,24 @@ namespace eval odfi::ewww::webdata {
 
         }
 
+        public method addHandler {path object} {
+
+            ## Replace if existing
+            #########
+            set existing [lsearch -exact $handlers $path]
+            if {$existing!=-1} {
+
+                set handlers  [lreplace $handlers [expr $existing+1] [expr $existing+1] $object]
+                odfi::common::logInfo "Replacing handler for $path with $object"
+
+            } else {
+
+                ## Add
+                lappend handlers $path
+                lappend handlers $object
+            }
+
+        }
 
         ## \brief Add a new view to the handler
         # @param Name of the view like my.view, translated to /view/my/view
@@ -182,6 +214,8 @@ namespace eval odfi::ewww::webdata {
             set viewPath "/view/$name"
             set viewPath [regsub -all {/+} $viewPath /]
 
+            ## Path must not end with /
+            set viewPath [regsub -line {/$} $viewPath ""]
 
             ## Prepare View Object
             ###################
@@ -190,11 +224,11 @@ namespace eval odfi::ewww::webdata {
 
             ## Add to handlers
             #################
-            lappend handlers $viewPath
-            lappend handlers $this.view.$name
+            addHandler $viewPath $this.view.$name
 
 
-            odfi::common::logInfo "Added view to path $viewPath"
+
+            #odfi::common::logInfo "Added view to path $viewPath"
 
         }
 
@@ -210,6 +244,8 @@ namespace eval odfi::ewww::webdata {
             set dataPath "/data/$name"
             set dataPath [regsub -all {/+} $dataPath /]
 
+            ## Path must not end with /
+            set dataPath [regsub -line {/$} $dataPath ""]
 
             ## Prepare View Object
             ###################
@@ -222,7 +258,7 @@ namespace eval odfi::ewww::webdata {
             lappend handlers $this.data.$name
 
 
-            odfi::common::logInfo "Added data to path $dataPath"
+            #odfi::common::logInfo "Added data to path $dataPath"
 
         }
 
@@ -235,9 +271,11 @@ namespace eval odfi::ewww::webdata {
 
             ## Prepare path
             ####################
-            set actionPath [join [list /action /[regsub {\.} $name /]] /]
+            set actionPath "/action/$name"
             set actionPath [regsub -all {/+} $actionPath /]
 
+            ## Path must not end with /
+            set actionPath [regsub -line {/$} $actionPath ""]
 
             ## Prepare View Object
             ###################
@@ -250,7 +288,7 @@ namespace eval odfi::ewww::webdata {
             lappend handlers $this.action.$name
 
 
-            odfi::common::logInfo "Added action to path $actionPath"
+            #odfi::common::logInfo "Added action to path $actionPath"
 
         }
 
@@ -293,11 +331,11 @@ namespace eval odfi::ewww::webdata {
             set request(path) $searchPath
 
             #set searchPath /$searchPath
-            odfi::common::logInfo "Serving application for $searchPath // $applicationPathPart"
+            odfi::common::logInfo "Serving application for '$searchPath' // $applicationPathPart"
 
             ## Look into handlers list, if one path matches our path
             #################
-            set entry [lsearch -exact $handlers $searchPath]
+            set entry [lsearch -glob $handlers $searchPath]
             if {$entry!=-1} {
 
                 odfi::common::logInfo "---Found entry at $entry"
@@ -319,7 +357,7 @@ namespace eval odfi::ewww::webdata {
                         set f [open $errorView]
                         set content [read $f]
                         close $f
-                        ::new [namespace parent]::TViewContentProducer tviewTransformer $content
+                        ::new [namespace parent]::TViewContentProducer tviewTransformer $content ""
 
                         ## Transform
                         if {[catch {set result [tviewTransformer transform [concat err "{$res}" errorOptions "{$resOptions}"]]}]} {
@@ -345,6 +383,35 @@ namespace eval odfi::ewww::webdata {
 
                     $httpd respond $sock 200 $contentType "$content"
                 }
+            } else {
+
+                ## Default handler for views: Normal Files // if {[string match "/view/*" $searchPath]}
+                ##################
+
+                set filePath [regsub {/view/} $searchPath ""]
+                odfi::common::logInfo "Looking for $searchPath, file $filePath into $applicationFolder"
+                if {[file isfile $applicationFolder/$filePath] && [file exists $applicationFolder/$filePath]} {
+
+                    ## Get content type
+                    set contentType "text/plain"
+                    switch -glob -- [file tail $filePath] {
+                        *.js    {set contentType application/javascript}
+                        *.css   {set contentType text/css}
+                        default {set contentType text/plain}
+                    }
+
+                    ## Get content
+                    set f [open $applicationFolder/$filePath]
+                    set content [read $f]
+                    close $f
+                    #odfi::common::readFileContent $filePath content
+
+                    ## Respond
+                    $httpd respond $sock 200 $contentType "$content"
+
+
+                }
+
             }
         }
 
@@ -565,37 +632,6 @@ namespace eval odfi::ewww::webdata {
             #puts "Final content: $data"
             return [list $contentType $data]
 
-            ## Explore Data variable
-            ################
-            if {$data!=""} {
-
-                ## Reconstruct data
-                ##########""
-                set content {}
-                odfi::list::each $data {
-
-                    ## If it is an object, only retain name
-                    if {[llength [itcl::find objects $it]]>0} {
-                        set objectName [lindex [split $it :] end]
-                        lappend content "\{ \"name\":\"$objectName\"\}"
-                    } else {
-                        lappend content "\{ \"name\":\"$it\"\}"
-                    }
-
-
-
-                }
-                #set content "\{\"results\":\[[join $content ,]\]\}"
-                #set content "\{[join $content ,]\}"
-                set content "\[[join $content ,]\]"
-
-            } else {
-                set content "\{\}"
-            }
-
-            puts "Final content: $content"
-            return [list "application/json" $content]
-
 
         }
 
@@ -743,6 +779,39 @@ namespace eval odfi::ewww::webdata {
 
             return "<div>[odfi::closures::doClosureToString $closure]</div>"
         }
+        public method div-id {id closure} {
+
+
+            return "<div id=\"$id\">[odfi::closures::doClosureToString $closure]</div>"
+        }
+
+        ## Titling
+        #################
+        public method h1 closure {
+
+            return "<h1>[odfi::closures::doClosureToString $closure]</h1>"
+        }
+        public method h2 closure {
+
+            return "<h2>[odfi::closures::doClosureToString $closure]</h2>"
+        }
+        public method h3 closure {
+
+            return "<h3>[odfi::closures::doClosureToString $closure]</h3>"
+        }
+        public method h4 closure {
+
+            return "<h4>[odfi::closures::doClosureToString $closure]</h4>"
+        }
+        public method h5 closure {
+
+            return "<h5>[odfi::closures::doClosureToString $closure]</h5>"
+        }
+        public method h6 closure {
+
+            return "<h6>[odfi::closures::doClosureToString $closure]</h6>"
+        }
+
 
         ## Table
         ###########################

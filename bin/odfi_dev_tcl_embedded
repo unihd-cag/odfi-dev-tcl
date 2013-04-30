@@ -1,0 +1,33 @@
+#!/usr/bin/env tclsh8.5
+
+package require odfi::closures 2.0.0
+
+## I/O
+###############
+
+set inputFile [file normalize [lindex $argv 0]]
+
+set inputFileBasePath [file dirname $inputFile]
+set inputFileName [file tail $inputFile]
+set inputFileBaseName [file rootname $inputFile]
+set inputFileExtension [string range [file extension $inputFile] 1 end]
+
+
+## Set name
+set outputFile [join [list $inputFileBaseName generated $inputFileExtension] .]
+
+puts "Input File: $inputFile"
+puts "Output File: $outputFile"
+
+## Make a backup of input to prevent any bugs
+############
+#exec cp $inputFile $inputFile.backup
+
+## Parse
+####################
+if {$inputFile==$outputFile} {
+    error "Input and Output files are the same, there is probably a bug in this script, as output would overwrite input"
+} else {
+    odfi::closures::embeddedTclFromFileToFile $inputFile $outputFile
+}
+
