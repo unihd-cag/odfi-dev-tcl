@@ -447,15 +447,13 @@ namespace eval odfi::common {
 
     }
 
-    proc readFileContent {filePath targetVariable} {
-
-        uplevel 1 "set $targetVariable {}"
-        upvar $targetVariable content
+    proc readFileContent {filePath} {
 
         set f [open $filePath]
         set content [read $f]
         close $f
 
+        return $content
 
 
     }
@@ -615,58 +613,6 @@ namespace eval odfi::common {
 
     proc logError msg {
         puts "*E: $msg"
-    }
-
-    ##################################################################################
-    ## Print
-    ##  - offers convinient procedures to make println in a stream
-    ##  - Allows for example to retain indenting whish among calls
-    ##################################################################################
-
-    variable indentation ""
-
-    ## Equivalent to put
-    proc print {str {channelId -1}} {
-        variable indentation
-
-        ## No channelId outputs to stdout
-        if {$channelId==-1} {
-            set channelId "stdout"
-        }
-
-        ## Output
-        puts -nonewline $channelId $indentation$str
-    }
-
-    ## Equivalent to puts
-    ## No channelId outputs to stdout
-    proc println {str {channelId -1}} {
-        variable indentation
-
-        ## No channelId outputs to stdout
-        if {$channelId==-1} {
-            set channelId "stdout"
-        }
-
-        ## Output
-        puts $channelId $indentation$str
-
-    }
-
-    ## Equivalent to puts with an extra second new line
-    proc printlnln {str {channelId -1}} {
-        println $str $channelId
-        println "" $channelId
-    }
-
-    proc printlnIndent args {
-        variable indentation
-        set indentation "$indentation    "
-    }
-
-    proc printlnOutdent args {
-        variable indentation
-        set indentation [string replace $indentation 0 3]
     }
 
     ##################################################################################
@@ -838,22 +784,22 @@ namespace eval odfi::common {
 
 
 
-	## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and returns the result as a string
-	## <% standard eval %>
-	## <%= evaluation result not outputed %>
-	proc embeddedTclFromFileToString {inputFile {caller ""}} {
+   ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and returns the result as a string
+   ## <% standard eval %>
+   ## <%= evaluation result not outputed %>
+   proc embeddedTclFromFileToString {inputFile {caller ""}} {
 
-		## Open source file
-		set inChannel  [open $inputFile "r"]
+       ## Open source file
+       set inChannel  [open $inputFile "r"]
 
-		## Replace and store result
-		set res [embeddedTclStream $inChannel $caller]
+       ## Replace and store result
+       set res [embeddedTclStream $inChannel $caller]
 
-		## Close
-		close $inChannel
+       ## Close
+       close $inChannel
 
-		return $res
-	}
+       return $res
+   }
 
     ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and writes result to outfile
     ## <% standard eval %>
@@ -903,6 +849,295 @@ namespace eval odfi::common {
         close $outChannel
 
     }
+
+    ##################################################################################
+    ## Embedded TCL
+    ##  -  Replace embbeded TCL between <% %> markors in data with evaluated tcl
+    ##################################################################################
+
+    ## Replace embbeded TCL between <% %> markors in data with evaluated tcl
+    ## <% standard eval %>
+    ## <%= evaluation result not outputed %>
+    ## @return resulting stream
+    proc embeddedTclStream {dataStream {caller ""} } {
+
+        set resultChannel [chan create "write read" "odfi::common::[StringChannel #auto]"]
+
+        upvar inputFile inputFile
+
+        ## Stream in the data, and gather everything between <% ... %> an eval
+        ################
+
+        set token [read $dataStream 1]
+        set gather false
+        set script ""
+        while {[string length $token]==1} {
+
+            ## Gather / Eval
+            ########################
+
+            #### If <%, gather
+            if {$gather == false && $token == "<" } {
+
+                ## If % -> We can start
+                set nextChar [read $dataStream 1]
+                if {$nextChar=="%"} {
+                    set gather true
+
+                    ## Output Modifiers
+                    #########################
+                    set outputNoEval false
+
+                    #### If the next character is '=', set no eval output mode
+                    set modifier [read $dataStream 1]
+                    if {$modifier== "=" } {
+
+                        ## Don't use the eval output
+                        set outputNoEval true
+
+                    } else {
+
+                        ## Not a modifier -> Output to script
+                        set script "${script}$modifier"
+                    }
+
+                } else {
+
+                    ## Not a start -> Output to result
+                    puts -nonewline $resultChannel $token
+                    #puts -nonewline $resultChannel $nextChar
+                    set token $nextChar
+                    continue
+                }
+
+            } elseif {$gather==true && $token == "%" } {
+
+                #### If %>, eval
+                set nextChar [read $dataStream 1]
+                if {$nextChar==">"} {
+
+                    set gather false
+
+                    ## Prepare a Channel
+                    ############################
+                    set ::eout [chan create "write read" "odfi::common::[StringChannel #auto]"]
+                    set eout $::eout
+                    #puts "Script: $script "
+
+                    ## Eval Script
+                    ###########################
+                    set script [string trim $script]
+                    if {[catch {set evaled [string trim [eval $script]]} res resOptions]} {
+
+                        ## This may be a variable, just output the content to eout
+                        if {[string match "invalid command name*" $res]} {
+
+                            #puts "Invalid command, trying to get variable $script"
+
+                            #puts -nonewline $eout "$$script"
+                            if {[catch {set evaled [set $script]} res2 resOptions2]} {
+
+                                #puts "Failed getting variable: $res2"
+
+                                #puts [info errorstack]
+                                error $res [dict get $resOptions -errorinfo]
+                            }
+
+                        } else {
+                            #puts [info errorstack]
+                            error $res [dict get $resOptions -errorinfo]
+                        }
+                        #puts "- Error While evaluating script $script. $res"
+
+                    }
+
+                    ## If evaluation output is to be ignored, set to ""
+                    if {$outputNoEval==true} {
+                        set evaled ""
+                    }
+
+                    ## Get Embedded output
+                    ######################
+                    flush $eout
+                    set output [read $eout]
+                    close $eout
+
+                    ## Result
+                    ######################
+
+                    ## If the embedded output is not empty, use it instead of evaluation result
+                    set evalResult $evaled
+                    if {[string length $output]>0} {
+                        set evalResult $output
+                    }
+
+                    ## Adjust output
+                    # set evalResult [::textutil::adjust::adjust [::textutil::adjust::indent $evalResult "    " 0] -justify left]
+                    #set evalResult [::textutil::adjust::indent $evalResult "    " 1]
+
+                    ## Output to result string
+                    puts -nonewline $resultChannel $evalResult
+
+                    ## Reset script
+                    set script ""
+
+                } else {
+
+                    ## Not an end -> Output to script
+                    set script "${script}$token"
+                    set script "${script}$nextChar"
+
+                }
+
+            } elseif {$gather==true} {
+
+                #### If gather -> Gather characters for script
+                set script "${script}$token"
+
+            } else {
+
+                #### If not gather, output to result
+                puts -nonewline $resultChannel $token
+            }
+
+            ## Read next token
+            #############
+            set token [read $dataStream 1]
+        }
+
+        ## Output result
+        #######################
+        flush $resultChannel
+        set result [read $resultChannel]
+        close $resultChannel
+
+        return $result
+
+    }
+
+
+
+
+
+   ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and returns the result as a string
+   ## <% standard eval %>
+   ## <%= evaluation result not outputed %>
+   proc embeddedTclFromFileToString {inputFile {caller ""}} {
+
+       ## Open source file
+       set inChannel  [open $inputFile "r"]
+
+       ## Replace and store result
+       set res [embeddedTclStream $inChannel $caller]
+
+       ## Close
+       close $inChannel
+
+       return $res
+   }
+
+    ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and writes result to outfile
+    ## <% standard eval %>
+    ## <%= evaluation result not outputed %>
+    proc embeddedTclFromFileToFile {inputFile outputFile {caller ""}} {
+
+
+
+        ## Open target file
+        set outChannel [open $outputFile "w+"]
+        set inChannel  [open $inputFile "r"]
+
+        ## Replace and write
+        #puts -nonewline $outChannel [embeddedTcl [read $inChannel]]
+
+            puts -nonewline $outChannel [embeddedTclStream $inChannel $caller]
+
+
+        ## Close
+        close $outChannel
+        close $inChannel
+
+
+    }
+
+
+    ## Process all files in inputFiles list through the embeded TCL procedure
+    ## and append all results to the target outputFile
+    proc embeddedTclFromFilesToFile {inputFiles outputFile} {
+
+        ## Open target file
+        set outChannel [open $outputFile "w+"]
+
+        ## Foreach List
+        ###########################
+        foreach inputFile $inputFiles {
+
+            ## Process input File and write to output
+            set inChannel  [open $inputFile "r"]
+            puts -nonewline $outChannel [embeddedTclStream $inChannel]
+            close $inChannel
+
+        }
+
+        ## Close Target File
+        ###########################
+        close $outChannel
+
+    }
+
+
+    ##################################################################################
+    ## Print
+    ##  - offers convinient procedures to make println in a stream
+    ##  - Allows for example to retain indenting whish among calls
+    ##################################################################################
+
+    variable indentation ""
+
+    ## Equivalent to put
+    proc print {str {channelId -1}} {
+        variable indentation
+
+        ## No channelId outputs to stdout
+        if {$channelId==-1} {
+            set channelId "stdout"
+        }
+
+        ## Output
+        puts -nonewline $channelId $indentation$str
+    }
+
+    ## Equivalent to puts
+    ## No channelId outputs to stdout
+    proc println {str {channelId -1}} {
+        variable indentation
+
+        ## No channelId outputs to stdout
+        if {$channelId==-1} {
+            set channelId "stdout"
+        }
+
+        ## Output
+        puts $channelId $indentation$str
+
+    }
+
+    ## Equivalent to puts with an extra second new line
+    proc printlnln {str {channelId -1}} {
+        println $str $channelId
+        println "" $channelId
+    }
+
+    proc printlnIndent args {
+        variable indentation
+        set indentation "$indentation    "
+    }
+
+    proc printlnOutdent args {
+        variable indentation
+        set indentation [string replace $indentation 0 3]
+    }
+
 
     ## \brief If args provided, must be the initial content
     proc newStringChannel args {
@@ -1032,6 +1267,8 @@ namespace eval odfi::common {
             }
             return $pos
         }
+
+
     }
 
 }

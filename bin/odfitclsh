@@ -1,0 +1,14 @@
+#!/usr/bin/env tclsh8.5
+
+## Require Packages
+##################
+package require odfi::c
+package require odfi::implementation::edid::prototyping
+package require odfi::implementation::edid::flow
+
+
+## Source script to execute
+############
+set script [lindex $argv 0]
+set argv [lreplace $argv 0 0]
+source $script

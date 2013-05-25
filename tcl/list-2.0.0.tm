@@ -223,6 +223,36 @@ namespace eval odfi::list {
 
     }
 
+    ## \brief Returns 1 if the arrayList contains the key, 0 otherwise
+    proc arrayContains {arrayList key} {
+
+        ## Find key
+        set keyIndex [lsearch -exact $arrayList $key]
+        if {$keyIndex==-1} {
+            return false
+        } else {
+            return true
+        }
+
+    }
+
+    ## \brief Replace the value for key in list, or set it if not found
+    ## @return The modified list
+    proc arrayReplace {arrayList key value} {
+
+        ## Find key
+        set keyIndex [lsearch -exact $arrayList $key]
+        if {$keyIndex==-1} {
+            lappend arrayList $key $value
+        } else {
+            set valueIndex [expr $keyIndex+1]
+            set arrayList [lreplace $arrayList $valueIndex $valueIndex $value]
+        }
+
+        return $arrayList
+
+    }
+
     ## \brief Returns all the list range that is included between the indexes of give start and end keys
     proc arrayBetweenKeys {arrayList start_key end_key} {
 
@@ -407,7 +437,7 @@ namespace eval odfi::regexp {
 namespace eval odfi::search {
 
 
-    ## \brief Extracts contents between marker 1 and marker 2, and apply closure for each 
+    ## \brief Extracts contents between marker 1 and marker 2, and apply closure for each
     proc markerSplit {string marker1 marker2 closure} {
 
         ## Begin
@@ -445,7 +475,7 @@ namespace eval odfi::search {
 
                 set continue 0
             }
-            
+
         }
 
     }

@@ -577,6 +577,7 @@ namespace eval odfi::ewww::webdata {
 
             ## Constructor Closure
             ###################
+            #puts "Created Webdatadata, and starting closure: $cClosure"
             odfi::closures::doClosure $cClosure
             #set implClosure $cClosure
 
@@ -603,6 +604,7 @@ namespace eval odfi::ewww::webdata {
             regexp {view=([\w_-]+)} $request(query) -> selectedDataView
 
             puts "Data query view: $selectedDataView"
+             puts "Data source: $dataSource"
 
             ## Call Data source
             ########
@@ -755,7 +757,7 @@ namespace eval odfi::ewww::webdata {
 
             set res "<ul>[join $resunJoined]</ul>"
 
-            puts "UL: $res"
+
             return $res
 
 
@@ -770,7 +772,7 @@ namespace eval odfi::ewww::webdata {
 
         public method span closure {
 
-            puts "Create span with closure: $closure"
+
             return "<span>[odfi::closures::doClosureToString $closure]</span>"
         }
 

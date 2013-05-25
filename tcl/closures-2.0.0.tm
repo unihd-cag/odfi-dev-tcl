@@ -16,7 +16,23 @@ namespace eval odfi::closures {
         set upns [uplevel {namespace current}]
         #lappend eRes {$tRes}
 
-        puts "Pushed on result list,which is now: $newLength , and in ns: $upns, frame: [uplevel info frame]"
+        #puts "Pushed on result list,which is now: $newLength , and in ns: $upns, frame: [uplevel info frame]"
+
+    }
+
+    ## \brief Executes command in args, into +1 exec level, and add result  as string  to eRes variable available in the +1 exec also
+    proc + args {
+
+        set tRes "[uplevel 1 $args]"
+
+        #puts "Will push on result list: $tRes"
+
+        uplevel 1 "lappend eRes {$tRes}"
+        set newLength [uplevel {llength $eRes}]
+        set upns [uplevel {namespace current}]
+        #lappend eRes {$tRes}
+
+        #puts "Pushed on result list,which is now: $newLength , and in ns: $upns, frame: [uplevel info frame]"
 
     }
 
@@ -304,7 +320,7 @@ namespace eval odfi::closures {
             ## Search for all variables
             ############
             #puts "**** Exploring $scriptElement"
-            set vars [regexp -all -inline {\$[a-zA-Z0-9:{}_]+\s*} $closureString]
+            set vars [regexp -all -inline {\$[a-zA-Z0-9:\{_]+\}?} $closureString]
             foreach var $vars {
 
                 set var [string trim [string range $var 1 end]]
@@ -459,15 +475,20 @@ namespace eval odfi::closures {
         ## Prepare result creation
         ###########
         namespace   export push
+        namespace   export +
         uplevel     $execLevel "set eRes {}"
-        uplevel     $execLevel "namespace import [namespace current]::push"
+
+        ## (imports are forced, because if doClosure is in a loop, push and + may be imported multiple times, causin and error)
+        uplevel     $execLevel "namespace import -force [namespace current]::push"
+        uplevel     $execLevel "namespace import -force [namespace current]::+"
+
 
         ## Try to detect possible errors in closure
         ###############
 
         ## If starts with a " or a $ , add a return because it is only a string
         set firstChar [string index [string trim "$closure"] 0]
-        if {$firstChar=="\"" || $firstChar=="$"} {
+        if {$firstChar=="\""} {
 
             #puts "use subst to resolve closure as string"
             set closure [concat return $closure]
@@ -475,9 +496,23 @@ namespace eval odfi::closures {
 
         ## Run And catch error
         ##########
+        #puts "eval from do closure"
         set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]
+        #if {[catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions]} {
 
-            #error $res [dict get $resOptions -errorinfo]
+         #   if {$firstChar=="\"" || $firstChar=="$"} {
+
+                #puts "use subst to resolve closure as string"
+         #       set closure [concat return $closure]
+         #       set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]
+         #   } else {
+               #error $res [dict get $resOptions -errorinfo]
+         #      error $res
+         #   }
+
+       # }
+
+
 
 
 
@@ -514,5 +549,36 @@ namespace eval odfi::closures {
 
     }
 
+
+    #####################################
+    ## New Control Structures
+    #####################################
+
+    ## Executes the closure count times, with $i variable updated
+    proc ::repeat {count closure} {
+
+        ## Preserve existing i variable
+        uplevel {
+            unset -nocomplain i_backup
+            if {[info exists i]} {
+                set i_backup $i
+            }
+        }
+
+        for {set i 0} {$i<$count} {incr i} {
+
+            uplevel "set i $i"
+            odfi::closures::doClosure $closure 1
+
+        }
+
+        ## Restore i if necessary
+        uplevel {
+            if {[info exists i_backup]} {
+                set i $i_backup
+            }
+        }
+
+    }
 
 }
