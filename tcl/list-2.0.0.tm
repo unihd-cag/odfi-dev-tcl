@@ -253,6 +253,23 @@ namespace eval odfi::list {
 
     }
 
+    ## \brief Concat the value for key in list, or set it if not found
+    ## @return The modified list
+    proc arrayConcat {arrayList key value} {
+
+        ## Find key
+        set keyIndex [lsearch -exact $arrayList $key]
+        if {$keyIndex==-1} {
+            lappend arrayList $key $value
+        } else {
+            set valueIndex [expr $keyIndex+1]
+            set arrayList [lreplace $arrayList $valueIndex $valueIndex [concat [arrayGet $arrayList $key] $value]]
+        }
+
+        return $arrayList
+
+    }
+
     ## \brief Returns all the list range that is included between the indexes of give start and end keys
     proc arrayBetweenKeys {arrayList start_key end_key} {
 

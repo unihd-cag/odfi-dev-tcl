@@ -95,6 +95,9 @@ namespace eval odfi::tool {
                             file {
                                 odfi::common::println "- Type: $type (Must be a valid path to a file)"
                             }
+                            string {
+                                odfi::common::println "- Type: $type (just a string)"
+                            }
                             default {
                                 odfi::common::println "- Type (unknown): $type"
                             }
@@ -158,7 +161,7 @@ namespace eval odfi::tool {
 
             ## Handle special -help
             ###############
-            if {[lsearch -exact $::argv -help]!=-1} {
+            if {[lsearch -exact $::argv --help]!=-1} {
                 usage
                 exit 1
             }
@@ -175,13 +178,13 @@ namespace eval odfi::tool {
 
                 ## Type
                 set type bool
-                catch {
+                if {[odfi::list::arrayContains $argDesc type]} {
                     set type [odfi::list::arrayGet $argDesc type]
                 }
 
                 ## Look into argv
                 ############
-                set argIndex [lsearch -exact $::argv -$argName]
+                set argIndex [lsearch -exact $::argv --$argName]
 
                 ## Resolve
                 ################
@@ -189,7 +192,7 @@ namespace eval odfi::tool {
                 if {$argIndex==-1} {
 
                     #### Nothing found
-
+                    ###############################################
                     if {$optional} {
 
                         #### Optional  -> set to false
@@ -205,12 +208,38 @@ namespace eval odfi::tool {
 
                 } else {
 
-                    #### Found -> Do stuff depending on type
-                    switch -exact -- $type {
 
-                        ## File -> check the file is real
+                    #### Found -> Do stuff depending on type
+                    ###############################################
+                    switch -exact -- $type {
+                       
+                        string {
+
+                            ##### string
+                            ############################################################
+                            
+                            if {[odfi::list::arrayContains $::argv --$argName]} {
+
+                                set str [odfi::list::arrayGet $::argv --$argName]
+
+                                ## Set value
+                                set ::$argName $str
+
+                            } else {
+
+                                error "Argument --$argName must be provided a value"
+                            }
+
+                            
+                        }
+
+                       
                         file {
-                            set file [odfi::list::arrayGet $::argv -$argName]
+
+                            #### File -> check the file is real
+                            ############################################################
+
+                            set file [odfi::list::arrayGet $::argv --$argName]
 
                             ## Check the file presence
                             if {![file isfile $file]} {

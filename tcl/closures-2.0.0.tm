@@ -549,6 +549,20 @@ namespace eval odfi::closures {
 
     }
 
+    ## \brief Calls doClosure, and join result using a character. " " per default
+    proc doFile {closureFile {execLevel 0} {resolveLevel 0}} {
+
+        if {[file exists $closureFile]} {
+
+            ## Read 
+            set closure [odfi::common::readFileContent $closureFile]
+            return [odfi::closures::doClosure [expr $execLevel+1] [expr $resolveLevel+1]
+        } else {
+            return ""
+        }
+
+    }
+
 
     #####################################
     ## New Control Structures
