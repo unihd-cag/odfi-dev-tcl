@@ -2,12 +2,17 @@ package provide odfi::git 1.0.0
 
 
 namespace eval odfi::git {
-	
+
 
 	## Just Clone!
 	proc clone {url path args} {
 
-		puts [exec git clone $url $path ]
+		## Git will result 1 here on success, causing error
+		catch {
+			puts [exec git clone $url $path ]
+		} res resOptions
+
+		#puts "Clone res: [dict get $resOptions -errorcode]"
 
 	}
 
@@ -24,13 +29,13 @@ namespace eval odfi::git {
 	## @return a list lik: {remote {branch branch} remote {branch branch}}
 	proc list-remote-branches repositoryPath {
 
-		## Get branches 
+		## Get branches
 		set cdir [pwd]
 		cd $repositoryPath
 		set branchesOutput [exec git branch -a]
 		cd $cdir
 
-		## Keep all the 'remotes/remoteName/branchName' lines 
+		## Keep all the 'remotes/remoteName/branchName' lines
 		set branches [regexp -inline -all -line {^\s*remotes/([\w]+)/([\w]+)\s*$} $branchesOutput]
 		set branchesResult {}
 		foreach {match remoteName branchName} $branches {
@@ -43,10 +48,10 @@ namespace eval odfi::git {
 
 	}
 
-	## Return the name of the current checked out branch of repository 
+	## Return the name of the current checked out branch of repository
 	proc current-branch repositoryPath {
 
-		## Get branches 
+		## Get branches
 		set cdir [pwd]
 		cd $repositoryPath
 		set branchesOutput [exec git branch]

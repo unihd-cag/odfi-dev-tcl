@@ -554,9 +554,9 @@ namespace eval odfi::closures {
 
         if {[file exists $closureFile]} {
 
-            ## Read 
+            ## Read
             set closure [odfi::common::readFileContent $closureFile]
-            return [odfi::closures::doClosure [expr $execLevel+1] [expr $resolveLevel+1]
+            return [odfi::closures::doClosure $closure [expr $execLevel+1] [expr $resolveLevel+1]]
         } else {
             return ""
         }
