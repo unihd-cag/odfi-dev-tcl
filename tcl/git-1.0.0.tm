@@ -63,4 +63,24 @@ namespace eval odfi::git {
 		return $currentBranch
 
 	}
+
+	## @return 1 if not local modifications are present, 0 otherwise
+	proc isClean repositoryPath {
+
+		## Get Output
+		set cdir [pwd]
+		cd $repositoryPath
+		set statusOutput [exec git status --porcelain -uno]
+		cd $cdir
+
+		## Return
+		if {$statusOutput==""} {
+			return 1
+		} else {
+			return 0
+		}
+
+		#puts "is clean output: $statusOutput"
+
+	}
 }
