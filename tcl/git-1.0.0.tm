@@ -21,7 +21,9 @@ namespace eval odfi::git {
 
 		set cdir [pwd]
 		cd $path
-		puts [exec git pull $args]
+		catch {
+			puts [exec git pull $args]
+		} res resOptions
 		cd $cdir
 	}
 
