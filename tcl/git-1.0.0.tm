@@ -12,6 +12,11 @@ namespace eval odfi::git {
 			puts [exec git clone $url $path ]
 		} res resOptions
 
+		## Get Error
+		if {[dict exists $resOptions -errorCode]} {
+			error "Cloning Failed with error: $res"
+		}
+
 		#puts "Clone res: [dict get $resOptions -errorcode]"
 
 	}
@@ -25,6 +30,11 @@ namespace eval odfi::git {
 			puts [exec git pull $args]
 		} res resOptions
 		cd $cdir
+
+		## Get Error
+		if {[dict exists $resOptions -errorCode]} {
+			error "Pulling Failed with error: $res"
+		}
 	}
 
 	## Return the list of branches of remotes
