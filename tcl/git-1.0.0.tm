@@ -7,13 +7,15 @@ namespace eval odfi::git {
 	## Just Clone!
 	proc clone {url path args} {
 
+		exec mkdir -p $path
+
 		## Git will result 1 here on success, causing error
 		catch {
 			puts [exec git clone $url $path ]
 		} res resOptions
 
 		## Get Error
-		if {[dict exists $resOptions -errorCode]} {
+		if {[dict exists $resOptions -errorcode]} {
 			error "Cloning Failed with error: $res"
 		}
 
@@ -32,7 +34,7 @@ namespace eval odfi::git {
 		cd $cdir
 
 		## Get Error
-		if {[dict exists $resOptions -errorCode]} {
+		if {[dict exists $resOptions -errorcode]} {
 			error "Pulling Failed with error: $res"
 		}
 	}
