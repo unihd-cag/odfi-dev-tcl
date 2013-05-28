@@ -95,4 +95,21 @@ namespace eval odfi::git {
 		#puts "is clean output: $statusOutput"
 
 	}
+
+
+	## Add a remote or set its url
+	proc set-remote {repositoryPath name url} {
+
+		set cdir [pwd]
+		cd $repositoryPath
+
+		## Delete
+		catch {exec git remote set-url --delete $name $url}
+
+		## Add
+		catch {exec git remote add $name $url}
+
+		cd $cdir
+
+	}
 }
