@@ -72,7 +72,7 @@ namespace eval odfi::git {
 		cd $cdir
 
 		## Keep only the one with * at lin begining
-		regexp -line {^\s*\*\s*([\w\.]+)\s*$} $branchesOutput -> currentBranch
+		regexp -line {^\s*\*\s*([\w\-\.]+)\s*$} $branchesOutput -> currentBranch
 
 		return $currentBranch
 
