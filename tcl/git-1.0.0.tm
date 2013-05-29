@@ -7,13 +7,15 @@ namespace eval odfi::git {
 	## Just Clone!
 	proc clone {url path args} {
 
+		exec mkdir -p $path
+
 		## Git will result 1 here on success, causing error
 		catch {
 			puts [exec git clone $url $path ]
 		} res resOptions
 
 		## Get Error
-		if {[dict exists $resOptions -errorCode]} {
+		if {[dict exists $resOptions -errorcode]} {
 			error "Cloning Failed with error: $res"
 		}
 
@@ -32,7 +34,7 @@ namespace eval odfi::git {
 		cd $cdir
 
 		## Get Error
-		if {[dict exists $resOptions -errorCode]} {
+		if {[dict exists $resOptions -errorcode]} {
 			error "Pulling Failed with error: $res"
 		}
 	}
@@ -70,7 +72,7 @@ namespace eval odfi::git {
 		cd $cdir
 
 		## Keep only the one with * at lin begining
-		regexp -line {^\s*\*\s*([\w\.]+)\s*$} $branchesOutput -> currentBranch
+		regexp -line {^\s*\*\s*([\w\-\.]+)\s*$} $branchesOutput -> currentBranch
 
 		return $currentBranch
 
@@ -93,6 +95,23 @@ namespace eval odfi::git {
 		}
 
 		#puts "is clean output: $statusOutput"
+
+	}
+
+
+	## Add a remote or set its url
+	proc set-remote {repositoryPath name url} {
+
+		set cdir [pwd]
+		cd $repositoryPath
+
+		## Delete
+		catch {exec git remote set-url --delete $name $url}
+
+		## Add
+		catch {exec git remote add $name $url}
+
+		cd $cdir
 
 	}
 }
