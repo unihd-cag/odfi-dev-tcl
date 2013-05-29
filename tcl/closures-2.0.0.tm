@@ -41,7 +41,10 @@ namespace eval odfi::closures {
     # <%= evaluation result not outputed %>
     # @warning Closure base execution level is 1, not 0 (so not this function's level)
     # @return resulting stream
-    proc embeddedTclStream {dataStream {execLevel 1} {caller ""} } {
+    proc embeddedTclStream {dataStream args} {
+        set execLevel [odfi::list::arrayGetDefault $args -execLevel 1]
+        set caller [odfi::list::arrayGetDefault $args -caller ""]
+        set tag [odfi::list::arrayGetDefault $args -tag "<%"]
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
 
@@ -60,11 +63,11 @@ namespace eval odfi::closures {
             ########################
 
             #### If <%, gather
-            if {$gather == false && $token == "<" } {
+            if {$gather == false && $token==[stringe index $tag 0]} {
 
                 ## If % -> We can start
                 set nextChar [read $dataStream 1]
-                if {$nextChar=="%"} {
+                if {$nextChar=="%" || $nextChar== [string index $tag 1]} {
                     set gather true
 
                     ## Output Modifiers
@@ -93,11 +96,11 @@ namespace eval odfi::closures {
                     continue
                 }
 
-            } elseif {$gather==true && $token == "%" } {
+            } elseif {$gather==true && $token == [string index $tag 1] } {
 
                 #### If %>, eval
                 set nextChar [read $dataStream 1]
-                if {$nextChar==">"} {
+                if {$nextChar==[string index $tag 0]} {
 
                     set gather false
 
