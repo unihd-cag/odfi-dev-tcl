@@ -11,7 +11,7 @@ namespace eval odfi::git {
 
 		## Git will result 1 here on success, causing error
 		catch {
-			puts [exec git clone $url $path ]
+			puts [eval "exec -ignorestderr git clone $url $path"]
 		} res resOptions
 
 		## Get Error
@@ -29,12 +29,13 @@ namespace eval odfi::git {
 		set cdir [pwd]
 		cd $path
 		catch {
-			puts [exec git pull $args]
+			puts [eval "exec -ignorestderr git pull $args"]
 		} res resOptions
 		cd $cdir
 
 		## Get Error
 		if {[dict exists $resOptions -errorcode]} {
+			#puts "Pull Failed: $res"
 			error "Pulling Failed with error: $res"
 		}
 	}
