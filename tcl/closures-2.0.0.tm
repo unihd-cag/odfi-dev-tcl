@@ -2,6 +2,7 @@ package provide odfi::closures 2.0.0
 package require odfi::common
 package require odfi::list 2.0.0
 
+
 ## \brief Closures utilities namespace
 namespace eval odfi::closures {
 
@@ -37,16 +38,27 @@ namespace eval odfi::closures {
 
     }
 
+    #enable simple puts in TclStreams
+    proc puts args {
+      ::puts "asdf"
+      uplevel ::puts $::eout $args
+
+    }
+
+
     ## Replace embbeded TCL between <% %> markors in data with evaluated tcl
     # <% standard eval %>
     # <%= evaluation result not outputed %>
     # @warning Closure base execution level is 1, not 0 (so not this function's level)
     # @return resulting stream
-    proc embeddedTclStream {dataStream {execLevel 1} {caller ""} } {
+    proc embeddedTclStream {dataStream args} {
+        set execLevel [odfi::list::arrayGetDefault $args -execLevel 1]
+        set caller [odfi::list::arrayGetDefault $args -caller ""]
+        set tag [odfi::list::arrayGetDefault $args -tag "<%%>"]
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
 
-        #puts "In Closure embedded stream: $dataStream: [read $dataStream]"
+        #::puts "##################################################In Closure embedded stream: $dataStream: [read $dataStream]"
 
         ## Stream in the data, and gather everything between <% ... %> an eval
         ################
@@ -61,12 +73,13 @@ namespace eval odfi::closures {
             ########################
 
             #### If <%, gather
-            if {$gather == false && $token == "<" } {
+            if {$gather == false && $token==[string index $tag 0]} {
 
                 ## If % -> We can start
                 set nextChar [read $dataStream 1]
-                if {$nextChar=="%"} {
+                if {$nextChar== [string index $tag 1]} {
                     set gather true
+                    #::puts "gathering"
 
                     ## Output Modifiers
                     #########################
@@ -88,25 +101,29 @@ namespace eval odfi::closures {
                 } else {
 
                     ## Not a start -> Output to result
-                    puts -nonewline $resultChannel $token
+                    ::puts -nonewline $resultChannel $token
                     #puts -nonewline $resultChannel $nextChar
                     set token $nextChar
                     continue
                 }
 
-            } elseif {$gather==true && $token == "%" } {
+            } elseif {$gather==true && $token == [string index $tag 2] } {
 
                 #### If %>, eval
                 set nextChar [read $dataStream 1]
-                if {$nextChar==">"} {
+                if {$nextChar==[string index $tag 3]} {
 
                     set gather false
+                    #::puts "stopped gathering"
 
                     ## Prepare a Channel
                     ############################
                     set ::eout [chan create "write read" [::new odfi::common::StringChannel #auto]]
                     set eout $::eout
-                    #puts "Eval closure: $script "
+                    #::puts "Eval closure: $script "
+
+                    namespace   export puts
+                    uplevel $execLevel "namespace import -force [namespace current]::puts"
 
                     #set execLevel 1
 
@@ -121,7 +138,7 @@ namespace eval odfi::closures {
                     if {[catch {set evaled [string trim [odfi::closures::doClosureToString $script $execLevel]]} res resOptions]} {
 
                         ## This may be a variable, just output the content to eout
-                        puts "Invalid command ($res), doing error"
+                        ::puts "Invalid command ($res), doing error"
 
                         error $res [dict get $resOptions -errorinfo]
 
@@ -159,7 +176,7 @@ namespace eval odfi::closures {
                     #puts "Closure result: $evalResult"
 
                     ## Output to result string
-                    puts -nonewline $resultChannel $evalResult
+                    ::puts -nonewline $resultChannel $evalResult
 
                     ## Reset script
                     set script ""
@@ -180,7 +197,7 @@ namespace eval odfi::closures {
             } else {
 
                 #### If not gather, output to result
-                puts -nonewline $resultChannel $token
+                ::puts -nonewline $resultChannel $token
             }
 
             ## Read next token
@@ -207,7 +224,7 @@ namespace eval odfi::closures {
         set inChannel  [odfi::common::newStringChannel $inputString]
 
         ## Replace and store result
-        set res [embeddedTclStream $inChannel 2 $caller]
+        set res [embeddedTclStream $inChannel -execLevel 2 -caller $caller]
 
         ## Close
         close $inChannel
@@ -224,7 +241,7 @@ namespace eval odfi::closures {
         set inChannel  [open $inputFile "r"]
 
         ## Replace and store result
-        set res [embeddedTclStream $inChannel 2 $caller]
+        set res [embeddedTclStream $inChannel -execLevel 2 -caller $caller]
 
         ## Close
         close $inChannel
@@ -246,7 +263,7 @@ namespace eval odfi::closures {
         ## Replace and write
         #puts -nonewline $outChannel [embeddedTcl [read $inChannel]]
 
-            puts -nonewline $outChannel [embeddedTclStream $inChannel 2 $caller]
+            puts -nonewline $outChannel [embeddedTclStream $inChannel -execLevel 2 -caller $caller]
 
 
         ## Close
@@ -270,7 +287,7 @@ namespace eval odfi::closures {
 
             ## Process input File and write to output
             set inChannel  [open $inputFile "r"]
-            puts -nonewline $outChannel [embeddedTclStream $inChannel 2]
+            puts -nonewline $outChannel [embeddedTclStream $inChannel -execLevel 2]
             close $inChannel
 
         }
