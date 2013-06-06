@@ -1,6 +1,6 @@
 package provide odfi::closures 2.0.0
 package require odfi::common
-
+package require odfi::list 2.0.0
 
 ## \brief Closures utilities namespace
 namespace eval odfi::closures {
@@ -42,14 +42,11 @@ namespace eval odfi::closures {
     # <%= evaluation result not outputed %>
     # @warning Closure base execution level is 1, not 0 (so not this function's level)
     # @return resulting stream
-    proc embeddedTclStream {dataStream args} {
-        set execLevel [odfi::list::arrayGetDefault $args -execLevel 1]
-        set caller [odfi::list::arrayGetDefault $args -caller ""]
-        set tag [odfi::list::arrayGetDefault $args -tag "<%"]
+    proc embeddedTclStream {dataStream {execLevel 1} {caller ""} } {
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
 
-        #puts "##################################################In Closure embedded stream: $dataStream: [read $dataStream]"
+        #puts "In Closure embedded stream: $dataStream: [read $dataStream]"
 
         ## Stream in the data, and gather everything between <% ... %> an eval
         ################
@@ -64,11 +61,11 @@ namespace eval odfi::closures {
             ########################
 
             #### If <%, gather
-            if {$gather == false && $token==[string index $tag 0]} {
+            if {$gather == false && $token == "<" } {
 
                 ## If % -> We can start
                 set nextChar [read $dataStream 1]
-                if {$nextChar== [string index $tag 1]} {
+                if {$nextChar=="%"} {
                     set gather true
 
                     ## Output Modifiers
@@ -97,11 +94,11 @@ namespace eval odfi::closures {
                     continue
                 }
 
-            } elseif {$gather==true && $token == [string index $tag 1] } {
+            } elseif {$gather==true && $token == "%" } {
 
                 #### If %>, eval
                 set nextChar [read $dataStream 1]
-                if {$nextChar==[string index $tag 0]} {
+                if {$nextChar==">"} {
 
                     set gather false
 
