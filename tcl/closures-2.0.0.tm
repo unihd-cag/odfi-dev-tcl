@@ -4,7 +4,6 @@ package require odfi::common
 
 ## \brief Closures utilities namespace
 namespace eval odfi::closures {
-    puts "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!called RIGHT FILE"
 
     ## \brief Executes command in args, into +1 exec level, and add result  as string  to eRes variable available in the +1 exec also
     proc push args {
@@ -46,7 +45,7 @@ namespace eval odfi::closures {
     proc embeddedTclStream {dataStream args} {
         set execLevel [odfi::list::arrayGetDefault $args -execLevel 1]
         set caller [odfi::list::arrayGetDefault $args -caller ""]
-        set tag [odfi::list::arrayGetDefault $args -tag "<?"]
+        set tag [odfi::list::arrayGetDefault $args -tag "<%"]
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
 
