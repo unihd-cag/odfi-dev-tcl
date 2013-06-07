@@ -40,11 +40,9 @@ namespace eval odfi::closures {
 
     #enable simple puts in TclStreams
     proc puts args {
-      ::puts "asdf"
       uplevel ::puts $::eout $args
-
     }
-
+    
 
     ## Replace embbeded TCL between <% %> markors in data with evaluated tcl
     # <% standard eval %>
@@ -122,6 +120,7 @@ namespace eval odfi::closures {
                     set eout $::eout
                     #::puts "Eval closure: $script "
 
+                    #make sure, the closure uses later our self defined puts
                     namespace   export puts
                     uplevel $execLevel "namespace import -force [namespace current]::puts"
 
@@ -140,13 +139,15 @@ namespace eval odfi::closures {
                         ## This may be a variable, just output the content to eout
                         ::puts "Invalid command ($res), doing error"
 
+
                         error $res [dict get $resOptions -errorinfo]
 
                         #puts "- Error While evaluating script $script. $res"
 
                     }
 
-
+                    #restore original puts command
+                    uplevel $execLevel "rename puts ''"
 
                     ## If evaluation output is to be ignored, set to ""
                     ########
