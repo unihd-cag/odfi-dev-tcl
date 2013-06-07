@@ -147,7 +147,7 @@ namespace eval odfi::closures {
                     }
 
                     #restore original puts command
-                    uplevel $execLevel "rename puts ''"
+                    uplevel $execLevel "rename puts \"\""
 
                     ## If evaluation output is to be ignored, set to ""
                     ########

@@ -17,13 +17,13 @@ close $fileChannel
 }
 
 
-#puts "testing odfi closure file to string"
-#
-#set output [odfi::closures::embeddedTclFromFileToString $testFileName $input]
-#
-#if {$output==$reference1} {
-#  puts "working"
-#} else {
-#  error "not working, output:t diff $output"
-#}
+puts "testing odfi closure file to string"
+
+set output [odfi::closures::embeddedTclFromFileToString $testFileName $input]
+
+if {[string trim $output]==$reference1} {
+  puts "working"
+} else {
+  error "not working, output:t diff $output"
+}
 }
