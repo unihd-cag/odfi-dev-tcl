@@ -12,3 +12,5 @@ then
 	export PATH=$loc/external/tcl/bin/:$PATH
 	export LD_LIBRARY_PATH=$loc/external/tcl/lib/$LD_LIBRARY_PATH
 fi
+
+
