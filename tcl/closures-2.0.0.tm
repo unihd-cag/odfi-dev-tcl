@@ -42,10 +42,12 @@ namespace eval odfi::closures {
     proc puts args {
       #::puts $::eout args
       if {[lindex $args 0] == "-nonewline"} {
-        uplevel ::puts -nonewline $::eout [lreplace $args 0 0]
+        set NNL "-nonewline"
+        set args [lreplace $args 0 0]
       } else {
-        uplevel ::puts $::eout $args
+        set NNL ""
       }
+      uplevel ::puts $NNL $::eout $args
     }
     
 
