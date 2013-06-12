@@ -40,7 +40,12 @@ namespace eval odfi::closures {
 
     #enable simple puts in TclStreams
     proc puts args {
-      uplevel ::puts $::eout $args
+      #::puts $::eout args
+      if {[lindex $args 0] == "-nonewline"} {
+        uplevel ::puts -nonewline $::eout [lreplace $args 0 0]
+      } else {
+        uplevel ::puts $::eout $args
+      }
     }
     
 
@@ -264,7 +269,7 @@ namespace eval odfi::closures {
         ## Replace and write
         #puts -nonewline $outChannel [embeddedTcl [read $inChannel]]
 
-            puts -nonewline $outChannel [embeddedTclStream $inChannel -execLevel 2 -caller $caller]
+            ::puts -nonewline $outChannel [embeddedTclStream $inChannel -execLevel 2 -caller $caller]
 
 
         ## Close
@@ -288,7 +293,7 @@ namespace eval odfi::closures {
 
             ## Process input File and write to output
             set inChannel  [open $inputFile "r"]
-            puts -nonewline $outChannel [embeddedTclStream $inChannel -execLevel 2]
+            ::puts -nonewline $outChannel [embeddedTclStream $inChannel -execLevel 2]
             close $inChannel
 
         }
