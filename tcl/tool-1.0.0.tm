@@ -73,7 +73,7 @@ namespace eval odfi::tool {
 
                     odfi::common::printlnIndent
 
-                    odfi::common::println "-> -$argName"
+                    odfi::common::println "-> --$argName"
 
                     ## Description
                     if {[odfi::list::arrayContains $argDesc description]} {
