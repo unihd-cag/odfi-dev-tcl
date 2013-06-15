@@ -488,7 +488,7 @@ namespace eval odfi::closures {
 
         ## If starts with a " or a $ , add a return because it is only a string
         set firstChar [string index [string trim "$closure"] 0]
-        if {$firstChar=="\""} {
+        if {$firstChar=="\"" || $firstChar=="\$"} {
 
             #puts "use subst to resolve closure as string"
             set closure [concat return $closure]
