@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tclsh
 
 package require odfi::closures 2.0.0

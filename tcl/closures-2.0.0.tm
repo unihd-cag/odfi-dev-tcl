@@ -1,6 +1,5 @@
 package provide odfi::closures 2.0.0
 package require odfi::common
-package require odfi::list 2.0.0
 
 
 ## \brief Closures utilities namespace
@@ -57,9 +56,21 @@ namespace eval odfi::closures {
     # @warning Closure base execution level is 1, not 0 (so not this function's level)
     # @return resulting stream
     proc embeddedTclStream {dataStream args} {
-        set execLevel [odfi::list::arrayGetDefault $args -execLevel 1]
-        set caller [odfi::list::arrayGetDefault $args -caller ""]
-        set tag [odfi::list::arrayGetDefault $args -tag "<%%>"]
+       
+	set execLevel 1
+	if {[lsearch -exact $args "-execLevel"]>-1} {
+		set execLevel [lindex $args [lsearch -exact $args "-execLevel"]]
+	}
+
+	set caller ""
+	if {[lsearch -exact $args "-caller"]>-1} {
+                set caller [lindex $args [lsearch -exact $args "-caller"]]
+        }
+
+	set tag "<%%>"
+	if {[lsearch -exact $args "-tag"]>-1} {
+                set tag [lindex $args [lsearch -exact $args "-tag"]]
+        }
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
 
