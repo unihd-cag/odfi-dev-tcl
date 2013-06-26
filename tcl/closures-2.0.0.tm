@@ -59,17 +59,17 @@ namespace eval odfi::closures {
        
 	set execLevel 1
 	if {[lsearch -exact $args "-execLevel"]>-1} {
-		set execLevel [lindex $args [lsearch -exact $args "-execLevel"]]
+		set execLevel [lindex $args [lsearch -exact $args "-execLevel"]+1]
 	}
 
 	set caller ""
 	if {[lsearch -exact $args "-caller"]>-1} {
-                set caller [lindex $args [lsearch -exact $args "-caller"]]
+                set caller [lindex $args [lsearch -exact $args "-caller"]+1]
         }
 
 	set tag "<%%>"
 	if {[lsearch -exact $args "-tag"]>-1} {
-                set tag [lindex $args [lsearch -exact $args "-tag"]]
+                set tag [lindex $args [lsearch -exact $args "-tag"]+1]
         }
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
