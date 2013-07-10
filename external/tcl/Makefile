@@ -34,6 +34,7 @@ tcllib-1.14.tar.gz:
 
 PREFIX ?= $(shell pwd)
 
+.NOTPARALLEL:
 install : dist_install_prepare packages folders all_tcl all_tclxml all_itcl all_tcllib
 
 ## Clean Deletes compilation results
