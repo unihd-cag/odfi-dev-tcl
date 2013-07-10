@@ -69,7 +69,7 @@ all_tcl: bin/tclsh
 
 # Extract and make
 bin/tclsh:	bin/tclsh8.5
-	@ln -f -s bin/tclsh8.5 bin/tclsh
+	@ln -f -s $(PREFIX)/bin/tclsh8.5 $(PREFIX)/bin/tclsh
 
 bin/tclsh8.5: working/tcl8.5.11/unix/Makefile
 	@echo "Making TCL"
