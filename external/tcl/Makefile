@@ -82,7 +82,7 @@ working/tcl8.5.11/unix/Makefile: working/tcl8.5.11-src.tar.gz
 # Download TCL
 working/tcl8.5.11-src.tar.gz: tcl8.5.11-src.tar.gz
 	@echo "Found TCL 8.5.11 sources"
-	@cp $^ working
+	@cp $^ working/
 
 
 
@@ -104,7 +104,7 @@ working/tclxml-3.2/Makefile:
 # Download
 working/tclxml-3.2.tar.gz: tclxml-3.2.tar.gz
 	@echo "Found TCL XML 3.2 sources"
-	@cp $^ working
+	@cp $^ working/
 
 ## iTCL
 ##########################
@@ -120,7 +120,7 @@ working/itcl3.4.1/Makefile: working/itcl3.4.1.tar.gz
 
 working/itcl3.4.1.tar.gz: itcl3.4.1.tar.gz
 	@echo "Found iTCL"
-	@cp $^ working
+	@cp $^ working/
 
 
 ## TCL lib
@@ -135,6 +135,6 @@ working/tcllib-1.14/Makefile: working/tcllib-1.14.tar.gz
 
 working/tcllib-1.14.tar.gz: tcllib-1.14.tar.gz
 	@echo "Found tcllib"
-	@cp $^ working
+	@cp $^ working/
 
 
