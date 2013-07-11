@@ -15,7 +15,7 @@ include $(ODFI_MBUILD_HOME)/sw/makefile/Makefile.dist
 
 #
 # Package Modules
-# 
+#
 dist: prepare dist_prepare_modules
 
 #
@@ -28,6 +28,6 @@ prepare:
 	@$(call dist-module-copy-to,tcl/common.tm,lib/tcl8/8.5/odfi/common-$(DIST_VERSION).tm)
 	@$(call dist-module-copy-to,tcl/dom.tm,lib/tcl8/8.5/odfi/dom-$(DIST_VERSION).tm)
 	$(dist-module-package)
-	
-	
-	
+
+
+install:
