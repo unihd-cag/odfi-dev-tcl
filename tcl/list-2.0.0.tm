@@ -202,7 +202,17 @@ namespace eval odfi::list {
 
         foreach {key value} $arrayList {
             uplevel 1 "set key $key"
-            uplevel 1 "set value $value"
+
+
+              #  puts "$key -> '$value' [llength $value]"
+
+
+            if {[llength $value]>1} {
+                uplevel 1 "set value {$value}"
+            } else {
+               uplevel 1 "set value $value"
+            }
+
             uplevel 1 $script
         }
 
