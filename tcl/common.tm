@@ -161,25 +161,46 @@ namespace eval odfi::common {
 
     proc ::newAbsolute {type name args} {
 
-            ## Delete
-            uplevel 1 "odfi::common::deleteObject $name"
+        ## Delete
+        uplevel 1 "odfi::common::deleteObject $name"
 
-            ## Uplevel namespace
-            set upns [uplevel 1 {namespace current}]
+        ## Uplevel namespace
+        set upns [uplevel 1 {namespace current}]
 
-            ## Create
-            set res [uplevel 1 $type $name $args]
+        ## Create
+        set res [uplevel 1 $type $name $args]
 
-            if {$upns=="::"} {
-            return "::$res"
-            } else {
-                return ${upns}::$res
+        if {$upns=="::"} {
+        return "::$res"
+        } else {
+            return ${upns}::$res
+        }
+
+        return ${upns}::$res
+
+
+    }
+
+    ## To be called in an itcl::class definition to create class field and autogenerate getters/setters
+    ## @args may contain:  -noget -noset to avoid generating a getter setter the user would like to define by himself
+    ##                     -list to specify the variable is a list
+    proc classField {visibility name default args} {
+
+        set script "
+            $visibility variable $name $default
+
+            public method $name args {
+                if {\[llength \$args>0\]} {
+                    set $name $args
+                }
+                return \$$name
             }
 
-            return ${upns}::$res
+        "
 
+        uplevel $script
 
-        }
+    }
 
 
 	## Returns the directory of the current script
