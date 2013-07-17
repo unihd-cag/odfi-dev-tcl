@@ -1,5 +1,5 @@
 ## This makefile downloads and compiles TCl and dependent libraries for Extoll TCL interfaces
-## 
+##
 
 ## Distribution description
 DIST_INSTALL_PACKAGES_DEPS_APT += libxslt-dev libxml2-dev
@@ -15,8 +15,8 @@ dist: tcl8.5.11-src.tar.gz tclxml-3.2.tar.gz itcl3.4.1.tar.gz tcllib-1.14.tar.gz
 	@echo "-- Packaging: $^"
 	@$(call dist-module-add,$^)
 	$(dist-module-package)
-	
-	
+
+
 tcl8.5.11-src.tar.gz:
 	@wget "http://prdownloads.sourceforge.net/tcl/tcl8.5.11-src.tar.gz"
 
@@ -28,12 +28,13 @@ itcl3.4.1.tar.gz:
 
 tcllib-1.14.tar.gz:
 	@wget -O tcllib-1.14.tar.gz "http://downloads.sourceforge.net/project/tcllib/tcllib/1.14/tcllib-1.14.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Ftcllib%2Ffiles%2Ftcllib%2F1.14%2F&ts=1331551099&use_mirror=freefr"
-	
+
 ## Install does everything
 #########################
 
 PREFIX ?= $(shell pwd)
 
+.NOTPARALLEL:
 install : dist_install_prepare packages folders all_tcl all_tclxml all_itcl all_tcllib
 
 ## Clean Deletes compilation results
@@ -43,7 +44,7 @@ install : dist_install_prepare packages folders all_tcl all_tclxml all_itcl all_
 mrproper:
 	@echo "Cleaning folder completely (only makefile remains)"
 	rm --preserve-root -Rf `ls --hide="Makefile"`
-	
+
 
 ## Common
 ################
@@ -51,25 +52,25 @@ mrproper:
 ## Install required packages and download sources
 packages:  tclxml-3.2.tar.gz itcl3.4.1.tar.gz tcllib-1.14.tar.gz
 	@echo "Install required packages: libxml2-dev libxslt-dev"
-	
+
 
 ## Folder prepares folders
-folders: 
+folders:
 	@echo "Preparing base folders..."
-	@if [[ ! -d bin/ ]]; then mkdir -v bin/ ; fi;
-	@if [[ ! -d include/ ]]; then mkdir -v include/ ; fi;
-	@if [[ ! -d lib/ ]]; then mkdir -v lib/ ; fi;
-	@if [[ ! -d working/ ]]; then mkdir -v working/ ; fi;
+	@if [[ ! -d $(PREFIX)/bin/ ]]; then mkdir -pv $(PREFIX)/bin/ ; fi;
+	@if [[ ! -d $(PREFIX)/include/ ]]; then mkdir -pv $(PREFIX)/include/ ; fi;
+	@if [[ ! -d $(PREFIX)/lib/ ]]; then mkdir -pv $(PREFIX)/lib/ ; fi;
+	@if [[ ! -d working/ ]]; then mkdir -pv working/ ; fi;
 
 
 ## TCL
 ####################
-all_tcl: bin/tclsh 
+all_tcl: bin/tclsh
 
 # Extract and make
 bin/tclsh:	bin/tclsh8.5
-	@ln -f -s bin/tclsh8.5 bin/tclsh
-	
+	@ln -f -s $(PREFIX)/bin/tclsh8.5 $(PREFIX)/bin/tclsh
+
 bin/tclsh8.5: working/tcl8.5.11/unix/Makefile
 	@echo "Making TCL"
 	@cd working/tcl8.5.11/unix && make && make install
@@ -82,7 +83,7 @@ working/tcl8.5.11/unix/Makefile: working/tcl8.5.11-src.tar.gz
 # Download TCL
 working/tcl8.5.11-src.tar.gz: tcl8.5.11-src.tar.gz
 	@echo "Found TCL 8.5.11 sources"
-	@cp $^ working
+	@cp -vf $^ working/$^
 
 
 
@@ -95,7 +96,7 @@ all_tclxml: working/tclxml-3.2.tar.gz lib/Tclxml3.2/libTclxml3.2.so
 lib/Tclxml3.2/libTclxml3.2.so: working/tclxml-3.2/Makefile
 	@echo "Making TCL XML"
 	@cd working/tclxml-3.2/ && make && make install
-	
+
 # Configure
 working/tclxml-3.2/Makefile:
 	@echo "Configuring TCL XML"
@@ -104,8 +105,8 @@ working/tclxml-3.2/Makefile:
 # Download
 working/tclxml-3.2.tar.gz: tclxml-3.2.tar.gz
 	@echo "Found TCL XML 3.2 sources"
-	@cp $^ working	
-	
+	@cp -vf $^ working/$^
+
 ## iTCL
 ##########################
 all_itcl: lib/itcl3.4/libitcl3.4.so
@@ -120,21 +121,21 @@ working/itcl3.4.1/Makefile: working/itcl3.4.1.tar.gz
 
 working/itcl3.4.1.tar.gz: itcl3.4.1.tar.gz
 	@echo "Found iTCL"
-	@cp $^ working
-	
+	@cp -vf $^ working/$^
+
 
 ## TCL lib
 ###############################
 all_tcllib: working/tcllib-1.14/Makefile
 	@echo "Making TCL Lib"
 	@cd working/tcllib-1.14 && make && make install
-	
+
 working/tcllib-1.14/Makefile: working/tcllib-1.14.tar.gz
 	@echo "Configuring TCL Lib"
 	@cd working && tar xvzf tcllib-1.14.tar.gz && cd tcllib-1.14  && ./configure --prefix=$(PREFIX)
-	
+
 working/tcllib-1.14.tar.gz: tcllib-1.14.tar.gz
 	@echo "Found tcllib"
-	@cp $^ working
-	
-	
+	@cp -vf $^ working/$^
+
+

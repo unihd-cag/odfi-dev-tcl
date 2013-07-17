@@ -73,7 +73,7 @@ namespace eval odfi::tool {
 
                     odfi::common::printlnIndent
 
-                    odfi::common::println "-> -$argName"
+                    odfi::common::println "-> --$argName"
 
                     ## Description
                     if {[odfi::list::arrayContains $argDesc description]} {
@@ -97,6 +97,9 @@ namespace eval odfi::tool {
                             }
                             string {
                                 odfi::common::println "- Type: $type (just a string)"
+                            }
+                            list {
+                                odfi::common::println "- Type: $type (a list of size [odfi::list::arrayGet $argDesc size])"
                             }
                             default {
                                 odfi::common::println "- Type (unknown): $type"
@@ -212,12 +215,12 @@ namespace eval odfi::tool {
                     #### Found -> Do stuff depending on type
                     ###############################################
                     switch -exact -- $type {
-                       
+
                         string {
 
                             ##### string
                             ############################################################
-                            
+
                             if {[odfi::list::arrayContains $::argv --$argName]} {
 
                                 set str [odfi::list::arrayGet $::argv --$argName]
@@ -230,10 +233,22 @@ namespace eval odfi::tool {
                                 error "Argument --$argName must be provided a value"
                             }
 
-                            
+
                         }
 
-                       
+                        list {
+
+                            ## Get expected list size
+                            set size [odfi::list::arrayGet $argDesc size]
+
+                            ## Get Args
+                            set values [odfi::list::arrayFromKey $::argv --$argName $size]
+
+                            ## Set
+                            set ::$argName $values
+
+                        }
+
                         file {
 
                             #### File -> check the file is real

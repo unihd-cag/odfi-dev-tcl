@@ -220,12 +220,25 @@ namespace eval odfi::list {
 
     ## \brief Search for the element key in the array list, and return the index+1 element
     # @return an error if element was not found
-    proc arrayGet {arrayList key} {
+    proc arrayGet {arrayList key } {
 
         ## Find key
         set keyIndex [lsearch -exact $arrayList $key]
         if {$keyIndex==-1} {
             error "Could not find key $key in array list"
+        }
+
+        ## Return result
+        return [lindex $arrayList [expr $keyIndex+1]]
+
+    }
+    ## \brief
+    proc arrayGetDefault {arrayList key default} {
+
+        ## Find key
+        set keyIndex [lsearch -exact $arrayList $key]
+        if {$keyIndex==-1} {
+            return $default
         }
 
         ## Return result
