@@ -1,0 +1,63 @@
+#!/usr/bin/env tclsh
+
+
+
+package require odfi::tests 1.0.0
+package require odfi::tool
+package require odfi::common
+package require odfi::files
+
+odfi::tool::describe {
+
+    set description "
+
+Odfi Unit Test Runner
+
+    - Searches for the current folder for all the xxx.tests.tcl files
+    - Executes each of them in a Test Suite Context
+"
+
+
+}
+
+tool parseArguments
+
+##  Get the current folder
+#######################
+
+set currentFolder [file normalize [pwd]]
+
+odfi::common::println "Starting Unit tests from folder: $currentFolder"
+
+## Create Main Suite
+########################
+::new odfi::tests::Suite "topSuite" "Main Suite"
+
+## Look for *.tests.tcl files
+###################
+
+topSuite apply {
+
+
+    odfi::files::glob "-recursive -nocomplain -directory $currentFolder -types f *.tests.tcl" {
+
+        odfi::common::println "Found Test Suite: $file"
+
+        ## Create Suite
+        #######################
+        addSuite [file tail $file] {
+
+            source $file
+
+        }
+
+    }
+
+
+}
+
+odfi::common::println "Running"
+
+topSuite run
+
+odfi::common::println "Successful it seems"
