@@ -4,6 +4,10 @@ package require Itcl 3.4
 
 namespace eval odfi::common {
 
+    #############################################################################
+    ## Itcl Utilities
+    #############################################################################
+
     ## For a given namespace, resets all the defined classes
     # This is very useful to resource classes definitions
     # Typical usage:
@@ -517,18 +521,89 @@ namespace eval odfi::common {
     }
 
     ## Parses the provided string by:
-    ##  * Resolve ${} like environement variables
-    ##  * eval the string for eventual tcl commands parsing, only if starting with [
+    ##  - Resolve ${} like environement variables
+    ##  - eval the string for eventual tcl commands parsing, only if starting with [
+    ##  - if starts with @ , transform as object syntax
     proc parseRichString str {
 
         set str [resolveEnvVariable $str]
+        set res $str
 
+        ## Resolve [] commands
         ## IF eval fails, only return the content
-        if {[string match "\[*" $str]} {
-            return [eval $str]
+        ######################
+        if {[string match "\[*" $res]} {
+            set res  [eval $str]
         } else {
-            return $str
+            set res $str
         }
+
+        ## Starts with @ ?
+        ####################
+        if {[string match "@*" $res]} {
+
+            ## Transform and eval
+            ###############
+            set transformed ""
+            odfi::regexp::pregexp {(?:((?:::)?\$?[a-zA-Z_0-9]+))?\.([a-zA-Z_0-9]+)(?:\(([a-zA-Z_0-9]*)\))?} $res {
+
+                #puts "Matched: $matchContent // $groupCount"
+
+                ## Gather full match
+                ::switch $groupCount {
+                    1 {
+                        set subject     ""
+                        set method      "$group0"
+                        set parameter   ""
+                    }
+                    2 {
+                        set subject     ""
+                        set method      "$group0"
+                        set parameter   "$group1"
+                    }
+                    3 {
+                        set subject     "$group0"
+                        set method      "$group1"
+                        set parameter   "$group2"
+                    }
+                }
+
+
+                ## If not first loop, no subject
+                set unbalanced false
+                set startD ""
+                set endD   ""
+                if {[string length $transformed]>0 && [llength $transformed]==1} {
+                     #set transformed "\[$transformed"
+                     #set unbalanced true
+                     set startD " \["
+                    set endD   "\]"
+                } elseif {[string length $transformed]>0} {
+                    set transformed "\[$transformed\]"
+
+                }
+
+
+                #puts "Rich object: $group0 , method $group1 and parameter $group2"
+
+                set transformed [string trim "$transformed$startD$subject $method $parameter$endD"]
+
+                if {$unbalanced==true} {
+                    set transformed "$transformed\]"
+                }
+
+                #puts "End of step. $transformed"
+
+            }
+            #set regRes [regexp -inline -all ]
+            #set transformed
+            #puts "Transform result: $transformed"
+
+
+             set res [uplevel $transformed]
+        }
+
+        return $res
     }
 
 
@@ -1291,5 +1366,6 @@ namespace eval odfi::common {
 
 
     }
+
 
 }
