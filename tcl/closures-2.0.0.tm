@@ -37,7 +37,8 @@ namespace eval odfi::closures {
 
     }
 
-    #enable simple puts in TclStreams
+    # Enable simple puts in TclStreams
+    ########
     proc puts args {
       #::puts $::eout args
       if {[lindex $args 0] == "-nonewline"} {
@@ -48,7 +49,19 @@ namespace eval odfi::closures {
       }
       uplevel ::puts $NNL $::eout $args
     }
-    
+
+    ## Same as puts above, but with non standard TCL method name
+    proc streamOut args {
+      #::puts $::eout args
+      if {[lindex $args 0] == "-nonewline"} {
+        set NNL "-nonewline"
+        set args [lreplace $args 0 0]
+      } else {
+        set NNL ""
+      }
+      uplevel ::puts $NNL $::eout $args
+    }
+
 
     ## Replace embbeded TCL between <% %> markors in data with evaluated tcl
     # <% standard eval %>
@@ -56,19 +69,22 @@ namespace eval odfi::closures {
     # @warning Closure base execution level is 1, not 0 (so not this function's level)
     # @return resulting stream
     proc embeddedTclStream {dataStream args} {
-       
-	set execLevel 1
-	if {[lsearch -exact $args "-execLevel"]>-1} {
-		set execLevel [lindex $args [lsearch -exact $args "-execLevel"]+1]
-	}
 
-	set caller ""
-	if {[lsearch -exact $args "-caller"]>-1} {
-                set caller [lindex $args [lsearch -exact $args "-caller"]+1]
-        }
+        ## Extract Parameters
+        ########################################
 
-	set tag "<%%>"
-	if {[lsearch -exact $args "-tag"]>-1} {
+    	set execLevel 1
+    	if {[lsearch -exact $args "-execLevel"]>-1} {
+    		set execLevel [lindex $args [lsearch -exact $args "-execLevel"]+1]
+    	}
+
+    	set caller ""
+    	if {[lsearch -exact $args "-caller"]>-1} {
+                    set caller [lindex $args [lsearch -exact $args "-caller"]+1]
+            }
+
+    	set tag "<%%>"
+    	if {[lsearch -exact $args "-tag"]>-1} {
                 set tag [lindex $args [lsearch -exact $args "-tag"]+1]
         }
 
@@ -138,14 +154,15 @@ namespace eval odfi::closures {
                     set eout $::eout
                     #::puts "Eval closure: $script "
 
-                    #make sure, the closure uses later our self defined puts
-                    namespace   export puts
-                    uplevel $execLevel "namespace import -force [namespace current]::puts"
-
-                    #set execLevel 1
-
-
-
+                    ## Export :
+                    ##   - puts if not in toplevel namespace
+                    ##   - streamOut
+                    if {[uplevel $execLevel "namespace current"]!="::"} {
+                        namespace   export puts
+                        uplevel $execLevel "namespace import -force [namespace current]::puts"
+                    }
+                    namespace  export streamOut
+                    uplevel $execLevel "namespace import -force [namespace current]::streamOut"
 
                     ## Eval Script
                     ###########################
@@ -164,8 +181,13 @@ namespace eval odfi::closures {
 
                     }
 
-                    #restore original puts command
-                    uplevel $execLevel "rename puts \"\""
+                    ## Restore original puts command if needed
+                    ## Deexport streamOut
+                    #########
+                    if {[uplevel $execLevel "namespace current"]!="::"} {
+                        uplevel $execLevel "rename puts \"\""
+                    }
+                    uplevel $execLevel "rename streamOut \"\""
 
                     ## If evaluation output is to be ignored, set to ""
                     ########

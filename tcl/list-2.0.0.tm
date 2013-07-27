@@ -276,6 +276,29 @@ namespace eval odfi::list {
 
     }
 
+    ## \brief Deletes the key+value in list, or do nothing if not found
+    ## @return The modified list or the not modified arrayList if nothing done
+    proc arrayDelete {arrayList key args} {
+
+        ## Find key
+        set keyIndex [lsearch -exact $arrayList $key]
+        if {$keyIndex==-1} {
+            return $arrayList
+        } else {
+
+            ## Delete only key ?
+            if {[arrayContains $args "-single"]} {
+                set valueIndex [expr $keyIndex]
+            } else {
+                set valueIndex [expr $keyIndex+1]
+            }
+
+            set arrayList [lreplace $arrayList $keyIndex $valueIndex]
+            return $arrayList
+        }
+
+    }
+
     ## \brief Concat the value for key in list, or set it if not found
     ## @return The modified list
     proc arrayConcat {arrayList key value} {
@@ -454,9 +477,15 @@ namespace eval odfi::regexp {
                 ## groups
                 set groupIndex 0
                 foreach groupIndices [lrange $matchRes 1 end] {
+
+                    if {[lindex $groupIndices 0]==-1 && [lindex $groupIndices 1]==-1} {
+                        continue
+                    }
+
                     uplevel "set group$groupIndex [string range $string [lindex $groupIndices 0] [lindex $groupIndices 1]]"
                     incr groupIndex
                 }
+                uplevel "set groupCount $groupIndex"
 
                 ## Call closure
                 odfi::closures::doClosure $matchClosure 1

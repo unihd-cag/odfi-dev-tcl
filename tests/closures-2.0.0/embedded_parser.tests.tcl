@@ -2,6 +2,32 @@
 
 package require odfi::closures 2.0.0
 
+
+## Test Embedded Parser in top namespace
+###########################
+namespace eval :: {
+
+    ## Test 1: String to String
+    #################
+    set input "<%
+        puts foo
+        streamOut foo
+    %>
+    "
+    set reference1 "foo"
+
+
+
+    puts "testing odfi closures string to string"
+    set output [odfi::closures::embeddedTclFromStringToString $input]
+    if {[string trim $output]==$reference1} {
+        puts "working"
+    } else {
+        error "Test 1 : not working, output: $output, expected"
+    }
+
+}
+
 ## Test Embedded Parser in a namespace
 ###########################
 
