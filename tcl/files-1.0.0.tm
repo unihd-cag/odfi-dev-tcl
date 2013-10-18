@@ -8,6 +8,16 @@ namespace eval odfi::files {
     ## File Utilities
     #############################################################################
 
+    ## Write Given Content to file
+    proc writeToFile {f content} {
+
+        set fStream [open $f w]
+        puts -nonewline $fStream $content
+        flush $fStream
+        close $fStream
+
+    }
+
     ## Improved Glob, that can run recursively and executes provided closure on each file
     proc glob {args closure} {
 

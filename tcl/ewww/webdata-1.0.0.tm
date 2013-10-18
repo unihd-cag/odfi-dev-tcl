@@ -5,6 +5,7 @@ package require odfi::list 2.0.0
 ## Other files to source for this module
 set otherFiles {
     webdata-html-1.0.0.tm
+    json.tm
 }
 
 namespace eval odfi::ewww::webdata {
@@ -331,7 +332,7 @@ namespace eval odfi::ewww::webdata {
             set request(path) $searchPath
 
             #set searchPath /$searchPath
-            odfi::common::logInfo "Serving application for '$searchPath' // $applicationPathPart"
+            odfi::common::logInfo "Serving application for '$searchPath' // $applicationPathPart // complete: [array get request]"
 
             ## Look into handlers list, if one path matches our path
             #################
@@ -503,6 +504,8 @@ namespace eval odfi::ewww::webdata {
                 set tview "[$application getApplicationFolder]/$tview"
             }
 
+           # puts "Trying to serve tview @ $tview, is file: [file isfile $tview] "
+
             if {[file isfile $tview]} {
 
 
@@ -559,7 +562,7 @@ namespace eval odfi::ewww::webdata {
         inherit odfi::ewww::AbstractHandler
 
         ## Implementation can be provided to provide custom results
-        public variable implementation
+        public variable implementation ""
 
         public variable contentType "application/json"
 
@@ -588,6 +591,13 @@ namespace eval odfi::ewww::webdata {
         # Before serving content, the variables defined here will be set in the parsing TCL context
         public method model {varName value} {
             lappend model $varName $value
+        }
+
+        ## Set implementation closure
+        public method implementation closure {
+
+            set implementation $closure
+
         }
 
         ## \brief Serve content
@@ -626,14 +636,34 @@ namespace eval odfi::ewww::webdata {
 
             } else {
                 set data [eval $implementation]
+
+                puts "Data implementation eval gives: $data"
+                if {[odfi::common::isClass $data odfi::ewww::webdata::json::Json]} {
+
+                    set data [$data toString]
+                    puts "Json result: $data"
+                }
+
             }
 
-
+            if {[llength $data]>1} {
+                set contentType [lindex $data 0]
+                set data        [lindex $data 1]
+            }
 
 
             #puts "Final content: $data"
             return [list $contentType $data]
 
+
+        }
+
+        ## Creates a JSON object with a closure to be executed on it
+        public method json closure {
+
+            ## Create JSon 
+            set jsonObject [::new odfi::ewww::webdata::json::Json #auto $closure]
+            return $jsonObject
 
         }
 

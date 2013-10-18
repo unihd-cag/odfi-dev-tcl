@@ -131,6 +131,7 @@ namespace eval odfi::ewww {
                 foreach {method uri version} $line {break}
                 switch -exact $method {
                     GET {$this serve $sock $ip $uri $auth}
+                    POST {$this serve $sock $ip $uri $auth}
                     default {error "Unsupported method '$method' from $ip"}
                 }
             } msg resOptions]} {

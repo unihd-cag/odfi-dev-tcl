@@ -190,19 +190,32 @@ namespace eval odfi::common {
     ##                     -list to specify the variable is a list
     proc classField {visibility name default args} {
 
-        set script "
-            $visibility variable $name $default
+        if {$default==""} {
+            set default "\"\""
+        }
 
-            public method $name args {
-                if {\[llength \$args>0\]} {
-                    set $name $args
-                }
-                return \$$name
+        ## Declaration
+        set script ""
+        if {[lsearch -exact $args -noDeclaration]==-1} {
+
+            puts "Setting class variable using line: $visibility variable $name $default"
+            uplevel "$visibility variable $name $default"
+        }
+
+        ## Method
+        #puts \"Setting value of $name to \[lindex \$args 0\]\"
+
+        uplevel " 
+        public method $name args {
+
+            if { \$args != \"\" } {
+                
+                set $name \[lindex \$args 0\]
             }
-
+            return \${$name}
+        }
         "
 
-        uplevel $script
 
     }
 
