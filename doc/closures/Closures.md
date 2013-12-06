@@ -146,7 +146,7 @@ Example:
 
         constructor closure {
             ## The closure is evaluated as if we were in the object instance
-            odfi::closures::evalClosure $closure
+            odfi::closures::doClosure $closure
         }
 
         ## Adds a child to this object
@@ -167,10 +167,10 @@ Example:
         addChild "Hi!"
 
         ## (Remember the namespace and objects chapter)
-        puts "INVALID: number of children to create: $childrenCount"
+        #puts "Should be invalid in a normal function call: number of children to create: $childrenCount"
         puts "VALID: number of children to create: $::childrenCount"
 
-        ## The evalClosure method performs the black magic allowing this:
+        ## The doClosure method performs the black magic allowing this:
         ##  - Use childrenCount as a local variable, which is intuitive
         puts "VALID: number of children to create: $childrenCount"
 
@@ -197,10 +197,10 @@ The embedded parser performs following:
 
 Example:
 
-- File: /home/rleys/git/odfi/modules/dev/tcl/examples/embeddedtcl/embedded-simple-1.tcl
+- File: /home/rleys/git/odfi/modules-manager/install/dev-tcl/examples/embeddedtcl/embedded-simple-1.tcl
 - Content:
 
-    <includeFile path="/nfs/home/rleys/git/odfi/modules/dev/tcl/examples/embeddedtcl/embedded-simple-1.tcl" />
+    <includeFile path="/nfs/home/rleys/git/odfi/modules-manager/install/dev-tcl/examples/embeddedtcl/embedded-simple-1.tcl" />
 
 ### Using the parser interpreter
 
@@ -213,7 +213,7 @@ Example:
 
 - Input file: embedded-interpreter.tcl
 
-     <includeFile path="/nfs/home/rleys/git/odfi/modules/dev/tcl/examples/embeddedtcl/embedded-interpreter-notstdalone.tcl" />
+     <includeFile path="/nfs/home/rleys/git/odfi/modules-manager/install/dev-tcl/examples/embeddedtcl/embedded-interpreter-notstdalone.tcl" />
 
 - Output file: embedded-interpreter.generated.tcl
 - Calling:
