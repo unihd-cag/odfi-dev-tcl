@@ -198,7 +198,7 @@ namespace eval odfi::common {
         set script ""
         if {[lsearch -exact $args -noDeclaration]==-1} {
 
-            puts "Setting class variable using line: $visibility variable $name $default"
+            #puts "Setting class variable using line: $visibility variable $name $default"
             uplevel "$visibility variable $name $default"
         }
 
