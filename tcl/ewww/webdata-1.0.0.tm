@@ -517,7 +517,7 @@ namespace eval odfi::ewww::webdata {
 
                 ## Parse
                 ::new [namespace parent]::TViewContentProducer tviewTransformer $content $this
-                set result [tviewTransformer transform [concat application $application request [list [array get request]] $model]]
+                set result [tviewTransformer transform [concat application $application requestArray [list [array get request]] $model]]
 
 
                 #odfi::common::logFine "Serving tview, with result: $result"
