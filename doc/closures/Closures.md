@@ -146,7 +146,7 @@ Example:
 
         constructor closure {
             ## The closure is evaluated as if we were in the object instance
-            odfi::closures::evalClosure $closure
+            odfi::closures::doClosure $closure
         }
 
         ## Adds a child to this object
