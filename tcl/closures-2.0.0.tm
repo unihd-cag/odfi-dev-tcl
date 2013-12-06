@@ -368,6 +368,8 @@ namespace eval odfi::closures {
         ## list of all upvaring to prepend to closure
         set requiredUpvars {}
 
+        ## After closure code to be evaluated, used to unlink variables and so on 
+        set afterClosure {}
 
 
         #puts "Search into [llength $closure]"
@@ -476,6 +478,8 @@ namespace eval odfi::closures {
 
                     #puts "**** Start Search at uplevel [uplevel $resolveLevel info level]"
 
+                    ## Start Searching at 1, meaning where the doClosure call is located, to allow resolution of local variables
+                    set searchResolveLevel 1
                     while {[catch "uplevel $searchResolveLevel info level"]==0} {
 
                         #puts "**** Search $var at uplevel $searchResolveLevel [uplevel $searchResolveLevel namespace current]"
@@ -487,7 +491,19 @@ namespace eval odfi::closures {
                             ## Found
                             #puts "********* Found $var at $searchResolveLevel"
                             set callerExecUp true
-                            set requiredUpvars [concat upvar [expr $searchResolveLevel-$execLevel] $var $var ";" $requiredUpvars]
+
+                            ## If Resolve level is < execution level, just get variable value, because upvar won't work (down var is not possible)
+                            ## After Closure execution, unlink to variable to ensure it won't be seen as already resolved for a subsequent call
+                            if {$searchResolveLevel<$execLevel} {
+                                ##set requiredUpvars [concat set $var $var ";" $requiredUpvars]
+                                ##::puts "Resolved var $var at lower exec level as requested one, setting to $res"
+                                uplevel $execLevel "set $var $res"
+                                set afterClosure [concat uplevel $execLevel unset $var ";" $afterClosure]
+                            } else {
+                                set requiredUpvars [concat upvar [expr $searchResolveLevel-$execLevel] $var $var ";" $requiredUpvars]
+                            }
+
+                            
                             break
                         }
 
@@ -556,7 +572,19 @@ namespace eval odfi::closures {
         ## Run And catch error
         ##########
         #puts "eval from do closure"
-        set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]
+        if {[catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions]} {
+
+            eval $afterClosure
+
+            ## Propagate error 
+            error $res   
+        }
+
+
+        ## After Closure code
+        ##############
+        eval $afterClosure
+
         #if {[catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions]} {
 
          #   if {$firstChar=="\"" || $firstChar=="$"} {
@@ -621,6 +649,12 @@ namespace eval odfi::closures {
         }
 
     }
+
+    ######################################
+    ## Closure Preparation without execution ?? 
+    #######################################
+
+    
 
 
     #####################################
