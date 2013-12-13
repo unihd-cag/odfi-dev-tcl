@@ -1,0 +1,64 @@
+#!/usr/bin/env tclsh8.5
+
+package require odfi::closures 2.0.0
+package require odfi::list
+
+itcl::class Knoten {
+
+	## List of children objects
+        public variable children {}
+
+        constructor closure {
+            ## The closure is evaluated as if we were in the object instance
+            odfi::closures::doClosure $closure
+        }
+
+        ## Adds a child to this object
+        public method addChild object {
+            lappend children $object
+        }
+
+	public method getChildren {} {
+	    return $children
+	}
+
+	public method getAllChildren {} {
+		set res {}
+		odfi::list::each $children {
+			lappend res $it
+			if { [$it getChildren] != 0 } {
+				lappend res [$it getAllChildren]
+			}			
+		}
+		return $res	
+	}
+}
+
+
+Knoten wurzel {
+	addChild [Knoten node1 {
+		addChild [Knoten node1_1 {}]
+		addChild [Knoten node1_2 {}]
+	}]
+
+	addChild [Knoten node2 {
+		addChild [Knoten node2_1 {}]
+		addChild [Knoten node2_2 {}]
+	}]
+	
+}
+
+puts [wurzel getChildren]
+puts [wurzel getAllChildren]
+
+
+
+
+
+
+
+
+
+
+
+
