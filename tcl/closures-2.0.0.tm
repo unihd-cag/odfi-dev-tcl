@@ -572,12 +572,27 @@ namespace eval odfi::closures {
         ## Run And catch error
         ##########
         #puts "eval from do closure"
-        if {[catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions]} {
+        set evaledRes ""
+        catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions
+        set returnCode [dict get $resOptions -code]
+        #::puts "Error code: $returnCode"
+        if {$returnCode==2} {
 
-            eval $afterClosure
+            ## TCL_RETURN is ok
+            #eval $afterClosure
+            ::puts "Detected TCL return code:"
+            set evaledRes $res 
+            
 
             ## Propagate error 
-            error $res   
+            ##::puts "Propagate error for closure $closure ($evaledRes)"
+            ##error $res   
+        } elseif {$returnCode!=0} {
+
+            ## ERROR 
+            eval $afterClosure
+            ::puts "Detected ERROR return code: $res"
+            error $res  
         }
 
 
