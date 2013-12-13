@@ -1,5 +1,5 @@
 package provide odfi::common 1.0.0
-package require Itcl 3.4
+package require Itcl 
 #package require textutil::adjust
 
 namespace eval odfi::common {
@@ -435,7 +435,7 @@ namespace eval odfi::common {
         close $iniFileHandle
     }
 
-    ## Makes a copy with globbing is a pattern is provided
+    ## Makes a copy with globbing if a pattern is provided
     ## If pattern is used, src and dest must be directories
     ## ex: copy ./ ../newdir/ *.v
     proc copy {src dst {pattern ""} {force true}} {
@@ -446,6 +446,11 @@ namespace eval odfi::common {
         if {$pattern!=""} {
             # Pattern copy
             ###################
+
+            ## prepare destination
+            if {![file exists $dst]} {
+                file mkdir $dst
+            }
 
             ## Glob
             set files [glob -nocomplain -directory $src $pattern]
