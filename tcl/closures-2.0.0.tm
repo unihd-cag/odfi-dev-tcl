@@ -372,6 +372,18 @@ namespace eval odfi::closures {
         set afterClosure {}
 
 
+        ## Iterators variable "it" management
+        ## Before closure -> save if exists in execlevel
+        #######################
+        set savedIterator ""
+        if {![catch [list uplevel $execLevel set it] res]} {
+            ## Found
+            #::puts "Saved iterator with value $res"
+            set savedIterator $res
+            #catch [list uplevel $execLevel [list unset -nocomplain it]]
+        }
+  
+
         #puts "Search into [llength $closure]"
 
         #puts "Exploring closure **************************"
@@ -379,13 +391,39 @@ namespace eval odfi::closures {
         #foreach scriptElement [split $closureString { }] {
 
             ## Search for all variables
+            ## Search for special alls, like "incr"
             ############
             #puts "**** Exploring $scriptElement"
-            set vars [regexp -all -inline {\$[a-zA-Z0-9:\{_]+\}?} $closureString]
-            foreach var $vars {
+            set vars [regexp -all -inline {(?:\$[a-zA-Z0-9:\{_]+\}?)|(?:incr [a-zA-Z0-9:_]+)} $closureString]
 
-                set var [string trim [string range $var 1 end]]
-                set var [regsub -all {\{|\}} $var ""]
+            
+            #set incr [regexp -all -inline {\$[a-zA-Z0-9:\{_]+\}?} $closureString]
+
+            ## Clean var names
+            set cleanedVars {}
+            set vars [lsort -unique $vars]
+            foreach var $vars {
+                set var [string trim $var]
+
+                ## Clean var name 
+                if {[string match "incr*" $var]} {
+                    set var [regsub -all {.*incr\s+(.+)} $var "\\1"]
+                } else {
+                    set var [string trim [string range $var 1 end]]
+                    set var [regsub -all {\{|\}} $var ""] 
+                }
+
+                ## Store without duplicates
+                lappend cleanedVars $var
+            }
+
+            ## Remove duplicate
+            set cleanedVars [lsort -unique $cleanedVars]
+
+            foreach var $cleanedVars {
+
+                
+                
 
                 #puts "Found variable : $var"
 
@@ -432,11 +470,11 @@ namespace eval odfi::closures {
                     set validLocal true
                     foreach localResult $localSearchResults {
 
-                        #puts "Checking local variable $var validity against set expression: $localResult"
+                        #::puts "Checking local variable $var validity against set expression: $localResult"
 
                         if {[regexp "set $var .*\\\$$var.*" $localResult]>0} {
 
-                            #puts "Variable should be upvared"
+                            #::puts "Variable should be upvared"
                             set validLocal false
                             break
                         }
@@ -460,18 +498,18 @@ namespace eval odfi::closures {
                 }
 
                 ##### 2: Caller Level -> Do nothing
-                if {[catch [list uplevel $execLevel set $var] res]} {
+                #if {$var!="it" && [catch [list uplevel $execLevel set $var] res]} {
 
                     #puts "-- Variable $var not found in execlevel upvar ($execLevel)"
 
-                } else {
+                #} elseif {$var!="it"} {
 
-                    #puts "-- Variable $var was found in execlevel upvar ($execLevel)"
+                   # ::puts "-- Variable $var was found in execlevel upvar ($execLevel)"
 
-                    set callerExec true
+                #    set callerExec true
                     #set requiredUpvars [concat upvar [expr $execLevel] $var $var $requiredUpvars]
                     #lappend requiredUpvars "upvar $execLevel $var $var"
-                }
+               # }
 
                 ### 3: Caller +1 level -> upvar
                  if {$callerExec==false} {
@@ -498,9 +536,9 @@ namespace eval odfi::closures {
                                 ##set requiredUpvars [concat set $var $var ";" $requiredUpvars]
                                 ##::puts "Resolved var $var at lower exec level as requested one, setting to $res"
                                 uplevel $execLevel "set $var $res"
-                                set afterClosure [concat uplevel $execLevel unset $var ";" $afterClosure]
+                                #set afterClosure [concat uplevel $execLevel unset -nocomplain $var ";" $afterClosure]
                             } else {
-                                set requiredUpvars [concat upvar [expr $searchResolveLevel-$execLevel] $var $var ";" $requiredUpvars]
+                                set requiredUpvars [concat [list catch [list upvar [expr $searchResolveLevel-$execLevel] $var $var] res] ";" $requiredUpvars]
                             }
 
                             
@@ -544,6 +582,10 @@ namespace eval odfi::closures {
         #}
 
 
+
+
+        
+
         ## Evaluate closure
         #########################
 
@@ -571,6 +613,7 @@ namespace eval odfi::closures {
 
         ## Run And catch error
         ##########
+        set error ""
         #puts "eval from do closure"
         set evaledRes ""
         catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions
@@ -580,7 +623,7 @@ namespace eval odfi::closures {
 
             ## TCL_RETURN is ok
             #eval $afterClosure
-            ::puts "Detected TCL return code:"
+            #::puts "Detected TCL return code:"
             set evaledRes $res 
             
 
@@ -591,14 +634,30 @@ namespace eval odfi::closures {
 
             ## ERROR 
             eval $afterClosure
-            ::puts "Detected ERROR return code: $res"
-            error $res  
+            #::puts "Detected ERROR return code: $res"
+            set error $res  
         }
 
 
         ## After Closure code
         ##############
+
+        ## After Closure -> Restore iterator variable if necessary, or delete
+        ##################
+        if {$savedIterator!=""} {
+            uplevel $execLevel "set it $savedIterator"
+        } else {
+            catch [list uplevel $execLevel [list catch {unset -nocomplain it}]]
+        }
+       
+
         eval $afterClosure
+
+        ## Report Error 
+        #########################
+        if {$error != ""} {
+            error $error
+        }
 
         #if {[catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions]} {
 

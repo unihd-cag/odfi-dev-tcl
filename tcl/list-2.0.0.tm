@@ -154,7 +154,7 @@ namespace eval odfi::list {
 
         foreach it $lst {
 
-            uplevel $execlevel set it $it
+            #uplevel $execlevel set it $it
             odfi::closures::doClosure $script $execlevel
         }
 
