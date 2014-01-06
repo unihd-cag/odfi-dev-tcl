@@ -422,10 +422,7 @@ namespace eval odfi::closures {
 
             foreach var $cleanedVars {
 
-                
-                
-
-                #puts "Found variable : $var"
+                #::puts "(CL) Found variable : $var"
 
                 ## Ignore variables that are an explicit namespaced reference
                 ##############
@@ -474,7 +471,7 @@ namespace eval odfi::closures {
 
                         if {[regexp "set $var .*\\\$$var.*" $localResult]>0} {
 
-                            #::puts "Variable should be upvared"
+                           # ::puts "Variable should be upvared"
                             set validLocal false
                             break
                         }
@@ -514,13 +511,13 @@ namespace eval odfi::closures {
                 ### 3: Caller +1 level -> upvar
                  if {$callerExec==false} {
 
-                    #puts "**** Start Search at uplevel [uplevel $resolveLevel info level]"
+                    ##::puts "**** Start Search at uplevel [uplevel $resolveLevel info level]"
 
                     ## Start Searching at 1, meaning where the doClosure call is located, to allow resolution of local variables
                     set searchResolveLevel 1
-                    while {[catch "uplevel $searchResolveLevel info level"]==0} {
+                    while {[catch "uplevel $searchResolveLevel info level"]>=0} {
 
-                        #puts "**** Search $var at uplevel $searchResolveLevel [uplevel $searchResolveLevel namespace current]"
+                        #::puts "**** Search $var at uplevel $searchResolveLevel [uplevel $searchResolveLevel namespace current]"
 
                         ## Test
                         if {[catch [list uplevel $searchResolveLevel set $var] res]} {
@@ -534,10 +531,11 @@ namespace eval odfi::closures {
                             ## After Closure execution, unlink to variable to ensure it won't be seen as already resolved for a subsequent call
                             if {$searchResolveLevel<$execLevel} {
                                 ##set requiredUpvars [concat set $var $var ";" $requiredUpvars]
-                                ##::puts "Resolved var $var at lower exec level as requested one, setting to $res"
+                                #::puts "Resolved var $var at lower exec level as requested one, setting to $res"
                                 uplevel $execLevel "set $var $res"
                                 #set afterClosure [concat uplevel $execLevel unset -nocomplain $var ";" $afterClosure]
                             } else {
+                                #::puts "(CL) Found var $var at level [expr $searchResolveLevel-$execLevel]"
                                 set requiredUpvars [concat [list catch [list upvar [expr $searchResolveLevel-$execLevel] $var $var] res] ";" $requiredUpvars]
                             }
 
