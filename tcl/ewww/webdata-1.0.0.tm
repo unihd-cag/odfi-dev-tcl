@@ -339,7 +339,7 @@ namespace eval odfi::ewww::webdata {
             set entry [lsearch -glob $handlers $searchPath]
             if {$entry!=-1} {
 
-                odfi::common::logInfo "---Found entry at $entry"
+                #odfi::common::logInfo "---Found entry at $entry"
 
                 ## Take handler
                 set applicationHandler [lindex $handlers [expr $entry+1]]
@@ -375,7 +375,7 @@ namespace eval odfi::ewww::webdata {
                     $httpd respond $sock 500 "text/plain" "An error occured: $res" ""
 
                     odfi::common::logError "Error while serving request: [dict get $resOptions -errorinfo]"
-
+                    #error $res
 
                 } else {
 
