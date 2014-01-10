@@ -77,10 +77,16 @@ namespace eval odfi::list {
                 set it "\"\""
             }
 
-            uplevel $execlevel set it "{$it}"
+            set code  "set it {$it}"
+            #::puts "Setting iterator to $code"
+            uplevel $execlevel $code
+            #::puts "Iterator set"
+
+            #::puts "Transform result: [odfi::closures::doClosure $scriptClosure $execlevel]"
+
             set res [odfi::closures::doClosure $scriptClosure $execlevel]
 
-            #puts "TRANSFORM: Result is: $res"
+            ::puts "TRANSFORM: Result is: $res"
             if {$concat==true} {
                 set newlst [concat $newlst $res]
             } else {
@@ -95,6 +101,8 @@ namespace eval odfi::list {
 
     ## Filters given #lst list using provided #script, with $it beeing the current element
     #  If the closure returns true, the element is kept as part of the new list, if not, then it is removed
+    # Extra args:
+    #   * -not : Keep only the results triggering false
     # @return The new list transformed by #scriptClosure
     proc filter {lst scriptClosure args} {
 
@@ -102,13 +110,19 @@ namespace eval odfi::list {
         ###########
         set execlevel 1
         if {[lsearch -exact $args -level]>-1} {
+
+             ## Exec level +1 to cover the current execution level
             set execlevel [lindex $args [expr [lsearch -exact $args -level]+1]]
         }
 
-        ## Exec level +1 to cover the current execution level
-        set execlevel [expr $execlevel+1]
-
         ####
+
+        ## Comparison result: true per default
+        set expectedResult true 
+        if {[lsearch -exact $args -not]>-1} {
+            set expectedResult false
+        }
+
 
         set newlst {}
         foreach it $lst {
@@ -121,9 +135,9 @@ namespace eval odfi::list {
             uplevel $execlevel set it $it
             set res [odfi::closures::doClosure $scriptClosure $execlevel]
 
-            #puts "FILTER: Result is: $res"
+           # puts "FILTER: Result is: $res"
 
-            if {$res} {
+            if {$res==$expectedResult} {
                 #puts "FILTER ACCEPTED: Result is: $res"
                 lappend newlst $it
             } else {

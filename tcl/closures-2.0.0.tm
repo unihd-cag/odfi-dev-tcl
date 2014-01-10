@@ -531,11 +531,22 @@ namespace eval odfi::closures {
                             ## After Closure execution, unlink to variable to ensure it won't be seen as already resolved for a subsequent call
                             if {$searchResolveLevel<$execLevel} {
                                 ##set requiredUpvars [concat set $var $var ";" $requiredUpvars]
+                                
                                 #::puts "Resolved var $var at lower exec level as requested one, setting to $res"
-                                uplevel $execLevel "set $var $res"
+                                
+                                if {[llength $res]>1} {
+                                   # ::puts "-- Setting as string because length > 1 "
+                                   uplevel $execLevel "set $var \"$res\""
+                                    #::puts "-- Done"
+                                } else {
+                                   # ::puts "-- Setting value as it is"
+                                    uplevel $execLevel "set $var $res"
+                                    #::puts "-- Done"
+                                }
+                                
                                 #set afterClosure [concat uplevel $execLevel unset -nocomplain $var ";" $afterClosure]
                             } else {
-                                #::puts "(CL) Found var $var at level [expr $searchResolveLevel-$execLevel]"
+                               # ::puts "(CL) Found var $var at level [expr $searchResolveLevel-$execLevel]"
                                 set requiredUpvars [concat [list catch [list upvar [expr $searchResolveLevel-$execLevel] $var $var] res] ";" $requiredUpvars]
                             }
 
@@ -586,6 +597,7 @@ namespace eval odfi::closures {
 
         ## Evaluate closure
         #########################
+        #::puts "Going to evaluate"
 
         ## Prepare result creation
         ###########
@@ -614,9 +626,13 @@ namespace eval odfi::closures {
         set error ""
         #puts "eval from do closure"
         set evaledRes ""
-        catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure ]]} res resOptions
+
+        #::puts "Evauating closure  [concat $requiredUpvars $closure ]"
+        catch {set evaledRes [uplevel $execLevel [concat $requiredUpvars $closure]]} res resOptions
+
+        #::puts "Done closure evaluation"
         set returnCode [dict get $resOptions -code]
-        #::puts "Error code: $returnCode"
+        #::puts "Error code: $returnCode (res: $evaledRes)"
         if {$returnCode==2} {
 
             ## TCL_RETURN is ok
@@ -639,16 +655,27 @@ namespace eval odfi::closures {
 
         ## After Closure code
         ##############
+       # ::puts "Done error checking"
 
         ## After Closure -> Restore iterator variable if necessary, or delete
         ##################
         if {$savedIterator!=""} {
-            uplevel $execLevel "set it $savedIterator"
+
+            #::puts "Restoring iterator to $savedIterator"
+            if {[llength $res]>1} {
+
+                uplevel $execLevel "set it \"$savedIterator\""
+
+            } else {
+
+                uplevel $execLevel "set it $savedIterator"
+            }
+            
         } else {
             catch [list uplevel $execLevel [list catch {unset -nocomplain it}]]
         }
        
-
+        #::puts "Doing afterClosure: $afterClosure"
         eval $afterClosure
 
         ## Report Error 
@@ -687,6 +714,7 @@ namespace eval odfi::closures {
             #puts "Result for closure: $evaledRes"
         }
 
+        #::puts "Done $evaledRes"
         return $evaledRes
 
 
