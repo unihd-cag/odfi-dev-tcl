@@ -12,6 +12,180 @@ namespace eval odfi::ewww::webdata::html {
         protected variable class {}
     }
 
+
+    proc putsHTML closure {
+
+        set ct [::new [namespace current]::HTMLContent #auto $closure]
+        puts [$ct cget -res]
+
+    }
+
+    proc stringHTML closure {
+
+        set ct [::new [namespace current]::HTMLContent #auto $closure]
+        set res [$ct cget -res]
+
+        ##::puts "Result: $res"
+        return $res
+
+    }
+
+    itcl::class HTMLContent {
+
+        public variable res ""
+
+
+
+        constructor cl {
+           [odfi::closures::doClosureToString $cl]
+        }
+
+        public method stack str {
+            set res "$res$str"
+        }
+
+        ## HTML Content Methods
+        ###########################
+
+        public method ul closure {
+
+            return "<ul>[odfi::closures::doClosureToString $closure]</ul>"
+
+            set resunJoined [odfi::closures::doClosure $closure]
+            #puts "Should be end of closure before this line, with res: $resunJoined"
+            #set res [odfi::closures::doClosureToString $closure]
+            #puts "UL joining: [join $resunJoined \n]"
+
+            set res "<ul>[join $resunJoined]</ul>"
+
+
+            return $res
+
+
+
+        }
+
+        public method li closure {
+
+
+            return "<li>[odfi::closures::doClosureToString $closure]</li>"
+        }
+
+        public method span closure {
+
+
+            return "<span>[odfi::closures::doClosureToString $closure]</span>"
+        }
+
+        public method div closure {
+
+            stack "<div>"
+            stack [odfi::closures::doClosureToString $closure]
+            stack "</div>"
+
+            #return "<div>[odfi::closures::doClosureToString $closure]</div>"
+        }
+        public method div-id {id closure} {
+
+
+            return "<div id=\"$id\">[odfi::closures::doClosureToString $closure]</div>"
+        }
+
+        ## Titling
+        #################
+        public method h1 closure {
+
+            return "<h1>[odfi::closures::doClosureToString $closure]</h1>"
+        }
+        public method h2 closure {
+
+            return "<h2>[odfi::closures::doClosureToString $closure]</h2>"
+        }
+        public method h3 closure {
+
+            ::puts "H3 tile: $closure"
+
+            stack "<h3>"
+            stack "[odfi::closures::doClosureToString $closure]"
+            stack "</h3>"
+
+            #return "<h3>[odfi::closures::doClosureToString $closure]</h3>"
+        }
+        public method h4 closure {
+
+            return "<h4>[odfi::closures::doClosureToString $closure]</h4>"
+        }
+        public method h5 closure {
+
+            return "<h5>[odfi::closures::doClosureToString $closure]</h5>"
+        }
+        public method h6 closure {
+
+            return "<h6>[odfi::closures::doClosureToString $closure]</h6>"
+        }
+
+
+        ## Table
+        ###########################
+
+        public method table closure {
+
+            ## Create table
+            set tbl [::new [namespace parent]::Table #auto]
+            $tbl apply $closure
+
+            stack [$tbl toHTML]
+
+            #return [$tbl toHTML]
+
+            #return "<table>
+            #    [odfi::closures::doClosureToString $closure]
+            #</table>"
+
+        }
+
+
+        #### Linking
+        ##################
+
+        ## \brief Creates a simple link to a view
+        #  Example: link "This is a link" to /path/to/view
+        #           <a href="appPath/view//path/to/view">This is a link</a>
+        public method link {linkText word viewId} {
+
+            set linkOutput  [odfi::closures::doClosure {
+
+                    return "<a href='$viewId'>
+                                    $linkText
+                            </a>"
+
+                    return "<a href='[$application getApplicationPath]/view/$viewId'>
+                                    $linkText
+                            </a>"
+            }]
+
+            #puts "Link Result: $linkOutput"
+
+            return $linkOutput
+        }
+
+        ## Special Methods
+        ###########################
+
+        public method breadCrumbs {lst transformClosure} {
+
+            return [div {
+                join [odfi::list::transform $lst {
+                    span $transformClosure
+                }] " - "
+
+            }]
+
+        }
+
+
+    }
+
     itcl::class Table {
         inherit HtmlComponent
 
@@ -96,7 +270,7 @@ namespace eval odfi::ewww::webdata::html {
                 <thead>
                     <tr>
                     [odfi::list::transform $columns {
-                        return <th>$it</th>
+                       "<th>$it</th>"
                     }]
                     </tr>
                 </thead>
