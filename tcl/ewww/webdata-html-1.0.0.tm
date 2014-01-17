@@ -266,7 +266,15 @@ namespace eval odfi::ewww::webdata::html {
         # @return An HTML string
         public method toHTML args {
 
-            return "
+
+            set cols {}
+            foreach colname $columns {
+                lappend cols "<th>$colname</th>"
+            }
+
+            
+
+            set r  "
                 <thead>
                     <tr>
                     [odfi::list::transform $columns {
@@ -276,6 +284,18 @@ namespace eval odfi::ewww::webdata::html {
                 </thead>
 
             "
+
+            #::puts "Result should be: $res"
+
+            return "
+                <thead>
+                    <tr>
+                    [concat $cols]
+                    </tr>
+                </thead>
+
+            "
+
 
         }
 

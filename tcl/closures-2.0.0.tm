@@ -546,8 +546,8 @@ namespace eval odfi::closures {
                                 
                                 #set afterClosure [concat uplevel $execLevel unset -nocomplain $var ";" $afterClosure]
                             } else {
-                               # ::puts "(CL) Found var $var at level [expr $searchResolveLevel-$execLevel]"
-                                set requiredUpvars [concat [list catch [list upvar [expr $searchResolveLevel-$execLevel] $var $var] res] ";" $requiredUpvars]
+                                #::puts "(CL) Found var $var at level [expr $searchResolveLevel-$execLevel]"
+                                set requiredUpvars [concat [list catch [list upvar [expr $searchResolveLevel-$execLevel] $var $var]] ";" $requiredUpvars]
                             }
 
                             

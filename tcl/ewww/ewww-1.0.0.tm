@@ -162,13 +162,17 @@ namespace eval odfi::ewww {
             ## Split request path
             array set request [uri::split $uri]
 
+
+
             ## Look for a handler for given path
             #############################
             set requestPath "/$request(path)"
 
+           ## ::puts "Got request for URI: $uri , and path: $requestPath"
+
             ## Clean all // -> /
             set requestPathSplitted [odfi::list::filter [split $requestPath /] {
-                    expr [string length $it] > 0
+                    expr [expr [string length $it] > 0 ? true : false]
             }]
             set requestPath [join $requestPathSplitted /]
 
