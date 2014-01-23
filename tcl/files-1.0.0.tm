@@ -1,5 +1,6 @@
 package provide odfi::files 1.0.0
 package require odfi::list 2.0.0
+package require odfi::closures 2.0.0
 
 namespace eval odfi::files {
 
@@ -59,6 +60,25 @@ namespace eval odfi::files {
 
             }
 
+        }
+
+
+    }
+
+
+    ## Executes closure inside a directory, and return back in all cases
+    ## The closure is executed in uplevel 1 to cover this proc level
+    proc inDirectory {path closure} {
+
+        set saved [pwd]
+        cd $path
+
+        set catched [catch [list odfi::closures::doClosure $closure 1] res resOptions]
+        cd $saved
+
+        ## handle error
+        if {$catched} {
+            error $res
         }
 
 
