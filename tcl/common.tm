@@ -522,8 +522,11 @@ namespace eval odfi::common {
         global env
 
         set res [regsub -all {\$\{?([A-Z_0-9]*)\}?} $src {$::env(\1)}]
-        eval return $res
 
+        #puts "ENV Resolv res: $res"
+        #eval "return $res"
+        #return [eval "return $res"]
+        subst $res
     }
 
     ## \brief If @str is a variable definition string like: "$var" name, get the value of the variable
@@ -1223,7 +1226,7 @@ namespace eval odfi::common {
 
     ## Equivalent to puts
     ## No channelId outputs to stdout
-    proc println {str {channelId -1}} {
+    proc println {str {channelId -1} args} {
         variable indentation
 
         ## No channelId outputs to stdout
