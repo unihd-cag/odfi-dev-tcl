@@ -1,7 +1,32 @@
 package provide odfi::git 1.0.0
-
+package require odfi::files
 
 namespace eval odfi::git {
+
+	## @return true if the folder is in a git repository
+	proc isGitFolder path {
+
+		odfi::files::inDirectory $path {
+
+			catch {exec -ignorestderr git status > /dev/null 2> /dev/null} res resOptions
+
+		}
+
+		set dir [pwd]
+		cd $path 
+		
+		cd $dir
+
+		#puts "Result for $path: $res"
+
+		## Get Error
+		if {[dict exists $resOptions -errorcode]} {
+			return false
+		}
+
+		return true
+
+	}
 
 
 	## Just Clone!
@@ -90,9 +115,9 @@ namespace eval odfi::git {
 
 		## Return
 		if {$statusOutput==""} {
-			return 1
+			return true
 		} else {
-			return 0
+			return false
 		}
 
 		#puts "is clean output: $statusOutput"

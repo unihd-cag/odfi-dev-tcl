@@ -11,6 +11,18 @@ namespace eval odfi::tests {
 
     variable currentSuite ""
 
+    ####################################
+    ## Global Expects
+    ####################################
+    proc expect {name expected actual} {
+        if {$expected != $actual} {
+            ::puts "\[  FAIL \] Failed $name , expected: $expected, actual value: $actual"
+        } else {
+            ::puts "\[SUCCESS\] $name"
+        }
+        
+    }
+
     #################################################
     ## Factories
     #################################################
