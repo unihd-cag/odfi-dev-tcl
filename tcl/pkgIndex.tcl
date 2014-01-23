@@ -21,6 +21,8 @@ package ifneeded odfi::tool       1.0.0 [list source [file join $dir tool-1.0.0.
 
 package ifneeded odfi::files   1.0.0 [list source [file join $dir files-1.0.0.tm]]
 
+package ifneeded odfi::git   1.0.0 [list source [file join $dir git-1.0.0.tm]]
+
 package ifneeded odfi::ewww             1.0.0 [list source [file join $dir ewww ewww-1.0.0.tm]]
 package ifneeded odfi::ewww::webdata   1.0.0 [list source [file join $dir ewww webdata-1.0.0.tm]]
 
