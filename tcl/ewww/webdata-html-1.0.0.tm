@@ -100,16 +100,16 @@ namespace eval odfi::ewww::webdata::html {
 
             
 
-            set r  "
-                <thead>
-                    <tr>
-                    [odfi::list::transform $columns {
-                        return <th>$it</th>
-                    }]
-                    </tr>
-                </thead>
+            #set r  "
+             #   <thead>
+             #       <tr>
+             #       [odfi::list::transform $columns {
+             #           return <th>$it</th>
+             #       }]
+             #       </tr>
+             #   </thead>
 
-            "
+            #"
 
             #::puts "Result should be: $res"
 
@@ -175,12 +175,17 @@ namespace eval odfi::ewww::webdata::html {
                 }
 
                 ## Convert Data elements to Cells td
-                set rowCells [odfi::list::transform $row {
+                set rowCells {}
+                foreach it $row {
                     #puts "Row: $it"
-                    return "{<td>$it</td>}"
-                }]
+                    lappend rowCells "{<td>$it</td>}"
+                }
+               
+                #puts "rowCells: $rowCells"
                 if {[llength $rowCells]>0} {
-                    lappend rowsResult "<tr${class}>[join $rowCells]</tr>"
+                    set rowCells [join [join $rowCells]]
+                    #puts "joined rC: $rowCells"
+                    lappend rowsResult "<tr${class}>$rowCells</tr>"
                 }
             }
             return "
