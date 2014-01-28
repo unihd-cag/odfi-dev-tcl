@@ -101,6 +101,9 @@ namespace eval odfi::tool {
                             list {
                                 odfi::common::println "- Type: $type (a list of size [odfi::list::arrayGet $argDesc size])"
                             }
+                            producer {
+                                odfi::common::println "- Type: $type (Must be a Producer)"
+                            }
                             default {
                                 odfi::common::println "- Type (unknown): $type"
                             }
@@ -234,6 +237,19 @@ namespace eval odfi::tool {
                             }
 
 
+                        }
+
+                        producer {
+                            #to be a producer it must inherit from odfi::dev::hw::package::BaseOutputGenerator
+                            odfi::dev::hw::package::Footprint foot 
+                            set prod "[odfi::list::arrayGet $::argv --$argName]"
+                            set obj [::new $prod #auto ::foot]
+                        
+                            if {[$obj info inherit] != "::odfi::dev::hw::package::BaseOutputGenerator"} {
+                                puts "start if"
+                                error "$argName should be a producer but it doesn't inherit from ::odfi::dev::hw::package::BaseOutputGenerator"
+                            }
+                            set ::$argName $prod
                         }
 
                         list {
