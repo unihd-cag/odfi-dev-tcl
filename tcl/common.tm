@@ -1261,7 +1261,7 @@ namespace eval odfi::common {
 
         set result [chan create "write read" "odfi::common::[StringChannel #auto]"]
         if {[string length [lindex $args 0]]>0} {
-            puts "initial value for string channel [string length $args] pm $result "
+            #puts "initial value for string channel [string length $args] pm $result "
             puts $result "[lindex $args 0]"
             flush $result
         }
@@ -1388,5 +1388,27 @@ namespace eval odfi::common {
 
     }
 
+
+}
+
+namespace eval odfi::log {
+
+    proc info {message args} {
+
+        set argRealm [lsearch -exact $args -realm]
+        if {$argRealm!=-1} {
+            set logRealm [lindex $args [expr $argRealm+1]]
+        } else {
+            set logRealm [uplevel 1 namespace current]  
+        }
+
+        set logRealm [regsub -all {::} $logRealm "."]
+
+       
+
+        ::puts "$logRealm \[INFO\] $message"
+
+
+    }
 
 }
