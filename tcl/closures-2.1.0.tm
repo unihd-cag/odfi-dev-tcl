@@ -1,9 +1,26 @@
-package provide odfi::closures 2.0.0
+package provide odfi::closures 2.1.0
 package require odfi::common
 
 
 ## \brief Closures utilities namespace
 namespace eval odfi::closures {
+
+
+    ## Creates a function that executes its body in uplevel1
+    ## It is useful to create a function that has to execute in the context of an object
+    proc oproc {name arg body} {
+
+        set pName [string trimleft $name ::]
+
+        set res "proc ::$pName {$arg} {
+            uplevel 1 {$body}
+        }"
+
+        #::puts "Function to define: $res"
+        uplevel 1 $res
+
+    }
+    namespace export oproc
 
     ## \brief Executes command in args, into +1 exec level, and add result  as string  to eRes variable available in the +1 exec also
     proc push args {
@@ -341,6 +358,207 @@ namespace eval odfi::closures {
 
     }
 
+    ## Performs #resolveVariables and ::subst on the provided closure text
+    proc subst {closure {execLevel 1}} {
+    
+        odfi::closures::resolveVariables $closure [expr $execLevel+1]
+        return [uplevel "::subst \"$closure\""]
+    }
+
+    ## \brief Evaluates a closure and make magic for variables to be resolvable
+    ## Found variables are resolved in the execLevel context if provided, which is 1 per default
+    proc resolveVariables {closure {execLevel 1}} {
+
+        set closureString "$closure"
+
+        ## Find variables using regexp
+        set vars [regexp -all -inline {(?:\$[a-zA-Z0-9:\{_]+\}?)|(?:incr [a-zA-Z0-9:_]+)} $closure]
+
+        ## Clean var names
+        set cleanedVars {}
+        set vars [lsort -unique $vars]
+        foreach var $vars {
+            set var [string trim $var]
+
+            ## Clean var name 
+            if {[string match "incr*" $var]} {
+                set var [regsub -all {.*incr\s+(.+)} $var "\\1"]
+            } else {
+                set var [string trim [string range $var 1 end]]
+                set var [regsub -all {\{|\}} $var ""] 
+            }
+
+            ## Store without duplicates
+            lappend cleanedVars $var
+        }
+
+        ## Remove duplicate
+        set cleanedVars [lsort -unique $cleanedVars]
+
+        set requiredUpvars ""
+
+        foreach var $cleanedVars {
+
+            #::puts "(CL) Found variable : $var"
+
+            ## Ignore variables that are an explicit namespaced reference
+            ##############
+
+            ### Ignore certain patterns
+            ## Why it was there ? "it" {continue}
+            set ignores {
+
+                "::*" {continue}
+                "this" {continue}
+
+
+            }
+            switch -- $var $ignores
+            #if {[string match "::*" $var] || $var=="this"} {
+            #    continue
+            #}
+
+            #puts "Not ignored variable : $var"
+
+            ### If variable is global, also ignore
+            #if {[catch [list set ::$var] res]==0} {
+            #    continue
+            #}
+
+
+            ## Search for variable in:
+            #############
+            set local               false
+            set callerExec          false
+            set callerExecUp        false
+            set searchResolveLevel  1
+            #set searchResolveLevel  1
+
+            ### 1: Closure level -> Do nothing
+            set exp "set $var .+\$"
+            set localSearchResults [regexp -all -inline -line $exp $closureString]
+            if {[llength $localSearchResults]>0} {
+
+                ## This is only true, if in none of the set expressions, the variable is used right
+                ## Ex: set var "${var}_var" should lead to an upvar
+                set validLocal true
+                foreach localResult $localSearchResults {
+
+                    #::puts "Checking local variable $var validity against set expression: $localResult"
+
+                    if {[regexp "set $var .*\\\$$var.*" $localResult]>0} {
+
+                       # ::puts "Variable should be upvared"
+                        set validLocal false
+                        break
+                    }
+
+                }
+
+
+                #puts "-- Variable $var is defined in local"
+                if {$validLocal==true} {
+                    set local true
+                    continue
+                } else {
+                    set local false
+                }
+
+
+            } else {
+
+                #puts "Explored /$exp/ in closure string /$closureString/"
+
+            }
+
+
+            ### 3: Caller +1 level -> upvar
+             if {$callerExec==false} {
+
+                ##::puts "**** Start Search at uplevel [uplevel $resolveLevel info level]"
+
+                ## Start Searching at 1, meaning where the doClosure call is located, to allow resolution of local variables
+                set searchResolveLevel 1
+                while {[catch "uplevel $searchResolveLevel info level"]>=0} {
+
+                    #::puts "**** Search $var at uplevel $searchResolveLevel [uplevel $searchResolveLevel namespace current]"
+
+                    ## Test
+                    if {[catch [list uplevel $searchResolveLevel set $var] res]} {
+                        ## not found
+                    } else {
+                        ## Found
+                        #puts "********* Found $var at $searchResolveLevel"
+                        set callerExecUp true
+
+                        ## If Resolve level is < execution level, just get variable value, because upvar won't work (down var is not possible)
+                        ## After Closure execution, unlink to variable to ensure it won't be seen as already resolved for a subsequent call
+                        if {$searchResolveLevel<$execLevel} {
+                            ##set requiredUpvars [concat set $var $var ";" $requiredUpvars]
+                            
+                            #::puts "Resolved var $var at lower exec level as requested one, setting to $res"
+                            
+                            if {[llength $res]>1} {
+                               # ::puts "-- Setting as string because length > 1 "
+                               uplevel $execLevel "set $var \"$res\""
+                                #::puts "-- Done"
+                            } else {
+                               # ::puts "-- Setting value as it is"
+                                uplevel $execLevel "set $var $res"
+                                #::puts "-- Done"
+                            }
+                            
+                            #set afterClosure [concat uplevel $execLevel unset -nocomplain $var ";" $afterClosure]
+                        } else {
+                            #::puts "(CL) Found var $var at level [expr $searchResolveLevel-$execLevel]"
+                            set requiredUpvars [concat [list catch [list upvar [expr $searchResolveLevel-$execLevel] $var $var]] ";" $requiredUpvars]
+                        }
+
+                        
+                        break
+                    }
+
+                    incr searchResolveLevel
+
+                    ## Breaking because can'T search anywhere else
+                    if {[expr [info level]-$searchResolveLevel]<0} {
+                        break
+                    }
+
+                }
+
+             }
+             ## EOF uplevels search
+
+
+            ## Verify Compatibilities
+            ##########################
+
+            ## If More than one level has true defined, there is a conflict
+            if {$local==true && [llength [lsearch -all -exact [list $callerExec $callerExecUp] true]]>1} {
+
+                error "Variable $var has been found defined in some up level, and local closure, there will probably be some conflicts:
+                        - Found in closure $local
+                        - Found in Closure Caller execution level $callerExec
+                        - Found in Closure Caller execution level +1 $callerExecUp
+                "
+
+            } elseif {[lsearch -exact [list $local $callerExec $callerExecUp] true]==-1} {
+                #odfi::common::logWarn "Variable $var seems not to be resolvable:
+                #        - Found in closure $local
+                #        - Found in Closure Caller execution level $callerExec
+                #        - Found in Closure Caller execution level +1 $callerExecUp
+                #"
+            }
+
+            ## Set Required vars 
+            if {$requiredUpvars!=""} {
+                uplevel $execLevel $requiredUpvars
+            }            
+
+        }
+
+    }
 
     ## \brief Evaluates a closure and make magic for variables to be resolvable
     # Returns the result of the closure

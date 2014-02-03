@@ -50,17 +50,20 @@ namespace eval odfi::list {
     # @return The new list transformed by #scriptClosure
     proc transform {lst scriptClosure args} {
 
+        #::puts "IN TRANSFORM: $args"
+
         ## Option: -concat
         ####################
         set concat false
-        if {[lsearch -exact $args -concat]} {
-            set concat true
+        if {[lsearch -exact $args -concat]!=-1} {
+            #::puts "FOUND CONCAT: [lsearch -exact $args -concat]"
+            set concat [lindex $args [expr [lsearch -exact $args -concat]+1]]
         }
 
         ## -level option
         ###########
         set execlevel 1
-        if {[lsearch -exact $args -level]} {
+        if {[lsearch -exact $args -level]!=-1} {
             set execlevel [lindex $args [expr [lsearch -exact $args -level]+1]]
         }
 
@@ -77,9 +80,9 @@ namespace eval odfi::list {
                 set it "\"\""
             }
 
-            set code  "set it {$it}"
+            #set code  "set it {$it}"
             #::puts "Setting iterator to $code"
-            uplevel $execlevel $code
+            #uplevel $execlevel $code
             #::puts "Iterator set"
 
             #::puts "Transform result: [odfi::closures::doClosure $scriptClosure $execlevel]"
@@ -87,14 +90,18 @@ namespace eval odfi::list {
             set res [odfi::closures::doClosure $scriptClosure $execlevel]
 
             ::puts "TRANSFORM: Result is: $res"
-            if {$concat==true} {
-                set newlst [concat $newlst $res]
-            } else {
-                lappend newlst $res
-            }
+            
+            lappend newlst $res
 
         }
-        return $newlst
+
+        if {$concat!=false} {
+            return [join $newlst $concat]
+        } else {
+            return $newlst
+        }
+
+        
 
 
     }
@@ -168,6 +175,12 @@ namespace eval odfi::list {
 
         foreach it $lst {
 
+            ## Fix empty it case
+            if {$it==""} {
+                set it "\"\""
+            }
+
+            #puts "Doing closure with $it"
             uplevel $execlevel set it $it
             odfi::closures::doClosure $script $execlevel
         }

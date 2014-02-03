@@ -1411,4 +1411,24 @@ namespace eval odfi::log {
 
     }
 
+
+    proc logInfo {message args} {
+
+        set argRealm [lsearch -exact $args -realm]
+        if {$argRealm!=-1} {
+            set logRealm [lindex $args [expr $argRealm+1]]
+        } else {
+            set logRealm [namespace current]  
+        }
+
+        set logRealm [regsub -all {::} $logRealm "."]
+
+       
+
+        ::puts "$logRealm \[INFO\] $message"
+
+
+    }
+
+
 }
