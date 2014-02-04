@@ -56,24 +56,33 @@ namespace eval odfi::closures {
     proc puts args {
       #::puts $::eout args
       if {[lindex $args 0] == "-nonewline"} {
-        set NNL "-nonewline"
-        set args [lreplace $args 0 0]
+
+        ## With no new line 
+        set ::eout "$::eout[join $args]"
+
       } else {
-        set NNL ""
+
+        ## With newline 
+        set ::eout "$::eout[join $args]\n"
+
       }
-      uplevel ::puts $NNL $::eout $args
+      
     }
 
     ## Same as puts above, but with non standard TCL method name
     proc streamOut args {
       #::puts $::eout args
       if {[lindex $args 0] == "-nonewline"} {
-        set NNL "-nonewline"
-        set args [lreplace $args 0 0]
+
+        ## With no new line 
+        set ::eout "$::eout$args"
+
       } else {
-        set NNL ""
+
+        ## With newline 
+        set ::eout "$::eout$args\n"
+
       }
-      uplevel ::puts $NNL $::eout $args
     }
 
 
@@ -164,8 +173,11 @@ namespace eval odfi::closures {
 
                     ## Prepare a Channel
                     ############################
-                    set ::eout [chan create "write read" [::new odfi::common::StringChannel #auto]]
+                    set ::eout ""
                     set eout $::eout
+                    
+                    #set ::eout [chan create "write read" [::new odfi::common::StringChannel #auto]]
+                    #set eout $::eout
                     #::puts "Eval closure: $script "
 
                     ## Export :
@@ -220,9 +232,9 @@ namespace eval odfi::closures {
 
                     ## Get Embedded output
                     ######################
-                    flush $eout
-                    set output [read $eout]
-                    close $eout
+                    #flush $eout
+                    set output $::eout
+                    #close $eout
 
                     ## Result
                     ######################
