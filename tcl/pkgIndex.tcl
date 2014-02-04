@@ -4,9 +4,9 @@
 
 #source /usr/lib/Tclxml3.2/pkgIndex.tcl
 
-if {[catch {set dir} res]} {
-    set dir [file dirname [file normalize [info script]]]
-}
+#if {[catch {set dir} res]} {
+set dir [file dirname [file normalize [info script]]]
+#}
 
 ## ODFi Common package ###############################################################
 package ifneeded odfi::common 1.0.0 [list source [file join $dir common.tm]]
