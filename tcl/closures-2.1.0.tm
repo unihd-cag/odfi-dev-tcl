@@ -12,8 +12,12 @@ namespace eval odfi::closures {
 
         set pName [string trimleft $name ::]
 
+        #set res "proc ::$pName {$arg} {
+         #   uplevel 1 {$body}
+        #}"
+
         set res "proc ::$pName {$arg} {
-            uplevel 1 {$body}
+           odfi::closures::doClosure {$body} 1
         }"
 
         #::puts "Function to define: $res"
@@ -649,19 +653,23 @@ namespace eval odfi::closures {
 
                 ### Ignore certain patterns
                 ## Why it was there ? "it" {continue}
-                set ignores {
-
-                    "::*" {continue}
-                    "this" {continue}
-
-
+                
+                switch -glob -- $var {
+                    "::*" {
+                        continue
+                    }
+                    "this" {
+                        #::puts "Ignore this" ; 
+                        continue
+                    }
+                    default {}
                 }
-                switch -- $var $ignores
+
                 #if {[string match "::*" $var] || $var=="this"} {
                 #    continue
                 #}
 
-                #puts "Not ignored variable : $var"
+                #::puts "(CL) Not ignored variable : $var"
 
                 ### If variable is global, also ignore
                 #if {[catch [list set ::$var] res]==0} {
