@@ -252,7 +252,7 @@ namespace eval odfi::list {
         ## Find key
         set keyIndex [lsearch -exact $arrayList $key]
         if {$keyIndex==-1} {
-            error "Could not find key $key in array list"
+            error "Could not find key $key in array list ($arrayList)"
         }
 
         ## Return result

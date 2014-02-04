@@ -1016,7 +1016,7 @@ namespace eval odfi::closures {
     #####################################
 
     ## Executes the closure count times, with $i variable updated
-    proc ::repeat {count closure} {
+    proc ::repeat {__count closure} {
 
         ## Preserve existing i variable
         uplevel {
@@ -1026,7 +1026,7 @@ namespace eval odfi::closures {
             }
         }
 
-        for {set i 0} {$i<$count} {incr i} {
+        for {set i 0} {$i<$__count} {incr i} {
 
             uplevel "set i $i"
             odfi::closures::doClosure $closure 1
