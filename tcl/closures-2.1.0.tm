@@ -89,17 +89,17 @@ namespace eval odfi::closures {
 
     	set execLevel 1
     	if {[lsearch -exact $args "-execLevel"]>-1} {
-    		set execLevel [lindex $args [lsearch -exact $args "-execLevel"]+1]
+    		set execLevel [lindex $args [expr [lsearch -exact $args "-execLevel"]+1]]
     	}
 
     	set caller ""
     	if {[lsearch -exact $args "-caller"]>-1} {
-                    set caller [lindex $args [lsearch -exact $args "-caller"]+1]
+                    set caller [lindex $args [expr [lsearch -exact $args "-caller"]+1]]
             }
 
     	set tag "<%%>"
     	if {[lsearch -exact $args "-tag"]>-1} {
-                set tag [lindex $args [lsearch -exact $args "-tag"]+1]
+                set tag [lindex $args [expr [lsearch -exact $args "-tag"]+1]]
         }
 
         set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
@@ -164,6 +164,8 @@ namespace eval odfi::closures {
 
                     ## Prepare a Channel
                     ############################
+                    #set ::eout ""
+                    #set eout $::eout
                     set ::eout [chan create "write read" [::new odfi::common::StringChannel #auto]]
                     set eout $::eout
                     #::puts "Eval closure: $script "
@@ -183,13 +185,13 @@ namespace eval odfi::closures {
                     set script [string trim $script]
 
                    # puts "Calling closure"
-                    if {[catch {set evaled [string trim [odfi::closures::doClosureToString $script $execLevel]]} res resOptions]} {
+                    if {[catch {set evaled [string trim [odfi::closures::doClosureToString $script $execLevel]]} res]} {
 
                         ## This may be a variable, just output the content to eout
                         #::puts "Invalid command ($res), doing error"
 
                         ## Get Error Line 
-                        set errorLine [dict get $resOptions -errorline]
+                        #set errorLine [dict get $resOptions -errorline]
                         #set errorLineContent [lindex [split $resolvedClosure "\n"] $errorLine]
 
                         #::puts "(ETCL) Detected ERROR at line $errorLine:"
@@ -197,7 +199,7 @@ namespace eval odfi::closures {
                         #::puts " Closure: $script"
                         #::puts "[dict get $resOptions -errorinfo]"
 
-                        error "Embedded TCL error in $script" [dict get $resOptions -errorinfo]
+                        error "Embedded TCL error in $script"
                         #$res [dict get $resOptions -errorinfo]
 
                         #puts "- Error While evaluating script $script. $res"
@@ -857,7 +859,7 @@ namespace eval odfi::closures {
 
         #::puts "Evauating closure  [concat $requiredUpvars $closure ]"
         set resolvedClosure [concat $requiredUpvars $closure]
-        set lineStateBeforeClosure [dict get [info frame -$execLevel] line] 
+        #set lineStateBeforeClosure [dict get [info frame -$execLevel] line] 
 
        # set resolvedClosure "set scriptToRun \"[concat $requiredUpvars $closure]\"
        #     if {\[catch {$requiredUpvars  $closure} cRes cResOptions\]} {
@@ -871,10 +873,11 @@ namespace eval odfi::closures {
         #"
 
 
-        catch {set evaledRes [uplevel $execLevel $resolvedClosure]} res resOptions
+        set returnCode [catch {set evaledRes [uplevel $execLevel $resolvedClosure]} res]
 
         #::puts "Done closure evaluation"
-        set returnCode [dict get $resOptions -code]
+        #set returnCode [dict get $resOptions -code]
+        
         #::puts "Error code: $returnCode (res: $evaledRes)"
         if {$returnCode==2} {
 
