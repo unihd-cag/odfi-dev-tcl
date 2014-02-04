@@ -58,7 +58,7 @@ namespace eval odfi::closures {
       if {[lindex $args 0] == "-nonewline"} {
 
         ## With no new line 
-        set ::eout "$::eout[join $args]"
+        set ::eout "$::eout[join [lrange $args 1 end]]"
 
       } else {
 
@@ -111,7 +111,8 @@ namespace eval odfi::closures {
                 set tag [lindex $args [expr [lsearch -exact $args "-tag"]+1]]
         }
 
-        set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
+        #set resultChannel [chan create "write read" [::new odfi::common::StringChannel #auto]]
+        set resultChannel ""
 
         #::puts "##################################################In Closure embedded stream: $dataStream: [read $dataStream]"
 
@@ -156,7 +157,8 @@ namespace eval odfi::closures {
                 } else {
 
                     ## Not a start -> Output to result
-                    ::puts -nonewline $resultChannel $token
+                    #::puts -nonewline $resultChannel $token
+                    set resultChannel "$resultChannel$token"
                     #puts -nonewline $resultChannel $nextChar
                     set token $nextChar
                     continue
@@ -252,7 +254,8 @@ namespace eval odfi::closures {
                     #puts "Closure result: $evalResult"
 
                     ## Output to result string
-                    ::puts -nonewline $resultChannel $evalResult
+                    set resultChannel "$resultChannel$evalResult"
+                    #::puts -nonewline $resultChannel $evalResult
 
                     ## Reset script
                     set script ""
@@ -273,7 +276,8 @@ namespace eval odfi::closures {
             } else {
 
                 #### If not gather, output to result
-                ::puts -nonewline $resultChannel $token
+                set resultChannel "$resultChannel$token"
+                #::puts -nonewline $resultChannel $token
             }
 
             ## Read next token
@@ -283,9 +287,10 @@ namespace eval odfi::closures {
 
         ## Output result
         #######################
-        flush $resultChannel
-        set result [read $resultChannel]
-        close $resultChannel
+        #flush $resultChannel
+        #set result [read $resultChannel]
+        #close $resultChannel
+        set result $resultChannel
 
         return $result
 
