@@ -588,7 +588,7 @@ namespace eval odfi::closures {
     # @return The last executed command in the closure, or the result list if the push command has been used
     proc doClosure {closure {execLevel 0} {resolveLevel 0}} {
 
-        #puts "Evaluating closure $closure"
+        #::puts "Evaluating closure $closure"
 
 
 
@@ -875,6 +875,7 @@ namespace eval odfi::closures {
         #::puts "Evauating closure  [concat $requiredUpvars $closure ]"
         set resolvedClosure [concat $requiredUpvars $closure]
         #set lineStateBeforeClosure [dict get [info frame -$execLevel] line] 
+        ::puts "Evauating closure  $resolvedClosure"
 
        # set resolvedClosure "set scriptToRun \"[concat $requiredUpvars $closure]\"
        #     if {\[catch {$requiredUpvars  $closure} cRes cResOptions\]} {

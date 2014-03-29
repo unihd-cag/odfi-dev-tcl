@@ -1,0 +1,14 @@
+## Load
+#################
+load {
+
+
+    ##puts "echo Loading DEV TCL: $path/external/tcl-8.6/bin/tclsh"
+    if {[file exists $path/external/tcl-8.6/bin/tclsh]} {
+        env PATH $path/external/tcl-8.6/bin
+    }
+    
+
+
+
+}

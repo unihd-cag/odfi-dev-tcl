@@ -633,6 +633,8 @@ namespace eval odfi::closures {
         set resolvedClosure [concat $requiredUpvars $closure]
         set lineStateBeforeClosure [dict get [info frame -$execLevel] line] 
 
+        ::puts "Evauating closure $resolvedClosure"
+
        # set resolvedClosure "set scriptToRun \"[concat $requiredUpvars $closure]\"
        #     if {\[catch {$requiredUpvars  $closure} cRes cResOptions\]} {
 #

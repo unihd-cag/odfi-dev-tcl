@@ -1,12 +1,6 @@
-## Systen tcl XML package ##
 
-#package ifneeded dom [load /usr/lib/]
-
-#source /usr/lib/Tclxml3.2/pkgIndex.tcl
-
-#if {[catch {set dir} res]} {
 set dir [file dirname [file normalize [info script]]]
-#}
+
 
 ## ODFi Common package ###############################################################
 package ifneeded odfi::common 1.0.0 [list source [file join $dir common.tm]]
@@ -20,6 +14,9 @@ package ifneeded odfi::tests   1.0.0 [list source [file join $dir tests-1.0.0.tm
 
 package ifneeded odfi::closures   2.0.0 [list source [file join $dir closures-2.0.0.tm]]
 package ifneeded odfi::closures   2.1.0 [list source [file join $dir closures-2.1.0.tm]]
+package ifneeded odfi::closures   3.0.0 [list source [file join $dir closures-3.0.0.tm]]
+
+package ifneeded odfi::richstream   3.0.0 [list source [file join $dir richstream-3.0.0.tm]]
 
 package ifneeded odfi::tool       1.0.0 [list source [file join $dir tool-1.0.0.tm]]
 
