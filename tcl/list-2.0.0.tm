@@ -1,5 +1,5 @@
 package provide odfi::list 2.0.0
-package require odfi::closures 2.0.0
+package require odfi::closures 2.1.0
 
 
 
@@ -89,7 +89,7 @@ namespace eval odfi::list {
 
             set res [odfi::closures::doClosure $scriptClosure $execlevel]
 
-            ::puts "TRANSFORM: Result is: $res"
+           # ::puts "TRANSFORM: Result is: $res"
             
             lappend newlst $res
 
@@ -189,6 +189,34 @@ namespace eval odfi::list {
 
     }
 
+    proc reduce {lst closure} {
+
+        ## Loop on values and Reduce 
+        ###############
+        set left [lindex $lst 0]
+        if {[llength $lst]<=1} {
+            set right "{}"
+        } else {
+            set right [lindex $lst 1]
+        }
+        
+        ## Combine  Result is new left 
+        set left [odfi::closures::doClosure $closure 1]
+
+        foreach right [lrange $lst 2 end] {
+
+            ## Combine  Result is new left 
+            #puts "COMBI OFREACH"
+            set left [odfi::closures::doClosure $closure 1]
+        
+
+        }
+
+        ## Result is the last left 
+        return $left
+
+    }
+
     ## \brief Returns only the first match of the closure on the list
     proc firstMatch {lst closure args} {
 
@@ -227,21 +255,83 @@ namespace eval odfi::list {
     # Script is called in one uplevel
     proc arrayEach {arrayList script} {
 
-        foreach {key value} $arrayList {
-            uplevel 1 "set key $key"
+        foreach entry $arrayList {
+
+            set key [lindex $entry 0]
+            set value [lindex $entry 1]
+
+            odfi::closures::doClosure $script 1
+
+            #uplevel 1 "set key $key"
 
 
               #  puts "$key -> '$value' [llength $value]"
 
 
-            if {[llength $value]>1} {
-                uplevel 1 "set value {$value}"
+           # if {[llength $value]>1} {
+            #    uplevel 1 "set value {$value}"
+            #} else {
+           #    uplevel 1 "set value $value"
+           # }
+
+           # uplevel 1 $script
+        }
+
+    }
+
+    ## Executes a closure on each key + value pair, and replace the value by the result of reducing the list by provided lambda
+    ## Lamba gets: left and right variables
+    proc arrayReduce {arrayList script} {
+
+        set newArray {}
+
+        foreach entry $arrayList {
+
+            set key [lindex $entry 0]
+            set value [lindex $entry 1]
+
+            ## Loop on values and Reduce 
+            ###############
+            set left [lindex $value 0]
+            if {[llength $value]<=1} {
+                set right "{}"
             } else {
-               uplevel 1 "set value $value"
+                set right [lindex $value 1]
+            }
+            
+            ## Combine  Result is new left 
+            set left [odfi::closures::doClosure $script 1]
+
+            foreach right [lrange $value 2 end] {
+
+                ## Combine  Result is new left 
+                #puts "COMBI OFREACH"
+                set left [odfi::closures::doClosure $script 1]
+            
+
             }
 
-            uplevel 1 $script
+            ## Result is the last left 
+            set newArray [arrayConcat $newArray $key $left]
+
+            ##odfi::closures::doClosure $script 1
+
+            #uplevel 1 "set key $key"
+
+
+              #  puts "$key -> '$value' [llength $value]"
+
+
+           # if {[llength $value]>1} {
+            #    uplevel 1 "set value {$value}"
+            #} else {
+           #    uplevel 1 "set value $value"
+           # }
+
+           # uplevel 1 $script
         }
+
+        return $newArray
 
     }
 
@@ -250,26 +340,26 @@ namespace eval odfi::list {
     proc arrayGet {arrayList key } {
 
         ## Find key
-        set keyIndex [lsearch -exact $arrayList $key]
-        if {$keyIndex==-1} {
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        if {$entryIndex==-1} {
             error "Could not find key $key in array list ($arrayList)"
         }
 
         ## Return result
-        return [lindex $arrayList [expr $keyIndex+1]]
+        return [lindex [lindex $arrayList $entryIndex] 1]
 
     }
     ## \brief
     proc arrayGetDefault {arrayList key default} {
 
         ## Find key
-        set keyIndex [lsearch -exact $arrayList $key]
-        if {$keyIndex==-1} {
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        if {$entryIndex==-1} {
             return $default
         }
 
         ## Return result
-        return [lindex $arrayList [expr $keyIndex+1]]
+        return [lindex [lindex $arrayList $entryIndex] 1]
 
     }
 
@@ -277,8 +367,8 @@ namespace eval odfi::list {
     proc arrayContains {arrayList key} {
 
         ## Find key
-        set keyIndex [lsearch -exact $arrayList $key]
-        if {$keyIndex==-1} {
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        if {$entryIndex==-1} {
             return false
         } else {
             return true
@@ -290,13 +380,17 @@ namespace eval odfi::list {
     ## @return The modified list
     proc arrayReplace {arrayList key value} {
 
+        #puts "Replace $key $value in $arrayList"
+
         ## Find key
-        set keyIndex [lsearch -exact $arrayList $key]
-        if {$keyIndex==-1} {
-            lappend arrayList $key $value
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        if {$entryIndex==-1} {
+            lappend arrayList [list $key $value]
         } else {
-            set valueIndex [expr $keyIndex+1]
-            set arrayList [lreplace $arrayList $valueIndex $valueIndex $value]
+
+            set newEntry [lreplace [lindex $arrayList $entryIndex] 1 1 $value]
+            set arrayList [lreplace $arrayList $entryIndex $entryIndex $newEntry]
+
         }
 
         return $arrayList
@@ -308,8 +402,8 @@ namespace eval odfi::list {
     proc arrayDelete {arrayList key args} {
 
         ## Find key
-        set keyIndex [lsearch -exact $arrayList $key]
-        if {$keyIndex==-1} {
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        if {$entryIndex==-1} {
             return $arrayList
         } else {
 
@@ -330,13 +424,15 @@ namespace eval odfi::list {
     ## @return The modified list
     proc arrayConcat {arrayList key value} {
 
-        ## Find key
-        set keyIndex [lsearch -exact $arrayList $key]
-        if {$keyIndex==-1} {
-            lappend arrayList $key $value
+        ## Find Entry
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        if {$entryIndex==-1} {
+            lappend arrayList [list $key $value]
         } else {
-            set valueIndex [expr $keyIndex+1]
-            set arrayList [lreplace $arrayList $valueIndex $valueIndex [concat [arrayGet $arrayList $key] $value]]
+            #set valueIndex [expr $keyIndex+1]
+            set newEntry [list $key [concat [lindex [lindex $arrayList $entryIndex] 1] $value]]
+            set arrayList [lreplace $arrayList $entryIndex $entryIndex $newEntry]
+            #set arrayList [lreplace $arrayList $valueIndex $valueIndex [concat [lindex $arrayList $valueIndex] $value]]
         }
 
         return $arrayList
