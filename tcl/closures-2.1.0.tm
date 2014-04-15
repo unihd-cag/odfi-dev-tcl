@@ -875,7 +875,7 @@ namespace eval odfi::closures {
         #::puts "Evauating closure  [concat $requiredUpvars $closure ]"
         set resolvedClosure [concat $requiredUpvars $closure]
         #set lineStateBeforeClosure [dict get [info frame -$execLevel] line] 
-        ::puts "Evauating closure  $resolvedClosure"
+        #::puts "Evauating closure  $resolvedClosure"
 
        # set resolvedClosure "set scriptToRun \"[concat $requiredUpvars $closure]\"
        #     if {\[catch {$requiredUpvars  $closure} cRes cResOptions\]} {
@@ -899,7 +899,7 @@ namespace eval odfi::closures {
 
             ## TCL_RETURN is ok
             #eval $afterClosure
-            ::puts "Detected TCL return code:"
+           # ::puts "Detected TCL return code:"
             set evaledRes $res 
             
 
