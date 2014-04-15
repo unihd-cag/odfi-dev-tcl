@@ -180,12 +180,13 @@ namespace eval odfi::tool {
                 #############
 
                 ## Optional/Required
-                set optional [odfi::list::arrayContains $argDesc optional]
+                set optional [expr [lsearch -exact  $argDesc  optional] == -1 ? false : true]
 
                 ## Type
                 set type bool
-                if {[odfi::list::arrayContains $argDesc type]} {
-                    set type [odfi::list::arrayGet $argDesc type]
+                set typeIndex [lsearch -exact  $argDesc  type]
+                if {$typeIndex!=-1} {
+                    set type [lindex $argDesc [expr $typeIndex+1]]
                 }
 
                 ## Look into argv
@@ -224,9 +225,9 @@ namespace eval odfi::tool {
                             ##### string
                             ############################################################
 
-                            if {[odfi::list::arrayContains $::argv --$argName]} {
+                            if {[llength $::argv]>$argIndex} {
 
-                                set str [odfi::list::arrayGet $::argv --$argName]
+                                set str [lindex $::argv [expr $argIndex+1]]
 
                                 ## Set value
                                 set ::$argName $str
@@ -241,8 +242,8 @@ namespace eval odfi::tool {
 
                         producer {
                             #to be a producer it must inherit from odfi::dev::hw::package::BaseOutputGenerator
-                            odfi::dev::hw::package::Footprint foot 
-                            set prod "[odfi::list::arrayGet $::argv --$argName]"
+                            odfi::dev::hw::package::Part foot 
+                            set prod [lindex $::argv [expr $argIndex+1]]
                             set obj [::new $prod #auto ::foot]
                         
                             if {[$obj info inherit] != "::odfi::dev::hw::package::BaseOutputGenerator"} {
@@ -254,11 +255,8 @@ namespace eval odfi::tool {
 
                         list {
 
-                            ## Get expected list size
-                            set size [odfi::list::arrayGet $argDesc size]
-
                             ## Get Args
-                            set values [odfi::list::arrayFromKey $::argv --$argName $size]
+                            set values [lindex $::argv [expr $argIndex+1]]
 
                             ## Set
                             set ::$argName $values
@@ -270,7 +268,7 @@ namespace eval odfi::tool {
                             #### File -> check the file is real
                             ############################################################
 
-                            set file [odfi::list::arrayGet $::argv --$argName]
+                            set file [lindex $::argv [expr $argIndex+1]]
 
                             ## Check the file presence
                             if {![file isfile $file]} {

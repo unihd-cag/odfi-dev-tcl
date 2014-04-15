@@ -190,6 +190,8 @@ namespace eval odfi::common {
     ##                     -list to specify the variable is a list
     proc classField {visibility name default args} {
 
+        set visibility "public"
+
         if {$default==""} {
             set default "\"\""
         }
@@ -210,7 +212,8 @@ namespace eval odfi::common {
 
             if { \$args != \"\" } {
                 
-                set $name \[lindex \$args 0\]
+                \$this configure -$name \[lindex \$args 0\]
+                #set $name \[lindex \$args 0\]
             }
             return \${$name}
         }
@@ -1424,7 +1427,7 @@ namespace eval odfi::log {
 
        
 
-        ::puts "$logRealm \[ERROR\] $message"
+        ::puts stderr "$logRealm \[ERROR\] $message"
         ::error $message
 
 
@@ -1442,7 +1445,7 @@ namespace eval odfi::log {
         set logRealm [regsub -all {::} $logRealm "."]
 
     
-        ::puts "$logRealm \[WARN\] $message"
+        ::puts stderr "$logRealm \[WARN\] $message"
 
 
     }
