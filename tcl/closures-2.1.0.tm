@@ -898,7 +898,7 @@ namespace eval odfi::closures {
 
             ## TCL_RETURN is ok
             #eval $afterClosure
-            ::puts "Detected TCL return code:"
+            #::puts "Detected TCL return code:"
             set evaledRes $res 
             
 
