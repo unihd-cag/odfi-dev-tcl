@@ -191,7 +191,14 @@ namespace eval odfi::closures {
     }
 
     ## Runs a closure
-    proc run {closure {execLevel 0}} {
+    proc run {closure args} {
+
+        ## Parameters 
+        #####################
+        ::set execLevel 0
+        if {[lsearch -exact $args -level]!=-1} {
+            ::set execLevel [lindex $args [expr [lsearch -exact $args -level]+1]]
+        }
 
         #puts "Closure level: [info level]"
 
@@ -325,7 +332,134 @@ namespace eval odfi::closures {
         
 
     }
+
+    proc protect name {
+        variable iterators
+
+        ## If no value available...don't do anything
+        if {[catch [list uplevel ::set $name]]} {
+
+        } else {
+
+            #::puts "- Stacking variable $name "
+            ::set actualValue [uplevel ::set $name]
+
+            ## Save value 
+            lappend iterators [list $name $actualValue]
+
+        }
+        
+
+    }
+
+    proc restore name {
+       variable iterators
+
+       ## Search for a valus in iterators
+       set entryIndex [lsearch -index 0 -exact -start end $iterators $name]
+       if {$entryIndex!=-1} {
+
+            ::set entry [lindex $iterators $entryIndex]
+
+            ## Remove from iterators list 
+            ::set iterators [lreplace $iterators $entryIndex $entryIndex]
+
+            #::puts "- DeStacking variable $name from $entry "
+
+            ## Restore Value 
+            uplevel set $name [lindex $entry 1]
+       }
+        
+
+    }
     
+
+    #####################################
+    ## Lamda Support
+    #####################################
+    proc applyLambda {lambda args} {
+
+        #puts "Run $lambda with args $args"
+
+        ## Find Input Arguments
+        ###############
+        ::set lambdaArgs {}
+        if {[lindex $lambda 1]=="=>"} {
+
+            ::set _def [lrange $lambda 0 1]
+            #puts "Found def: $_def"
+
+            ## Get Arguments 
+            ::set lambdaArgs [lindex $lambda 0]
+
+            ## Extract implementation
+            #puts "Extract lambda from: [string length $_def] to end"
+            ::set lambda "[string range [string trim $lambda] [string length $_def] end]"
+
+            #puts "Now lambda is $lambda"
+        }
+
+        ##
+        #puts "Lamda Arguments ([llength $lambdaArgs]): $lambdaArgs"
+
+        ## Check Provided Args match the required lambda args 
+        ###########
+        if {[llength $lambdaArgs]>0 && [llength $args]!=[llength $lambdaArgs]} {
+            error "Cannot call lambda function with [llength $lambdaArgs] input arguments ($lambdaArgs), [llength $args] arguments provided to applyLambda call. Please respect applyLamba lambda arg0? ... argn? format"
+        }
+
+        ## Protect Variable names of input lambda 
+        ###############
+        foreach larg $lambdaArgs {
+            uplevel odfi::closures::protect $larg
+        }
+
+        ## Set input args values (fancy varname here to ensure no conflict will happpen) 
+        ##  - Go through args and match to required input arguments
+        ##  - If an argument is provided as a {varname value} pair, and the lambda does not enforce the input parameters, set to the applyLambda call set varname
+        #########
+        for {::set _i 0} {$_i < [llength $args ]} {incr _i} {
+
+            ## Get Arg name and value 
+            ::set arg      [lindex $args $_i]
+            if {[llength $arg]==1} {
+                ::set argValue [lindex $arg 0]
+                ::set argName  "arg$_i"
+            } else {
+                ::set argValue [lindex $arg 1]
+                ::set argName  [lindex $arg 0]
+            }
+            #::set argValue [expr [llength $arg]==1 ? [lindex $arg 0] : [lindex $arg 1]]
+            #::set argName  [expr [llength $arg]==1 ?  ""             : [lindex $arg 0]]
+
+            ## Match lambda input 
+            if {[llength $lambdaArgs]>0} {
+                uplevel ::set [lindex $lambdaArgs $_i] $argValue
+            } else {
+
+                ## Check there is a var name, otherwise set default name argx
+               # set targetName [expr $argName=="" ? "arg$_i" : $argName]
+
+                ## Set Value 
+                #puts "SETTING AUTOMATIC INPUT ARGUMENT: $argName $argValue"
+                uplevel odfi::closures::protect $argName
+                lappend lambdaArgs $argName
+                uplevel ::set  $argName $argValue
+            }
+
+        }
+
+        ## Run 
+        #################
+        try {
+            run $lambda -level 1
+        } finally {
+            #### Make sure variables are restored even in error case 
+            foreach larg $lambdaArgs {
+                uplevel odfi::closures::restore $larg
+            }
+        }
+    }
 
 
     #####################################
@@ -347,6 +481,28 @@ namespace eval odfi::closures {
         odfi::closures::destackIterator i
         "
         return 
+
+
+    }
+
+    proc ::repeat2 {__count closure} {
+
+        for {::set i 0} {$i<$__count} {::incr i} {
+           uplevel odfi::closures::::applyLambda [list $closure] [list [list i $i]]
+        }
+
+       #applyLambda closure {}
+        #uplevel "
+        #odfi::closures::stackIterator i
+       #for {::set i 0} {$\i<$__count} {::incr i} {
+
+            #uplevel \"::set i \$i\"
+        #    odfi::closures::run {$closure} 1
+
+       # }
+        #odfi::closures::destackIterator i
+        #"
+       # return 
 
 
     }
