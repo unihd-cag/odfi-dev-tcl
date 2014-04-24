@@ -1,5 +1,5 @@
-name: <% $module name %>
+name: TCL Common Library
 markdown: redcarpet
 pygments: true
 odfi:
-    id: <% $module id %>
+    id: odfi-dev-tcl
