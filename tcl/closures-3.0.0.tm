@@ -114,8 +114,9 @@ namespace eval odfi::closures {
 
         } else {
 
-            ## Available in 1 level, then just call ::set in that level 
+            ## Available in 1 level, then just call upvar and ::set in that level 
             if {[lindex $availableLevels 0]>1} {
+                #odfi::log::info "(DBG) Upvar variable $var to [expr [lindex $availableLevels 0]-1]"
                 uplevel upvar [expr [lindex $availableLevels 0]-1] "$var" "$var"
             }
             return [uplevel [lindex $availableLevels 0] ::set $var]
@@ -198,7 +199,9 @@ namespace eval odfi::closures {
         ::set execLevel 0
         if {[lsearch -exact $args -level]!=-1} {
             ::set execLevel [lindex $args [expr [lsearch -exact $args -level]+1]]
+            #puts "Exec level from here : $execLevel"
         }
+        ::set execLevel [expr $execLevel+1]
 
         #puts "Closure level: [info level]"
 
@@ -208,9 +211,9 @@ namespace eval odfi::closures {
         ::set execNamespace [uplevel $execLevel namespace current]
 
         ## Find variables using regexp
-        ::set newClosure [regsub -all {(?:\$([a-zA-Z0-9:_]+))|(?:\$\{([a-zA-Z0-9:_]+)\})} $closure "\[odfi::closures::value {\\1}\]"]
+        ::set newClosure [regsub -all {(?:([^\\])\$([a-zA-Z0-9:_]+))|(?:([^\\])\$\{([a-zA-Z0-9:_]+)\})} $closure "\\1\[odfi::closures::value {\\2}\]"]
 
-        #puts "New Closure: $newClosure"
+        puts "New Closure: $newClosure"
         try {
             
             ## Import incr 
@@ -291,50 +294,10 @@ namespace eval odfi::closures {
     #######################################
 
     ## List: {iteratorName {value value}} ...
-    variable iterators {}
-
-    proc stackIterator name {
-        variable iterators
-
-        ## If no value available...don't do anything
-        if {[catch [list uplevel ::set $name]]} {
-
-        } else {
-
-            #::puts "- Stacking variable $name "
-            ::set actualValue [uplevel ::set $name]
-
-            ## Save value 
-            lappend iterators [list $name $actualValue]
-
-        }
-        
-
-    }
-
-    proc destackIterator name {
-       variable iterators
-
-       ## Search for a valus in iterators
-       set entryIndex [lsearch -index 0 -exact -start end $iterators $name]
-       if {$entryIndex!=-1} {
-
-            ::set entry [lindex $iterators $entryIndex]
-
-            ## Remove from iterators list 
-            ::set iterators [lreplace $iterators $entryIndex $entryIndex]
-
-            #::puts "- DeStacking variable $name from $entry "
-
-            ## Restore Value 
-            uplevel set $name [lindex $entry 1]
-       }
-        
-
-    }
+    variable protectedStack {}
 
     proc protect name {
-        variable iterators
+        variable protectedStack
 
         ## If no value available...don't do anything
         if {[catch [list uplevel ::set $name]]} {
@@ -345,7 +308,7 @@ namespace eval odfi::closures {
             ::set actualValue [uplevel ::set $name]
 
             ## Save value 
-            lappend iterators [list $name $actualValue]
+            lappend protectedStack [list $name $actualValue]
 
         }
         
@@ -353,16 +316,16 @@ namespace eval odfi::closures {
     }
 
     proc restore name {
-       variable iterators
+       variable protectedStack
 
        ## Search for a valus in iterators
-       set entryIndex [lsearch -index 0 -exact -start end $iterators $name]
+       set entryIndex [lsearch -index 0 -exact -start end $protectedStack $name]
        if {$entryIndex!=-1} {
 
-            ::set entry [lindex $iterators $entryIndex]
+            ::set entry [lindex $protectedStack $entryIndex]
 
             ## Remove from iterators list 
-            ::set iterators [lreplace $iterators $entryIndex $entryIndex]
+            ::set protectedStack [lreplace $protectedStack $entryIndex $entryIndex]
 
             #::puts "- DeStacking variable $name from $entry "
 
@@ -384,7 +347,7 @@ namespace eval odfi::closures {
         ## Find Input Arguments
         ###############
         ::set lambdaArgs {}
-        if {[lindex $lambda 1]=="=>"} {
+        if {[lindex $lambda 1]=="=>" || [lindex $lambda 1]=="->"} {
 
             ::set _def [lrange $lambda 0 1]
             #puts "Found def: $_def"
@@ -422,6 +385,7 @@ namespace eval odfi::closures {
 
             ## Get Arg name and value 
             ::set arg      [lindex $args $_i]
+            #puts "INPUT ARGUMENT $arg // $args"
             if {[llength $arg]==1} {
                 ::set argValue [lindex $arg 0]
                 ::set argName  "arg$_i"
@@ -470,41 +434,13 @@ namespace eval odfi::closures {
     proc ::repeat {__count closure} {
 
        
-        uplevel "
-        odfi::closures::stackIterator i
-        for {::set i 0} {$\i<$__count} {::incr i} {
-
-            #uplevel \"::set i \$i\"
-            odfi::closures::run {$closure} 1
-
-        }
-        odfi::closures::destackIterator i
-        "
-        return 
-
-
-    }
-
-    proc ::repeat2 {__count closure} {
-
         for {::set i 0} {$i<$__count} {::incr i} {
            uplevel odfi::closures::::applyLambda [list $closure] [list [list i $i]]
         }
 
-       #applyLambda closure {}
-        #uplevel "
-        #odfi::closures::stackIterator i
-       #for {::set i 0} {$\i<$__count} {::incr i} {
-
-            #uplevel \"::set i \$i\"
-        #    odfi::closures::run {$closure} 1
-
-       # }
-        #odfi::closures::destackIterator i
-        #"
-       # return 
-
 
     }
+
+   
 
 }
