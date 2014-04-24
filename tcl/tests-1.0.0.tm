@@ -15,7 +15,7 @@
 #
 
 package provide odfi::tests 1.0.0
-package require odfi::closures 2.0.0
+package require odfi::closures 3.0.0
 package require Itcl
 
 namespace eval odfi::tests {
@@ -26,6 +26,15 @@ namespace eval odfi::tests {
     variable toRun {}
 
     variable currentSuite ""
+
+
+    ###################################
+    ## Messages 
+    #################################
+    proc msg arg {
+        puts "==== $arg ===="
+    }
+
 
     ####################################
     ## Global Expects
