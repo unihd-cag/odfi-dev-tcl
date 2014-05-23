@@ -1306,12 +1306,18 @@ namespace eval odfi::common {
 		## Pull Output until finished
 		while {1} {
 
+
 			# Test end
 			if {[eof $execChan]} { break; }
 
+           # puts "Get Line of output"
+            set data [read $execChan 20]
+            puts -nonewline $targetChannel $data
+            flush $targetChannel
+            
 			# Output
-			set line [string trim [gets $execChan]]
-			puts $targetChannel $line
+			#set line [string trim [gets $execChan]]
+			#puts $targetChannel $line
 
 		}
 
