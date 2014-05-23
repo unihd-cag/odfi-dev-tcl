@@ -16,6 +16,7 @@
 
 package provide odfi::git 1.0.0
 package require odfi::list 2.0.0
+package require odfi::common 
 package require odfi::files 1.0.0
 
 namespace eval odfi::git {
@@ -49,17 +50,23 @@ namespace eval odfi::git {
 	## Just Clone!
 	proc clone {url path args} {
 
-		exec mkdir -p $path
+	
+		file mkdir [file normalize $path]/
 
-		## Git will result 1 here on success, causing error
-		catch {
-			puts [eval "exec -ignorestderr git clone $url $path"]
-		} res resOptions
+		odfi::files::inDirectory $path {
+			## Git will result 1 here on success, causing error
+			catch {
+				odfi::common::execCommand "git clone $url ."
+				
+			} res resOptions
 
-		## Get Error
-		if {[dict exists $resOptions -errorcode]} {
-			error "Cloning Failed with error: $res"
+			## Get Error
+			if {[dict exists $resOptions -errorcode]} {
+				error "Cloning Failed with error: $res"
+			}
 		}
+
+		
 
 		#puts "Clone res: [dict get $resOptions -errorcode]"
 
