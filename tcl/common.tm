@@ -16,7 +16,8 @@
 #
 
 package provide odfi::common 1.0.0
-package require Itcl 
+package require Itcl 3.4
+
 #package require textutil::adjust
 
 namespace eval odfi::common {
