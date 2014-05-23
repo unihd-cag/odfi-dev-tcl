@@ -82,6 +82,10 @@ namespace eval odfi::closures {
 
     proc set {var value} {
 
+        if {[llength $value]>0} {
+            ::set value [list $value]
+        }
+
         #puts "Inside set $var [uplevel info frame] [uplevel namespace current]"
         if {[uplevel info frame]==0} {
             ::set $var $value
@@ -227,9 +231,9 @@ namespace eval odfi::closures {
         ::set execNamespace [uplevel $execLevel namespace current]
 
         ## Find variables using regexp
-        ::set newClosure [regsub -all {(?:([^\\])\$([a-zA-Z0-9:_]+))|(?:([^\\])\$\{([a-zA-Z0-9:_]+)\})} $closure "\\1\[odfi::closures::value {\\2}\]"]
+        ::set newClosure [regsub -all {(?:([^\\])\$([a-zA-Z0-9:_]+))|(?:([^\\])\$\{([a-zA-Z0-9:_]+)\})} $closure "\\1\[odfi::closures::value {\\2} \]"]
 
-        puts "New Closure: $newClosure"
+        #puts "New Closure: $newClosure"
         try {
             
             ## Import incr 
@@ -346,7 +350,7 @@ namespace eval odfi::closures {
             #::puts "- DeStacking variable $name from $entry "
 
             ## Restore Value 
-            uplevel set $name [lindex $entry 1]
+            uplevel set $name [list [lindex $entry 1]]
        }
         
 
@@ -363,19 +367,24 @@ namespace eval odfi::closures {
         ## Find Input Arguments
         ###############
         ::set lambdaArgs {}
-        if {[lindex $lambda 1]=="=>" || [lindex $lambda 1]=="->"} {
+        try {
+            if {[lindex [list $lambda] 1]=="=>" || [lindex $lambda 1]=="->"} {
 
-            ::set _def [lrange $lambda 0 1]
-            #puts "Found def: $_def"
+                ::set _def [lrange $lambda 0 1]
+                #puts "Found def: $_def"
 
-            ## Get Arguments 
-            ::set lambdaArgs [lindex $lambda 0]
+                ## Get Arguments 
+                ::set lambdaArgs [lindex $lambda 0]
 
-            ## Extract implementation
-            #puts "Extract lambda from: [string length $_def] to end"
-            ::set lambda "[string range [string trim $lambda] [string length $_def] end]"
+                ## Extract implementation
+                #puts "Extract lambda from: [string length $_def] to end"
+                ::set lambda "[string range [string trim $lambda] [string length $_def] end]"
 
-            #puts "Now lambda is $lambda"
+                #puts "Now lambda is $lambda"
+            }
+        } on error {res resOptions} {
+            ::puts "An error occured while detecting lambda format: $lambda"
+            error $res
         }
 
         ##
@@ -397,11 +406,12 @@ namespace eval odfi::closures {
         ##  - Go through args and match to required input arguments
         ##  - If an argument is provided as a {varname value} pair, and the lambda does not enforce the input parameters, set to the applyLambda call set varname
         #########
+        ::set generatedLambdaArgs {}
         for {::set _i 0} {$_i < [llength $args ]} {incr _i} {
 
             ## Get Arg name and value 
             ::set arg      [lindex $args $_i]
-            #puts "INPUT ARGUMENT $arg // $args"
+            #puts "INPUT ARGUMENT $arg ([llength $arg]) // $args"
             if {[llength $arg]==1} {
                 ::set argValue [lindex $arg 0]
                 ::set argName  "arg$_i"
@@ -423,11 +433,12 @@ namespace eval odfi::closures {
                 ## Set Value 
                 #puts "SETTING AUTOMATIC INPUT ARGUMENT: $argName $argValue"
                 uplevel odfi::closures::protect $argName
-                lappend lambdaArgs $argName
+                ::lappend generatedLambdaArgs $argName
                 uplevel ::set  $argName $argValue
             }
 
         }
+        set lambdaArgs [::concat $lambdaArgs $generatedLambdaArgs]
 
         ## Run 
         #################

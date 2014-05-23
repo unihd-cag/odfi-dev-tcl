@@ -8,7 +8,7 @@ package ifneeded odfi::dom    1.0.0 [list source [file join $dir dom.tm]]
 package ifneeded odfi::bits   1.0.0 [list source [file join $dir bits.tm]]
 package ifneeded odfi::list   1.0.0 [list source [file join $dir list.tm]]
 package ifneeded odfi::list   2.0.0 [list source [file join $dir list-2.0.0.tm]]
-
+package ifneeded odfi::list   3.0.0 [list source [file join $dir list-3.0.0.tm]]
 
 package ifneeded odfi::tests   1.0.0 [list source [file join $dir tests-1.0.0.tm]]
 
@@ -21,8 +21,10 @@ package ifneeded odfi::richstream   3.0.0 [list source [file join $dir richstrea
 
 
 package ifneeded odfi::tool       1.0.0 [list source [file join $dir tool-1.0.0.tm]]
+package ifneeded odfi::tool       2.0.0 [list source [file join $dir tool-2.0.0.tm]]
 
 package ifneeded odfi::files   1.0.0 [list source [file join $dir files-1.0.0.tm]]
+package ifneeded odfi::files   2.0.0 [list source [file join $dir files-2.0.0.tm]]
 
 package ifneeded odfi::git   1.0.0 [list source [file join $dir git-1.0.0.tm]]
 

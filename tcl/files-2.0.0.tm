@@ -14,8 +14,8 @@
 #    Copyright (C) 2008 - 2014 Computer Architecture Group @ Uni. Heidelberg <http://ra.ziti.uni-heidelberg.de>
 #
 
-package provide odfi::files 1.0.0
-package require odfi::list 2.0.0
+package provide odfi::files 2.0.0
+package require odfi::list 3.0.0
 
 
 namespace eval odfi::files {

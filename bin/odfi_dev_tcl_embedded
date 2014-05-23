@@ -1,6 +1,6 @@
-#!/usr/bin/env tclsh8.5
+#!/usr/bin/env tclsh8.6
 
-package require odfi::closures 2.0.0
+package require odfi::closures 2.1.0
 
 ## I/O
 ###############
@@ -32,5 +32,10 @@ namespace eval tcl_embedded {
     } else {
         odfi::closures::embeddedTclFromFileToFile $inputFile $outputFile
     }
+
+    catch {
+    wm forget .
+    exit 0
+}
 
 }

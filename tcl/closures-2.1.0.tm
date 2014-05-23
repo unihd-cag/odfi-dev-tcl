@@ -227,7 +227,12 @@ namespace eval odfi::closures {
                         #::puts " Closure: $script"
                         #::puts "[dict get $resOptions -errorinfo]"
 
-                        error "Embedded TCL error in $script"
+                       # error "Embedded TCL error in $script"
+                        #error "Embedded TCL error" [dict get $resOptions -errorinfo]
+
+                        ::puts "An error occured in embedded TCL: $::errorInfo"
+                        error $::errorInfo
+
                         #$res [dict get $resOptions -errorinfo]
 
                         #puts "- Error While evaluating script $script. $res"
@@ -267,7 +272,7 @@ namespace eval odfi::closures {
                     # set evalResult [::textutil::adjust::adjust [::textutil::adjust::indent $evalResult "    " 0] -justify left]
                     #set evalResult [::textutil::adjust::indent $evalResult "    " 1]
 
-                    #puts "Closure result: $evalResult"
+                    ##::puts "Closure result: $evalResult"
 
                     ## Output to result string
                     set resultChannel "$resultChannel$evalResult"
@@ -794,16 +799,26 @@ namespace eval odfi::closures {
                                 ##set requiredUpvars [concat set $var $var ";" $requiredUpvars]
                                 
                                 #::puts "Resolved var $var at lower exec level as requested one, setting to $res"
-                                
-                                if {[llength $res]>1} {
-                                   # ::puts "-- Setting as string because length > 1 "
-                                   uplevel $execLevel "set $var \"$res\""
-                                    #::puts "-- Done"
-                                } else {
+                                set varVal [list $res]
+                                uplevel $execLevel set $var $varVal
+
+                                #if {[llength $res]==0} {
+                               #     uplevel $execLevel "set $var {}"
+                               # } else {
                                    # ::puts "-- Setting value as it is"
-                                    uplevel $execLevel "set $var $res"
+                               #     uplevel $execLevel "set $var $res"
                                     #::puts "-- Done"
-                                }
+                               # }
+
+                               # if {[llength $res]>1} {
+                                   # ::puts "-- Setting as string because length > 1 "
+                               #    uplevel $execLevel "set $var \"$res\""
+                                    #::puts "-- Done"
+                               ## } else {
+                                   # ::puts "-- Setting value as it is"
+                                #    uplevel $execLevel "set $var $res"
+                                    #::puts "-- Done"
+                               # }
                                 
                                 #set afterClosure [concat uplevel $execLevel unset -nocomplain $var ";" $afterClosure]
                             } else {
@@ -938,7 +953,8 @@ namespace eval odfi::closures {
             #::puts "[dict get $resOptions -errorinfo]"
 
             ## Save normal error 
-            set error $res  
+            #::puts "An error occured in closure execution: $::errorInfo"
+            set error $::errorInfo  
 
             ## Save improved error
         }

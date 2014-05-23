@@ -118,6 +118,9 @@ namespace eval odfi::common {
 
     proc ::new {type name args} {
 
+        ## Replace %auto with #auto in name 
+        set name [regsub {%auto} $name #auto]
+
         ## Delete
         uplevel 1 "odfi::common::deleteObject $name"
 
@@ -1405,6 +1408,127 @@ namespace eval odfi::common {
             return $pos
         }
 
+
+    }
+
+    ###############################
+    ## Source file location utilities 
+    ###############################
+
+    ## @return {file line}
+    proc findFileLocation args {
+
+        set level 1
+
+        while {true} {
+
+            ## Get 
+            if {[catch [list set fd [info frame -$level]]]} {
+                break
+            } else {
+
+                ## If file, return 
+                if {[dict exists $fd file]} {
+                    return [list [dict get $fd file] [dict get $fd type]]
+                } else {
+                    incr level
+                }
+
+            }
+        }
+
+
+    }
+
+     ## @return {file line}
+    proc findFileLocationStack args {
+
+        set maxlevel [info frame]
+        #puts "Max search level: $maxlevel"
+        set level 1
+        set res {}
+        while {$level<[expr $maxlevel]} {
+
+           # puts "level: $level"
+            ## Get 
+            if {[catch [list set fd [info frame -$level]]]} {
+                break
+            } else {
+
+                ## If file, return 
+                if {[dict exists $fd file]} {
+
+                    lappend res [list [dict get $fd file] [dict exists $fd closure]]
+                } else {
+                    
+                }
+
+            }
+
+            incr level
+        }
+
+        return $res 
+
+    }
+
+    ## @return {file line}
+    proc getFileLocationStack args {
+
+        set maxlevel [info frame]
+        #puts "Max search level: $maxlevel"
+        set level 1
+        set res {}
+        while {$level<[expr $maxlevel]} {
+
+           # puts "level: $level"
+            ## Get 
+            if {[catch [list set fd [info frame $level]]]} {
+                break
+            } else {
+
+                ## If file, return 
+                if {[dict exists $fd file]} {
+
+                    lappend res [list [dict get $fd file] [dict get $fd line] [dict get $fd cmd]]
+                } else {
+                    
+                }
+
+            }
+
+            incr level
+        }
+
+        return $res 
+
+    }
+
+    ## Black magic to find out the file location for the currently active script 
+    proc findUserCodeLocation args {
+
+        ## Active script 
+        set script [info script]
+       # puts "Active Script: $script"
+
+        ## Get Frame stack 
+        set stack [getFileLocationStack]
+
+        #foreach s $stack {
+
+         #   puts "*** $s"
+        #}
+
+        ## Find the entry with the file 
+        foreach entry $stack {
+
+            if {[string match *$script* [lindex $entry 0]]} {
+                return $entry
+            }
+
+        }
+
+        return {"" 0}
 
     }
 

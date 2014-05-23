@@ -15,7 +15,8 @@
 #
 
 package provide odfi::git 1.0.0
-package require odfi::files
+package require odfi::list 2.0.0
+package require odfi::files 1.0.0
 
 namespace eval odfi::git {
 
@@ -104,6 +105,21 @@ namespace eval odfi::git {
 
 	}
 
+	proc list-local-branches repositoryPath {
+
+		## Get branches
+		set cdir [pwd]
+		cd $repositoryPath
+		set branchesOutput [exec git for-each-ref --format="%(refname)" refs/heads/]
+		cd $cdir
+		
+		## Keep only the last name in refs/head/name 
+		odfi::list::transform $branchesOutput {
+			return [lindex [split $it /] end]
+		}
+
+	}
+
 	## Return the name of the current checked out branch of repository
 	proc current-branch repositoryPath {
 
@@ -117,6 +133,23 @@ namespace eval odfi::git {
 		regexp -line {^\s*\*\s*([\w\-\.]+)\s*$} $branchesOutput -> currentBranch
 
 		return $currentBranch
+
+	}
+
+	proc originURL repositoryPath {
+
+		## Get Remotes
+		set cdir [pwd]
+		cd $repositoryPath
+		set remotes [exec git remote -v]
+		cd $cdir
+
+		## Search origin 
+		set originIndex [lsearch -exact $remotes origin]
+		if {$originIndex!=-1} {
+			return [lindex $remotes [expr $originIndex+1]]
+		}
+		return ""
 
 	}
 

@@ -14,8 +14,8 @@
 #    Copyright (C) 2008 - 2014 Computer Architecture Group @ Uni. Heidelberg <http://ra.ziti.uni-heidelberg.de>
 #
 
-package provide odfi::list 2.0.0
-package require odfi::closures 2.1.0
+package provide odfi::list 3.0.0
+package require odfi::closures 3.0.0
 
 
 
@@ -92,24 +92,34 @@ namespace eval odfi::list {
         foreach it $lst {
 
             ## Fix empty it case
-            if {$it==""} {
-                set it "\"\""
-            }
+            #if {$it==""} {
+            #    set it "\"\""
+            #}
 
             #set code  "set it {$it}"
             #::puts "Setting iterator to $code"
             #uplevel $execlevel $code
             #::puts "Iterator set"
 
-            #::puts "Transform result: [odfi::closures::doClosure $scriptClosure $execlevel]"
+            #::puts "Transform result: [odfi::closures::run $scriptClosure $execlevel]"
 
-            set res [odfi::closures::doClosure $scriptClosure $execlevel]
+#            set res [odfi::closures::run $scriptClosure $execlevel]
 
            # ::puts "TRANSFORM: Result is: $res"
-            
+
+           odfi::closures::protect newlst
+ 
+           set res [odfi::closures::applyLambda $scriptClosure [list it $it]]
+
+           odfi::closures::restore newlst
+
+          # ::puts "----> TRANSFORM: Result is: $res"
+
             lappend newlst $res
 
         }
+
+       # ::puts "----> Global Result: $newlst"
 
         if {$concat!=false} {
             return [join $newlst $concat]
@@ -156,7 +166,7 @@ namespace eval odfi::list {
             }
 
             uplevel $execlevel set it $it
-            set res [odfi::closures::doClosure $scriptClosure $execlevel]
+            set res [odfi::closures::run $scriptClosure $execlevel]
 
            # puts "FILTER: Result is: $res"
 
@@ -198,7 +208,7 @@ namespace eval odfi::list {
 
             #puts "Doing closure with $it"
             uplevel $execlevel set it $it
-            odfi::closures::doClosure $script $execlevel
+            odfi::closures::run $script $execlevel
         }
 
 
@@ -217,13 +227,13 @@ namespace eval odfi::list {
         }
         
         ## Combine  Result is new left 
-        set left [odfi::closures::doClosure $closure 1]
+        set left [odfi::closures::run $closure 1]
 
         foreach right [lrange $lst 2 end] {
 
             ## Combine  Result is new left 
             #puts "COMBI OFREACH"
-            set left [odfi::closures::doClosure $closure 1]
+            set left [odfi::closures::run $closure 1]
         
 
         }
@@ -256,7 +266,7 @@ namespace eval odfi::list {
             }
 
             uplevel $execlevel set it $it
-            set res [odfi::closures::doClosure $closure $execlevel]
+            set res [odfi::closures::run $closure $execlevel]
 
             if {$res} {
                 return $it
@@ -276,7 +286,7 @@ namespace eval odfi::list {
             set key [lindex $entry 0]
             set value [lindex $entry 1]
 
-            odfi::closures::doClosure $script 1
+            odfi::closures::run $script 1
 
             #uplevel 1 "set key $key"
 
@@ -316,13 +326,13 @@ namespace eval odfi::list {
             }
             
             ## Combine  Result is new left 
-            set left [odfi::closures::doClosure $script 1]
+            set left [odfi::closures::run $script 1]
 
             foreach right [lrange $value 2 end] {
 
                 ## Combine  Result is new left 
                 #puts "COMBI OFREACH"
-                set left [odfi::closures::doClosure $script 1]
+                set left [odfi::closures::run $script 1]
             
 
             }
@@ -330,7 +340,7 @@ namespace eval odfi::list {
             ## Result is the last left 
             set newArray [arrayConcat $newArray $key $left]
 
-            ##odfi::closures::doClosure $script 1
+            ##odfi::closures::run $script 1
 
             #uplevel 1 "set key $key"
 
@@ -356,20 +366,7 @@ namespace eval odfi::list {
     proc arrayGet {arrayList key } {
 
         ## Find key
-        ## CODE COMPATIBLE WITH TCL 8.4. don't touch!
-        set entryIndex -1
-        for {set i 0} {$i < [llength $arrayList]} {incr i} {
-
-            if {[lindex [lindex $arrayList $i] 0]==$key} {
-                set entryIndex $i
-                break
-            }
-
-        } 
-        #### EOF TCL 8.4 code
-        #set entryIndex [lsearch -index 0 -exact $arrayList $key]
-
-
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
         if {$entryIndex==-1} {
             error "Could not find key $key in array list ($arrayList)"
         }
@@ -382,19 +379,7 @@ namespace eval odfi::list {
     proc arrayGetDefault {arrayList key default} {
 
         ## Find key
-        ## CODE COMPATIBLE WITH TCL 8.4. don't touch!
-        set entryIndex -1
-        for {set i 0} {$i < [llength $arrayList]} {incr i} {
-
-            if {[lindex [lindex $arrayList $i] 0]==$key} {
-                set entryIndex $i
-                break
-            }
-
-        } 
-        #### EOF TCL 8.4 code
-
-        #set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
         if {$entryIndex==-1} {
             return $default
         }
@@ -408,18 +393,7 @@ namespace eval odfi::list {
     proc arrayContains {arrayList key} {
 
         ## Find key
-        ## CODE COMPATIBLE WITH TCL 8.4. don't touch!
-        set entryIndex -1
-        for {set i 0} {$i < [llength $arrayList]} {incr i} {
-
-            if {[lindex [lindex $arrayList $i] 0]==$key} {
-                set entryIndex $i
-                break
-            }
-
-        } 
-        #### EOF TCL 8.4 code
-        #set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
         if {$entryIndex==-1} {
             return false
         } else {
@@ -435,18 +409,7 @@ namespace eval odfi::list {
         #puts "Replace $key $value in $arrayList"
 
         ## Find key
-        ## CODE COMPATIBLE WITH TCL 8.4. don't touch!
-        set entryIndex -1
-        for {set i 0} {$i < [llength $arrayList]} {incr i} {
-
-            if {[lindex [lindex $arrayList $i] 0]==$key} {
-                set entryIndex $i
-                break
-            }
-
-        } 
-        #### EOF TCL 8.4 code
-        #set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
         if {$entryIndex==-1} {
             lappend arrayList [list $key $value]
         } else {
@@ -465,19 +428,7 @@ namespace eval odfi::list {
     proc arrayDelete {arrayList key args} {
 
         ## Find key
-        ## CODE COMPATIBLE WITH TCL 8.4. don't touch!
-        set entryIndex -1
-        for {set i 0} {$i < [llength $arrayList]} {incr i} {
-
-            if {[lindex [lindex $arrayList $i] 0]==$key} {
-                set entryIndex $i
-                break
-            }
-
-        } 
-        #### EOF TCL 8.4 code
-        #set entryIndex [lsearch -index 0 -exact $arrayList $key]
-
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
         if {$entryIndex==-1} {
             return $arrayList
         } else {
@@ -500,18 +451,7 @@ namespace eval odfi::list {
     proc arrayConcat {arrayList key value} {
 
         ## Find Entry
-        ## CODE COMPATIBLE WITH TCL 8.4. don't touch!
-        set entryIndex -1
-        for {set i 0} {$i < [llength $arrayList]} {incr i} {
-
-            if {[lindex [lindex $arrayList $i] 0]==$key} {
-                set entryIndex $i
-                break
-            }
-
-        } 
-        #### EOF TCL 8.4 code
-        #set entryIndex [lsearch -index 0 -exact $arrayList $key]
+        set entryIndex [lsearch -index 0 -exact $arrayList $key]
         if {$entryIndex==-1} {
             lappend arrayList [list $key $value]
         } else {
@@ -602,7 +542,7 @@ namespace eval odfi::list {
 
             ## Run Closure
             ####
-            set val [odfi::closures::doClosure $closure]
+            set val [odfi::closures::run $closure]
             if {$val == ""} {
                 continue
             }
@@ -697,7 +637,7 @@ namespace eval odfi::regexp {
                 uplevel "set groupCount $groupIndex"
 
                 ## Call closure
-                odfi::closures::doClosure $matchClosure 1
+                odfi::closures::run $matchClosure 1
 
             } else {
 
@@ -746,7 +686,7 @@ namespace eval odfi::search {
 
 
                 ## Call closure
-                odfi::closures::doClosure $closure 1
+                odfi::closures::run $closure 1
 
 
             } else {

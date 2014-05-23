@@ -192,7 +192,7 @@ namespace eval odfi::closures {
                         #::puts " Closure: $script"
                         #::puts "[dict get $resOptions -errorinfo]"
 
-                        error "Embedded TCL error in $script" [dict get $resOptions -errorinfo]
+                        error "Embedded TCL error" [dict get $resOptions -errorinfo]
                         #$res [dict get $resOptions -errorinfo]
 
                         #puts "- Error While evaluating script $script. $res"
