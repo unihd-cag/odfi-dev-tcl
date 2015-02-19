@@ -89,12 +89,24 @@ namespace eval odfi::common {
     ## \brief returns 1 if object is of classname type, otherwise 0
     proc isClass {object className} {
 
-        ## Search
-        if {[llength [itcl::find objects $object -isa $className]]==0} {
-            return 0
-        } else {
-            return 1
+        ## Search ITCL  and NX 
+        if {[catch {set itclRes [itcl::find objects $object -isa $className]}]} {
+            set itclRes 0
         }
+        #if {[catch {set nxRes [string equal [$object info class] $className]}]} {
+        #    set nxRes 0
+        #}
+        if {[::nsf::is object $object] && ([$object info has type $className] || [$object info has mixin $className])} {
+            set nxRes 1
+        } else {
+            set nxRes 0
+        }
+        
+        
+        #puts "NX RES: $nxRes -> [$object info class]"
+        
+        ## Search
+        return [expr $itclRes||$nxRes]
     }
 
     ## \brief Deletes object without outputing an error if the object is not found
@@ -1558,6 +1570,24 @@ namespace eval odfi::log {
        
 
         ::puts "$logRealm \[INFO\] $message"
+
+
+    }
+
+    proc fine {message args} {
+
+        set argRealm [lsearch -exact $args -realm]
+        if {$argRealm!=-1} {
+            set logRealm [lindex $args [expr $argRealm+1]]
+        } else {
+            set logRealm [uplevel 1 namespace current]  
+        }
+
+        set logRealm [regsub -all {::} $logRealm "."]
+
+       
+
+        ::puts "$logRealm \[FINE\] $message"
 
 
     }

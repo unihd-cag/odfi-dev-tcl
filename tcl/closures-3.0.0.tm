@@ -59,6 +59,60 @@ namespace eval odfi::closures {
         return [uplevel "::subst \"$closure\""]
     }
 
+    proc getCurrentLine args {
+
+        set callerScript [file normalize [uplevel info script]]
+        #::puts "Current script: -> $callerScript"
+
+        set resLine 0
+        set currentFrame [uplevel info frame]
+        set backIndex 2
+        set stopSource false
+        while {[expr $currentFrame-$backIndex] >= 1} {
+
+            set fdict [uplevel info frame -$backIndex]
+            set l [lindex $fdict 3]
+
+            ## We allow one source path to be considered, if it is the first or last one 
+            ## backIndex==2 is the first call 
+            ## $currentFrame-$backIndex == 1 is the last call
+            ## Otherwiese Consider only if it is a type eval, with line > 1
+            if {[lindex $fdict 1]=="source"} { 
+
+                ## If source matches caller script, accept and stop
+                set file [lindex $fdict 5]
+                #::puts "-> "
+                if {$file==$callerScript} {
+                    set resLine [expr $resLine + $l]
+                    break
+                }
+
+            } elseif {[expr $currentFrame-$backIndex] == 1} {
+                set resLine [expr $resLine + $l]
+            } elseif {([lindex $fdict 1]=="eval" && $l > 1)} {
+                set resLine [expr $resLine + $l -1]
+            } elseif {[lindex $fdict 1]=="source"} { 
+
+                ## If source matches caller script, accept and stop
+                set file [lindex $fdict 5]
+                ::puts "-> "
+                if {$file==$callerScript} {
+                    set resLine [expr $resLine + $l]
+                    break
+                }
+
+            }
+
+         
+
+            
+           # ::puts "Parent frame $backIndex line: $l -> [lindex $fdict 1]"
+            incr backIndex
+        }
+
+        return $resLine
+    }
+
     #######################
     ## Special Functions for variables / overloaded in closure context 
     ####################
@@ -113,7 +167,8 @@ namespace eval odfi::closures {
 
         ::set availableLevels [resolve $var 1]
 
-        #puts "levels for : $var : $availableLevels"
+        #::puts ";; levels for : $var : $availableLevels"
+        
 
         ## If no found level -> Just call ::set in execution level 
         #############
@@ -231,12 +286,16 @@ namespace eval odfi::closures {
         ::set execNamespace [uplevel $execLevel namespace current]
 
         ## Find variables using regexp
-        ::set newClosure [regsub -all {(?:([^\\])\$([a-zA-Z0-9:_]+))|(?:([^\\])\$\{([a-zA-Z0-9:_]+)\})} $closure "\\1\[odfi::closures::value {\\2} \]"]
+        ::set newClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_]+)\}))} $closure "\\1\[odfi::closures::value {\\2\\3} \]"]
+        #::set newClosure [regsub -all {([^\\])\$\{?([a-zA-Z0-9:_]+)\}?} $closure "\\1\[odfi::closures::value {\\2} \]"]
 
         #puts "New Closure: $newClosure"
         try {
             
+
+
             ## Import incr 
+            ################
             if {$execLevel>0 && $targetLevel!=0 && $execNamespace!=[namespace current] && $execNamespace!="::"} {
                 uplevel $execLevel namespace import -force ::odfi::closures::incr ::odfi::closures::set
             }
@@ -266,6 +325,13 @@ namespace eval odfi::closures {
             dict set resOptions replace -errorinfo [regsub -all {\[odfi::closures::value {([^{}]+)}\]} $errorInfo "\$\\1"]
 
             error $errorInfo
+
+        } on return {res resOptions} {
+
+           # puts "Caught return $res" 
+            #uplevel $execLevel return $res
+            uplevel $execLevel [list ::return $res]
+            #::return $res
 
         } finally {
 
@@ -319,17 +385,24 @@ namespace eval odfi::closures {
     proc protect name {
         variable protectedStack
 
+
+
         ## If no value available...don't do anything
         if {[catch [list uplevel ::set $name]]} {
+
+            #puts "Protecting: $name with no value"
 
         } else {
 
             #::puts "- Stacking variable $name "
             ::set actualValue [uplevel ::set $name]
 
+           # puts "Protecting: $name with $actualValue"
+
             ## Save value 
             lappend protectedStack [list $name $actualValue]
 
+            #puts "Stack is now: $protectedStack"
         }
         
 
@@ -338,16 +411,20 @@ namespace eval odfi::closures {
     proc restore name {
        variable protectedStack
 
-       ## Search for a valus in iterators
-       set entryIndex [lsearch -index 0 -exact -start end $protectedStack $name]
+       #puts "Restoring: $name "
+
+       ## Search for a value in iterators
+       set entryIndex [lsearch -index 0 -exact -start end [lreverse $protectedStack] $name]
        if {$entryIndex!=-1} {
+
+            set entryIndex [expr [llength $protectedStack]-1-$entryIndex]
 
             ::set entry [lindex $protectedStack $entryIndex]
 
             ## Remove from iterators list 
             ::set protectedStack [lreplace $protectedStack $entryIndex $entryIndex]
 
-            #::puts "- DeStacking variable $name from $entry "
+            #::puts "- DeStacking variable $name from $entry, value [lindex $entry 1] "
 
             ## Restore Value 
             uplevel set $name [list [lindex $entry 1]]
@@ -366,9 +443,12 @@ namespace eval odfi::closures {
 
         ## Find Input Arguments
         ###############
+        set lambda [string trim [regsub {"]} $lambda {" ]}]]
+        #set splittedLambda [split [string trim $lambda]]
+        #puts "Lambda splited: $splittedLambda \n"
         ::set lambdaArgs {}
         try {
-            if {[lindex [list $lambda] 1]=="=>" || [lindex $lambda 1]=="->"} {
+            if {[lindex $lambda 1]=="=>" || [lindex $lambda 1]=="->"} {
 
                 ::set _def [lrange $lambda 0 1]
                 #puts "Found def: $_def"
@@ -383,7 +463,7 @@ namespace eval odfi::closures {
                 #puts "Now lambda is $lambda"
             }
         } on error {res resOptions} {
-            ::puts "An error occured while detecting lambda format: $lambda"
+            ::puts "An error occured while detecting lambda format ($res): $lambda"
             error $res
         }
 
@@ -399,6 +479,7 @@ namespace eval odfi::closures {
         ## Protect Variable names of input lambda 
         ###############
         foreach larg $lambdaArgs {
+            #puts "Protecting: $larg"
             uplevel odfi::closures::protect $larg
         }
 
@@ -411,7 +492,7 @@ namespace eval odfi::closures {
 
             ## Get Arg name and value 
             ::set arg      [lindex $args $_i]
-            #puts "INPUT ARGUMENT $arg ([llength $arg]) // $args"
+            #puts "INPUT ARGUMENT $arg ([llength $arg]) // [lindex $arg 0] // $args"
             if {[llength $arg]==1} {
                 ::set argValue [lindex $arg 0]
                 ::set argName  "arg$_i"
@@ -444,6 +525,10 @@ namespace eval odfi::closures {
         #################
         try {
             run $lambda -level 1
+        } on return {res resOptions} {
+                    
+            puts "Caught return in applyLambda: $res"
+         
         } finally {
             #### Make sure variables are restored even in error case 
             foreach larg $lambdaArgs {
@@ -458,11 +543,11 @@ namespace eval odfi::closures {
     #####################################
 
     ## Executes the closure count times, with $i variable updated
-    proc ::repeat {__count closure} {
+    proc ::repeat {__count closure args} {
 
        
         for {::set i 0} {$i<$__count} {::incr i} {
-           uplevel odfi::closures::::applyLambda [list $closure] [list [list i $i]]
+           uplevel [list odfi::closures::::applyLambda [concat $closure $args] [list i $i]]
         }
 
 
