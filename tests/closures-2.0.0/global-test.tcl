@@ -1,6 +1,6 @@
 #!/usr/bin/env tclsh
 
-package require odfi::closures 2.0.0
+package require odfi::closures 2.1.0
 
 
 proc assert {expected value {message ""}} {
