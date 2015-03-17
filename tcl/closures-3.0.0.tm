@@ -21,6 +21,19 @@ package require odfi::common
 ## \brief Closures utilities namespace
 namespace eval odfi::closures {
 
+    ## Creates a normal proc, whose body is run through closures
+    proc ::cproc {name args body} {
+        uplevel 1 "
+        proc $name {$args} {
+            odfi::closures::run {
+                $body
+            }
+        }
+        
+        "
+        
+    }
+    
 
     ## Creates a function that executes its body in uplevel1
     ## It is useful to create a function that has to execute in the context of an object
@@ -124,8 +137,8 @@ namespace eval odfi::closures {
         ::set levels [resolve $var 1]
 
         ## Upvar if the first found level is > 1
-        if {[lindex $levels 0]>1} {
-            uplevel upvar [expr [lindex $levels 0]-1] "$var" "$var"
+        if {[lindex $levels 0]>0} {
+            uplevel upvar [expr [lindex $levels 0]] "$var" "$var"
         } 
 
         ## Then just call the top version 
@@ -138,35 +151,113 @@ namespace eval odfi::closures {
 
         if {[llength $value]>0} {
             ::set value [list $value]
+        } else {
+            #::set value "{}"
         }
+        
+#        if {$value==""} {
+#            ::set value  [list ]
+#        }
 
-        #puts "Inside set $var [uplevel info frame] [uplevel namespace current]"
+        #puts "Inside set $var to [join $value] [uplevel info frame] [uplevel namespace current]"
+        
+        ## If on top frame, don't resolve anything
         if {[uplevel info frame]==0} {
             ::set $var $value
+            
+        } else {
+            
+            ## Resolve variable, to find out if we must link before calling top incr [join $value]
+            ::set levels [resolve $var 1]
+    
+            #::puts "Set variable $var, links to $levels, value is "
+    
+            ## Upvar if the first found level is > 1
+            if {[lindex $levels 0]>0} {
+                
+                #::set i 0
+                #for {::set i 1} {$i < [info frame]} {incr i} {
+                #    ::set ft [info frame -$i]
+                #    ::puts "(CL) up ft: $ft"
+                #}
+            
+                uplevel [list upvar [expr [lindex $levels 0]] "$var" "$var"]
+            } 
+    
+            ## Then just call the top version 
+            if { [join $value]==""} {
+                upvar $var $var
+                ::set $var {}
+                #uplevel ::set $var {}
+            } else {
+                uplevel ::set $var $value
+            }
+            
+            
         }
 
-        ## Resolve variable, to find out if we must link before calling top incr
-        ::set levels [resolve $var 1]
-
-        #::puts "Set variable $var, links to $levels"
-
-        ## Upvar if the first found level is > 1
-        if {[lindex $levels 0]>1} {
-            uplevel upvar [expr [lindex $levels 0]-1] "$var" "$var"
-        } 
-
-        ## Then just call the top version 
-        uplevel ::set $var $value
+        
 
     }
     namespace export set
 
+    proc lappend {var args} {
+        
+        #::puts "Inside Closure LAPPEND for $var"
+        
+        ## Resolve variable, to find out if we must link before calling top incr
+        ::set levels [resolve $var 1]
+        
+        #::puts " ->available levels for $var: $levels"
+        
+        ## Upvar if the first found level is > 1
+        if {[lindex $levels 0]>1} {
+            uplevel [list upvar [expr [lindex $levels 0]] "$var" "$var"]
+        } 
+        
+        ## Then just call the top version 
+        foreach arg $args {
+            uplevel [list ::lappend $var $arg]        
+        }
+        
+    }
+    namespace export lappend
+    
 
     ## Resolves the provided variable and returns its value 
     proc value var {
 
-        ::set availableLevels [resolve $var 1]
+        
+        ## Resolve variable, to find out if we must link before calling top incr
+        ::set levels [resolve $var 1]
+        
+        #::puts "(CL) Resolving value of $var Available levels $levels"        
+        if {[lindex $levels 0]>0} {
+            #uplevel upvar [lindex $levels 0] $var $var  
+            set v  [uplevel [expr [lindex $levels 0]+1] ::set $var]         
+            return $v                    
+        } else {
+            return [uplevel ::set $var]             
+        }     
+        
+        
+        #######################
+        
+        ## Upvar if the first found level is > 1
+        if {[lindex $levels 0]>0} {
+            uplevel [list upvar [expr [lindex $levels 0]] "$var" "$var"]
+        } 
+          
+        ## Then retrieve as usual  
+        #return [uplevel [lindex $levels 0] ::set $var]
+        return [uplevel ::set $var]        
+        
 
+        #::puts "(CL) Resolving value of $var"
+        
+        ::set availableLevels [resolve $var 1]
+        
+        #::puts "(CL) Resolving value of $var Available levels $availableLevels"
         #::puts ";; levels for : $var : $availableLevels"
         
 
@@ -174,29 +265,36 @@ namespace eval odfi::closures {
         #############
         if {[llength $availableLevels]==0} {
             return [uplevel ::set $var]
-        } elseif {[llength $availableLevels]>1} {
+        } else {
+
+            return [uplevel [expr [lindex $availableLevels 0]+1] ::set $var]
 
             ## Available in multiple levels 
             ###########
             if {[lindex $availableLevels 0]==1} {
 
                 ## It is available in calling context -> just call ::set
-                return [uplevel ::set $var]
+                return [uplevel [list ::set $var]]
             }
             #if {[lindex $availableLevels]>0}
-            uplevel upvar [expr [lindex $availableLevels 1]-1] "$var" "$var"
-            return [uplevel [lindex $availableLevels 0] ::set $var]
+            #::puts "--> Linking from uplevel to [expr [lindex $availableLevels 0]-1] "
+            uplevel [list upvar [expr [lindex $availableLevels 0]-1] $var $var]
+            
+            upvar $var $var
+            return [::set $var]
+            return [uplevel [list ::set $var]]
 
-        } else {
-
-            ## Available in 1 level, then just call upvar and ::set in that level 
-            if {[lindex $availableLevels 0]>1} {
-                #odfi::log::info "(DBG) Upvar variable $var to [expr [lindex $availableLevels 0]-1]"
-                uplevel upvar [expr [lindex $availableLevels 0]-1] "$var" "$var"
-            }
-            return [uplevel [lindex $availableLevels 0] ::set $var]
-
-        }
+        } 
+#        else {
+#
+#            ## Available in 1 level, then just call upvar and ::set in that level 
+#            if {[lindex $availableLevels 0]>1} {
+#                #odfi::log::info "(DBG) Upvar variable $var to [expr [lindex $availableLevels 0]-1]"
+#                uplevel [list upvar [expr [lindex $availableLevels 0]-1] "$var" "$var"]
+#            }
+#            return [uplevel ::set $var]
+#
+#        }
 
 
         #puts "Resolving variable $var"
@@ -212,7 +310,72 @@ namespace eval odfi::closures {
 
         # Try to resolve by searching levels up 
         ################
-        ::set availableLevels {}
+        ::set availableLevels {}         
+       
+        ::set baseLevel [expr $initResolveLevel+1]
+        ::set ui $baseLevel
+        ::set limit [uplevel $baseLevel info frame]
+         
+        ::puts "(RES) Going up frame levels to try find the variable $var (from $ui to $limit)"         
+        ::set targetEndLevel [uplevel $baseLevel info frame]
+        for {} {$ui < $targetEndLevel} {::incr ui} {
+            
+            ::set ft [uplevel $baseLevel info frame -$ui]
+            
+            #::puts "(RES FT)"
+            ::set levelindex [lsearch -exact $ft level] 
+            
+            if {$levelindex!=-1} {
+                ::set level [lindex $ft [expr $levelindex+1]]
+                
+                ## Save First found level
+                if {[catch {::set l0Frame}]} {
+                    ::set l0Frame $ft                 
+                }
+                #if {$level==0} {
+                #                
+                #}
+                
+                ::set found [expr [catch [list uplevel [expr $level+$baseLevel] ::set $var]]==1?false : true]
+                
+           # ::puts "  (RES) Valid level $level, foudn $found on proc [lindex $ft end-2],l0 proc [lindex $l0Frame end-2]  "                    
+               # ::puts "  (RES) Valid level $level on proc [lindex $ft end-2], found $found "                                
+                
+                #::puts "  (RES) Valid level $level, found $found "                                
+                if {$found} {
+                #::puts "  (RES) Valid level $level, found $found [lindex $ft end-2]!=[lindex $l0Frame end-2]"                      
+                
+                }
+                
+                if {$found} {
+                    ::lappend availableLevels $level  
+                    break              
+                }                
+                
+                
+                ## FIXME!
+                ## Ignore if the target proc is the same as L0 proc and level > 0
+                ## If level is 0, variable is already local
+#                if {$found && $level==0} {
+#                    ::lappend availableLevels $level
+#                    #break               
+#                } elseif {$found && [lindex $ft end-2]!=[lindex $l0Frame end-2]} {
+#                    ::lappend availableLevels $level
+#                }
+                
+            }
+        ::unset ft            
+           # ::puts "  (RES) Testing frame: $ft"
+        }
+        
+        catch {
+            ::unset l0Frame
+        }
+        
+        
+        
+        return $availableLevels
+        
         ::set searchResolveLevel [expr $initResolveLevel+1]
         while {[catch "uplevel $searchResolveLevel info level"]>=0} {
 
@@ -223,7 +386,7 @@ namespace eval odfi::closures {
 
                 ## Found 
                 ##########################
-                lappend availableLevels [expr $searchResolveLevel-$initResolveLevel]
+                ::lappend availableLevels [expr $searchResolveLevel-$initResolveLevel]
 
             } 
 
@@ -266,8 +429,70 @@ namespace eval odfi::closures {
 
     }
 
+    proc retrieveClosure __closure__ {
+
+        ## Get Closure Value 
+        ##  - Either the "Closure" variable value 
+        ##  - A variable in uplevel if the first character is "%", which is to be retrieved and killed
+        if {[string match "%*" $__closure__]} {
+            #odfi::log::info "Closure is a variable to be retrieved: $closure"
+
+            ::set cname [string range $__closure__ 1 end]
+            ::set availableAt  [resolve $cname 2]
+            
+            #puts "(RCL) Available levels: $availableAt [llength $availableAt]"
+            
+            if {[llength $availableAt]==0} {
+                error "Cannot retrieve closure by variable name $cname, not available anywhere"
+            } else {
+                
+                #::puts "Closure variable name is available there: $availableAt"
+
+                ## Search for the first element > 2 
+                ::set targetLevel false 
+                foreach i  $availableAt {
+                    #if {$i>2} {
+
+                        ## Search
+                        ::set cl [uplevel [expr $i+2] [list ::set $cname]]
+                        
+                      # puts " @$i $cl"                        
+
+                        ## Check it is ok, else continue
+                        if {![string match "%*" $cl]} {
+                            uplevel  [expr $i+2]  [list ::unset $cname]
+                            return $cl
+                        } else {
+                            uplevel  [expr $i+2]  [list ::unset $cname]
+                        }
+                    #}
+                }
+                #if {$targetLevel==false} {
+                    error "Closure Variable named $cname cannot be found outside closures library scope"
+                #}
+
+                #::puts "Found target level $targetLevel"
+               
+
+                #::set cl [uplevel [expr $targetLevel-1] [list ::set $cname]]
+                #uplevel  [expr $targetLevel-1]  [list ::unset $cname]
+                #::puts "Closure: $cl"
+
+                return $cl
+            }
+            #::puts "$cname available at: [resolve $cname 1]"
+
+            #exit 0
+        } else {
+            return $__closure__
+        }
+
+    }
+
     ## Runs a closure
     proc run {closure args} {
+
+        ::set closure [retrieveClosure $closure]
 
         ## Parameters 
         #####################
@@ -289,6 +514,8 @@ namespace eval odfi::closures {
         ::set newClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_]+)\}))} $closure "\\1\[odfi::closures::value {\\2\\3} \]"]
         #::set newClosure [regsub -all {([^\\])\$\{?([a-zA-Z0-9:_]+)\}?} $closure "\\1\[odfi::closures::value {\\2} \]"]
 
+        #unset closure
+
         #puts "New Closure: $newClosure"
         try {
             
@@ -296,8 +523,9 @@ namespace eval odfi::closures {
 
             ## Import incr 
             ################
+            #set settersImport {incr set lappend}
             if {$execLevel>0 && $targetLevel!=0 && $execNamespace!=[namespace current] && $execNamespace!="::"} {
-                uplevel $execLevel namespace import -force ::odfi::closures::incr ::odfi::closures::set
+                uplevel $execLevel namespace import -force ::odfi::closures::incr ::odfi::closures::set ::odfi::closures::lappend
             }
             
             #puts "Running closure $newClosure in : $execNamespace // [uplevel $execLevel eval {namespace current}]"
@@ -336,12 +564,42 @@ namespace eval odfi::closures {
         } finally {
 
             ##  Remove incr
-            if {$execLevel>0 && $targetLevel!=0 && $execNamespace!=[namespace current] && $execNamespace!="::"} {
-                uplevel $execLevel namespace forget ::odfi::closures::incr ::odfi::closures::set
+            #::puts "--> Removing exports fomr [uplevel 2 namespace current]"
+            
+            ## Parent
+            #set ft1 [info frame -2]
+            #set ft2 [info frame -2]
+            
+            ## Go uplevel until out of this namespace
+            #::set i 1
+            #set currentNS [uplevel namespace current]
+            #while {[string match "*odfi::closures::*" $currentNS]} {
+            #    incr i
+            #    set currentNS [uplevel $i namespace current]
+            #}
+            
+            ## i is the level into we should look for an already running command
+            ::set ft [info frame -$execLevel]
+            #::puts "Caller level ns [uplevel $execLevel namespace current]"
+            #::puts "---> Calleer frame info $ft -- [lindex [lindex $ft 5] 0]" 
+            if {[lindex $ft 1]=="eval" && [string match "*odfi::closures*" [lindex [lindex $ft 5] 0]]} {
+              ## Don't remove!
+              #puts "Don't remove!"
+              
+            } else {
+                if {$execLevel>0 && $targetLevel!=0 && $execNamespace!=[namespace current] && $execNamespace!="::"} {
+                    uplevel $execLevel namespace forget ::odfi::closures::incr ::odfi::closures::set ::odfi::closures::lappend
+                }
             }
+            unset ft            
+            
+            #
+            
+            
         }
         #catch {uplevel $execLevel [eval $newClosure]} res results
-
+        
+        return
     }
 
 
@@ -379,7 +637,7 @@ namespace eval odfi::closures {
     ## Iterator Variables 
     #######################################
 
-    ## List: {iteratorName {value value}} ...
+    ## List: {iteratorName value} {iteratorName value} ...
     variable protectedStack {}
 
     proc protect name {
@@ -388,19 +646,25 @@ namespace eval odfi::closures {
 
 
         ## If no value available...don't do anything
-        if {[catch [list uplevel ::set $name]]} {
+        #if {[catch [list uplevel ::set $name]]}
+        if {[catch [list uplevel odfi::closures::value $name] res]} {        
 
             #puts "Protecting: $name with no value"
 
         } else {
 
-            #::puts "- Stacking variable $name "
-            ::set actualValue [uplevel ::set $name]
-
+           
+            #::set actualValue [uplevel ::set $name]
+            ::set actualValue $res
+            
            # puts "Protecting: $name with $actualValue"
 
             ## Save value 
-            lappend protectedStack [list $name $actualValue]
+            ::set protectedStack [concat [list [list $name $actualValue]] $protectedStack]
+            #::lappend protectedStack [list $name $actualValue]
+            
+            #::puts "- Stacking variable $name with $actualValue ($protectedStack)"
+                        
 
             #puts "Stack is now: $protectedStack"
         }
@@ -414,20 +678,24 @@ namespace eval odfi::closures {
        #puts "Restoring: $name "
 
        ## Search for a value in iterators
-       set entryIndex [lsearch -index 0 -exact -start end [lreverse $protectedStack] $name]
+       ::set entryIndex [lsearch -index 0 -exact $protectedStack $name]
        if {$entryIndex!=-1} {
 
-            set entryIndex [expr [llength $protectedStack]-1-$entryIndex]
+            #::puts "- DeStacking variable $name at entryIndex $entryIndex"
+           
+            #::set entryIndex [expr [llength $protectedStack]-1-$entryIndex]
 
             ::set entry [lindex $protectedStack $entryIndex]
+           
+            #::puts "----- Entry: $entry"
 
             ## Remove from iterators list 
             ::set protectedStack [lreplace $protectedStack $entryIndex $entryIndex]
 
-            #::puts "- DeStacking variable $name from $entry, value [lindex $entry 1] "
+            #::puts "- DeStacking variable $name from val $entry -> $protectedStack "
 
             ## Restore Value 
-            uplevel set $name [list [lindex $entry 1]]
+            uplevel [list ::set $name [lindex $entry 1]]
        }
         
 
@@ -443,7 +711,7 @@ namespace eval odfi::closures {
 
         ## Find Input Arguments
         ###############
-        set lambda [string trim [regsub {"]} $lambda {" ]}]]
+        ::set lambda [string trim [regsub {"]} $lambda {" ]}]]
         #set splittedLambda [split [string trim $lambda]]
         #puts "Lambda splited: $splittedLambda \n"
         ::set lambdaArgs {}
@@ -505,7 +773,18 @@ namespace eval odfi::closures {
 
             ## Match lambda input 
             if {[llength $lambdaArgs]>0} {
-                uplevel ::set [lindex $lambdaArgs $_i] $argValue
+                
+                #::puts "Varset: $argValue -> [llength $argValue]"
+                if {[llength $argValue]>1} {
+                    uplevel ::set [lindex $lambdaArgs $_i] [list $argValue]
+                } elseif {[llength $argValue] ==0 && $argValue==""} {
+                    #::puts "Setting [lindex $lambdaArgs $_i] to $argValue"
+                    uplevel [list ::set [lindex $lambdaArgs $_i] {}]
+                } else {
+                    #::puts "Setting [lindex $lambdaArgs $_i] to $argValue"
+                    uplevel ::set [lindex $lambdaArgs $_i] $argValue
+                }
+                
             } else {
 
                 ## Check there is a var name, otherwise set default name argx
@@ -514,12 +793,25 @@ namespace eval odfi::closures {
                 ## Set Value 
                 #puts "SETTING AUTOMATIC INPUT ARGUMENT: $argName $argValue"
                 uplevel odfi::closures::protect $argName
-                ::lappend generatedLambdaArgs $argName
-                uplevel ::set  $argName $argValue
+                ::::lappend generatedLambdaArgs $argName
+                
+                if {[llength $argValue]>1} {
+                    uplevel ::set $argName [list $argValue]
+                } elseif {[llength $argValue] ==0 && $argValue==""} {
+                    #::puts "Setting $argName to $argValue 8force empty"
+                    #upvar $argName $var
+                    #::set $var {}
+                    uplevel [list ::set $argName {}]
+                } else {
+                    #::puts "Setting $argName to $argValue"
+                    uplevel ::set $argName $argValue
+                }
+                
+                #uplevel ::set  $argName $argValue
             }
 
         }
-        set lambdaArgs [::concat $lambdaArgs $generatedLambdaArgs]
+        ::set lambdaArgs [::concat $lambdaArgs $generatedLambdaArgs]
 
         ## Run 
         #################
@@ -544,11 +836,25 @@ namespace eval odfi::closures {
 
     ## Executes the closure count times, with $i variable updated
     proc ::repeat {__count closure args} {
-
-       
+        
+#    uplevel [list odfi::closures::::applyLambda { \
+#        for {::set i 0} {$i<$count} {::incr i} {  \
+#            eval $closure  \
+#        }     \
+#    } [list i 0] [list count __count] [list closure $closure] ]     
+#
+#       
+#        return
+        
+        ::odfi::closures::protect i
         for {::set i 0} {$i<$__count} {::incr i} {
+            try {        
            uplevel [list odfi::closures::::applyLambda [concat $closure $args] [list i $i]]
+            } on break {res resOptions} {
+                puts "Caught break"
+            }
         }
+        ::odfi::closures::restore i        
 
 
     }
