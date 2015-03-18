@@ -100,4 +100,96 @@ namespace eval odfi::files {
 
     }
 
+    ##########################################
+    ## Line Reader to read a channel line by line and isolate sections 
+    ###############################################
+    itcl::class LineReader {
+
+        public variable file ""
+        public variable fileHandle ""
+        constructor cFile {
+
+            ## If File is a file
+            if {[file isfile $cFile]} {
+
+                set file $cFile
+                set fileHandle [open $file]
+
+            } else {
+
+                ## If file is a channel 
+                set file "channel"
+                set fileHandle $cFile
+            }
+            
+        }
+        public method read args {
+            return [::read $fileHandle]
+        }
+        public method line args {
+            set c [gets $fileHandle l]
+            if {$c==-1} {
+                return -1
+            } else {
+                return $l
+            }
+            
+        }
+
+        public method eachLine closure {
+
+            set line [line] 
+            while {$line!=-1} {
+                uplevel odfi::closures::::applyLambda [list $closure] [list [list line \"$line\"]]
+                set line [line] 
+            }
+        }
+
+        public method skipLines count {
+            ::repeat $count {
+                line
+            }
+        }
+
+        public method section {from to closure} {
+
+            ## Search from start delimiter
+            set l [line]
+            while { $l!=-1 && ![string match "*$from*" $l]} {
+                #puts "Non valid line: $l"
+                set l [line]
+            }
+            #puts "Found start: $l"
+            
+            ## EOF 
+            if {$l==""} {
+                return
+            }
+
+            ## Start found
+            ## Buffer until end
+            set sectionChannel [odfi::common::newStringChannel]
+            set l [line]
+            while { $l!=-1 && ![string match "*$to*" $l]} {
+                puts $sectionChannel $l
+                set l [line]
+            }
+
+            #puts "Found stop: $l"
+
+            ## Create New Line Reader 
+            ##############
+            set sectionReader [::new [namespace current] #auto $sectionChannel]
+
+            ## Call Closure with sectionReader
+            uplevel odfi::closures::::applyLambda [list $closure] [list [list sectionReader $sectionReader]]
+        
+
+            ## Return reader anyways
+            return $sectionReader
+
+        }
+
+    }
+
 }

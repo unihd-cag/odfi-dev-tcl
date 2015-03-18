@@ -19,6 +19,12 @@ package require odfi::closures 3.0.0
 
 
 
+namespace eval odfi::functional::pattern {
+
+
+
+}
+
 namespace eval odfi::list {
 
 
@@ -276,6 +282,8 @@ namespace eval odfi::list {
         return {}
 
     }
+
+
 
     ## \brief Evaluates script for each key/pair arrayVar, providing $key variable as pointer to key, and $value as value
     # Script is called in one uplevel
@@ -573,12 +581,7 @@ namespace eval odfi::list {
     }
 
 
-    ################################################################################
-    ## Classes
-    ################################################################################
-    odfi::common::resetNamespaceClasses [namespace current]
-
-
+    
 
 
 }

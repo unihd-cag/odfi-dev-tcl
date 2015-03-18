@@ -50,9 +50,33 @@ set closure {
 
 
 odfi::closures::applyLambda $closure 1
-
 odfi::tests::expect "Top level i must no have beem overwritten by closure ($i)" 10 $i
 
+## Lambda with multiple arguments
+##############################
+set j 10
+set k 20
+set closure {
+    {a b} => 
+        puts "Variable a is $a"
+        odfi::tests::expect "Input argument a should be 10" 10 $a
+
+        puts "Variable b is $b"
+        odfi::tests::expect "Input argument b should be 20" 20 $b
+}
+odfi::closures::applyLambda $closure $j $k
+
+## Lambda with multiple arguments and Problematic command call
+##############################
+set j 10
+set k 20
+set closure {
+    {a b} => 
+        set str "Hello World"
+        puts "Length of string $str is "
+        puts [string length "Hello World"]
+}
+odfi::closures::applyLambda $closure $j $k
 
 ## Test Against  imbricated repeat 
 ##################################
