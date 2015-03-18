@@ -12,20 +12,32 @@ namespace eval odfi::log {
         return $odfi::log::prefix
     }
 
+    proc getLogPath args {
+  
+
+            ## Get Log Realm
+            set argRealm [lsearch -exact $args -realm]
+            if {$argRealm!=-1} {
+                set logRealm [lindex $args [expr $argRealm+1]]
+            } else {
+                set logRealm [uplevel 2 namespace current]  
+            }
+
+            set logRealm [regsub -all {::} $logRealm "."]
+
+            ## Get Command path 
+            set frameInfo [::info frame 2]
+            set commandName [lindex [lindex $frameInfo 5] 0]
+            set commandName [regsub -all {:} $commandName ""]
+
+           # ::puts "Log frame info: $frameInfo"
+            
+            return $logRealm.$commandName
+    }
     proc info {message args} {
 
-        set argRealm [lsearch -exact $args -realm]
-        if {$argRealm!=-1} {
-            set logRealm [lindex $args [expr $argRealm+1]]
-        } else {
-            set logRealm [uplevel 1 namespace current]  
-        }
 
-        set logRealm [regsub -all {::} $logRealm "."]
-
-       
-
-        ::puts $odfi::log::pipeOut "[prefix]$logRealm \[INFO\] $message"
+        ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[INFO\] $message"
         ::flush $odfi::log::pipeOut
 
 

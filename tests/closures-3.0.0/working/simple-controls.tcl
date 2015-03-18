@@ -48,9 +48,10 @@ set res [odfi::closures::run {
 
     puts "Closure running in [namespace current]"
     ::repeat 10 {
- 
+    
+        set a $i    
         puts "Iteration : $i , a is $a, proc: [dict get [info frame 0] proc], ns: [namespace current]"
-        set a $i
+        
         if {$i==5} {
             break
             #return
@@ -97,5 +98,5 @@ set res [odfi::closures::run {
     return $a
 }]
 assert 5 $a "A must be 5"
-assert 2 $b "A must be 5"
+assert 2 $b "B must be 2"
 #puts "EOF test: $a and $b"

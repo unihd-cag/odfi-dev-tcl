@@ -88,11 +88,87 @@ namespace eval odfi::flist {
         ## Operators 
         #######################
 
+
         :public method += args {
+
+            foreach arg $args {
+                if {[odfi::common::isClass $arg [namespace current]::MutableList]} {
+                    set :content [concat ${:content} [$arg content get]]
+                } else {
+                    lappend :content $arg
+                }
+                
+            }
+            
             #puts "Appending $element"
-            foreach arg $args {lappend :content $arg}
+            
             
         }
+        
+        :public method -= item {
+                
+            ##get index
+            set index [:indexOf $item]
+            if {$index==-1} {
+                odfi::log::error "Cannot remove item $item from list [current object] if it is not contained in it "
+            } else {
+                set :content [lreplace ${:content} $index $index]
+            }
+           
+        }
+        
+        :public method - item {
+        
+            set n [[namespace current]::MutableList new]
+            
+            :foreach {
+             
+                if {$it!=$item} {
+                    $n += $it
+                }
+            }
+            
+            return $n
+            
+         
+            
+        }
+        
+
+        :public method addFirst args {
+            set :content [concat $args ${:content}]
+        }
+        
+        :public method removeFirst args {
+            
+            if {[:size]>0} {
+                set first [lindex ${:content} 0]
+                set :content [lrange ${:content} 1 end]
+                return $first
+            } else {
+                error "Cannot remove first of empty list"
+            }
+                
+        }
+        
+        :public method clear args {
+            set :content {}
+        }
+        
+        ## Stack Like operators
+        ##########################
+        
+        :public method push args {
+            :addFirst $args
+        }
+        :public method peek args {
+            return [lindex ${:content} 0] 
+        }
+        :public method pop args {
+            return [:removeFirst]
+        }
+        
+        
 
         ## Iterator
         ###########################
@@ -104,6 +180,12 @@ namespace eval odfi::flist {
             }
         }
 
+        ## Pop the first and run closure on it, until empty
+        :public method popAll {closure} {
+            while {[:size]>0} {
+                uplevel [list odfi::closures::applyLambda $closure [list it [:pop]]]
+            }
+        }
 
 
         ## Accessor
@@ -124,6 +206,68 @@ namespace eval odfi::flist {
         :public method at i {
             return [lindex ${:content} $i]
         }
+
+        :public method sublist {start end {-empty:optional}} {
+
+            ## Return list 
+            #::puts "Sublist from : $start $end -> [lrange ${:content} $start $end]"
+            set r [MutableList new]
+            foreach elt [lrange ${:content} $start $end] {
+                $r += $elt
+            }
+            
+            
+            return $r         
+            
+            ## 
+            
+            if {[catch {set empty}]} {
+                set empty false 
+            }
+
+            ## Check boundaries, and return an error or empty list 
+            if {$start >= [:size] || ($end < $start)} {
+                if {$empty} {
+                    return [MutableList new]
+                } else {
+                    error "boundaries $start - $end are not correct for size [:size]"
+                }
+            }
+
+            
+        }
+        
+        ## Positioning
+        #############################
+        
+        :public method setIndexOf {child position} {
+            
+            ## Get position
+            set actualIndex [:indexOf $child]
+            
+            ## Insert
+            set :content [linsert ${:content} $position $child]
+            
+            ## Remove old position (which si now +1)
+            set :content [lreplace ${:content} [expr $actualIndex+1] [expr $actualIndex+1]]
+            
+            return             
+            
+            ## Check boundaries
+            if {$position < 0 || $position >= [:size]} {
+                error "Cannot set Index Of $child to $position, off-boundaries"
+            } else {
+                ## Get position
+                set actualIndex [:indexOf $child]
+                
+                ## Insert
+                set :content [linsert ${:content} $position $child]
+                
+                ## Remove old position (which si now +1)
+                set :content [lreplace ${:content} [expr $actualIndex+1] [expr $actualIndex+1]]
+            }
+        }
+        
 
         ## Transform 
         ##################
@@ -161,6 +305,9 @@ namespace eval odfi::flist {
         :public method asTCLList args {
             return ${:content}
         }
+        :public method toTCLList args {
+            return ${:content}
+        }        
 
         :public method mkString sep {
 
@@ -239,6 +386,18 @@ namespace eval odfi::flist {
         ## Search 
         ###############
 
+        :public method contains obj {
+            if {[:indexOf $obj]!=-1} {
+                return true   
+            } else {
+                return false
+            }
+        }
+        
+        :public method indexOf obj {
+            lsearch -exact ${:content} $obj
+        }
+        
         ## \brief Returns  the first match of the closure on the list
         ## @return The resulting object, or a None value
         :public method findOption {searchClosure {-level 1}} {
