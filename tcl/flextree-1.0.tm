@@ -567,7 +567,7 @@ namespace eval odfi::flextree {
                             } elseif {![$node isLeaf]} {
                                 
                                 ## Bounce back to top, and add children to be done before
-                                ::puts "---> Not leaf, Push on top [[current object] info class]"
+                                #::puts "---> Not leaf, Push on top [[current object] info class]"
                                 $componentsFifo addFirst [current object]
                                 foreach it [lreverse [${:children} asTCLList]] {
                                     $componentsFifo addFirst $it 

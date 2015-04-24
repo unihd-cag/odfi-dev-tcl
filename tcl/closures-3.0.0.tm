@@ -800,6 +800,7 @@ namespace eval odfi::closures {
     ## Executes the closure count times, with $i variable updated
     proc ::repeat {__count closure args} {
         
+        ::set __count [expr $__count]
 #    uplevel [list odfi::closures::::applyLambda { \
 #        for {::set i 0} {$i<$count} {::incr i} {  \
 #            eval $closure  \
@@ -825,13 +826,15 @@ namespace eval odfi::closures {
     
     
     proc ::repeatf {__count closure args} {
-    
+        
+    ::set __count [expr $__count]
+            
         uplevel ::odfi::closures::protect i
         try {
             for {::set i 0} {$i<$__count} {::incr i} {
                 try {        
                     uplevel set i $i
-                    uplevel [concat $closure $args]
+                    uplevel $closure
                 } on break {res resOptions} {
                     #puts "Caught break"
                     break            
