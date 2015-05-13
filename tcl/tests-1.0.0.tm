@@ -20,22 +20,7 @@ package require Itcl
 
 namespace eval odfi::tests {
 
-    ##################################
-    ## Gathered tests
-    ##################################
-    variable toRun {}
-
     variable mainSuite ""
-
-
-    ###################################
-    ## Messages 
-    #################################
-    proc msg arg {
-        
-        puts "==== $arg ===="
-    
-    }
 
     #################################################
     ## Factories
@@ -69,25 +54,6 @@ namespace eval odfi::tests {
             ## Set Name and execute Closure
             set name $cName
             odfi::closures::doClosure $cClosure
-        }
-
-        ## Method called to run the suite
-        public method run args {
-
-            odfi::common::println "Running Suite: $name"
-
-            ## Call All Tests
-            ##########
-            foreach test $tests {
-                $test run
-            }
-
-
-            ## Call All Suites
-            #######################
-            foreach suite $subSuites {
-                $suite run
-            }
         }
 
         public method test {name closure} {
