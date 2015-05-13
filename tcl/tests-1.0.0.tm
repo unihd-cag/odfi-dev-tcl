@@ -15,7 +15,7 @@
 #
 
 package provide odfi::tests 1.0.0
-package require odfi::closures 3.0.0
+package require odfi::closures 2.0.0
 package require Itcl
 
 namespace eval odfi::tests {
@@ -25,63 +25,27 @@ namespace eval odfi::tests {
     ##################################
     variable toRun {}
 
-    variable currentSuite ""
+    variable mainSuite ""
 
 
     ###################################
     ## Messages 
     #################################
     proc msg arg {
-        puts "==== $arg ===="
-    }
-
-
-    ####################################
-    ## Global Expects
-    ####################################
-    proc expect {name expected actual} {
-        if {$expected != $actual} {
-            ::puts "\[  FAIL \] Failed $name , expected: $expected, actual value: $actual"
-        } else {
-            ::puts "\[SUCCESS\] $name"
-        }
         
+        puts "==== $arg ===="
+    
     }
 
     #################################################
     ## Factories
     #################################################
-
-    proc test {name closure} {
-
-        odfi::common::println "Create test $odfi::tests::currentSuite"
-
-        ## Create Test
-        set test [::new [namespace current]::Test #auto $name $closure]
-
-        ## Add to Current Suite if necessary
-        if {[odfi::common::isClass $odfi::tests::currentSuite [namespace current]::Suite]} {
-
-            $odfi::tests::currentSuite addTest $test
-
-        } else {
-
-            ## Otherwise Just Run
-
-        }
-
-
-
-    }
-
     proc suite {name closure} {
-
+ 
+        odfi::common::println "Create suite $name"
         ## Create Suite
-
-        ## Record as current
-
-        ##
-
+        set odfi::tests::mainSuite [::new [namespace current]::Suite #auto $name $closure]  
+    
     }
 
 
@@ -101,20 +65,10 @@ namespace eval odfi::tests {
         ## The Tests
         odfi::common::classField public tests {}
 
-        constructor {cName} {
-
-            ## Defaults
-            ###############
-            set name        $cName
-            set tests {}
-            set subSuites {}
-
-        }
-
-        ## Applies closure to object
-        public method apply closure {
-
-            odfi::closures::doClosure $closure
+        constructor {cName cClosure} {
+            ## Set Name and execute Closure
+            set name $cName
+            odfi::closures::doClosure $cClosure
         }
 
         ## Method called to run the suite
@@ -136,29 +90,15 @@ namespace eval odfi::tests {
             }
         }
 
+        public method test {name closure} {
+            odfi::common::println "Create test $name in [$this name]"
 
-        public method addTest testObject {
+            ## Create Test
+            set test [::new odfi::tests::Test #auto $name $closure]
 
-            odfi::common::println "Adding test to suite"
-
-            lappend tests $testObject
-        }
-
-        public method addSuite {name closure} {
-
-            ## Create Suite
-            set suite [::new [namespace current] #auto $name]
-            lappend subSuites $suite
-
-            ## Record as current
-            set [namespace parent]::currentSuite $suite
-
-            ## Apply
-            $suite apply $closure
-
-            ## Reset current
-            set [namespace parent]::currentSuite ""
-
+            ## Add to Current Suite if necessary
+            
+            lappend tests $test
         }
 
     }
@@ -175,22 +115,24 @@ namespace eval odfi::tests {
 
             ## Defaults
             ###############
-            set name        $cName
-            set testClosure $cTestClosure
+            set name $cName
+            odfi::closures::doClosure $cTestClosure
 
         }
-
-        ## Method called to run the test. This only starts the #testClosure
-        public method run args {
-
-            odfi::closures::doClosure $testClosure
-
-        }
-
 
         #################################################
         ## Expectations
         #################################################
+        
+        public method expect {name expected actual} {
+        
+            if {$expected != $actual} {
+                ::puts "\[  FAIL \] Failed $name , expected: $expected, actual value: $actual"
+            } else {
+                ::puts "\[SUCCESS\] $name"
+            }
+        
+        }
 
         ## #map is a lit containing pair of result and expected value
         ## the result
