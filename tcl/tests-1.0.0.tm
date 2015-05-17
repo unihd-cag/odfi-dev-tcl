@@ -23,17 +23,26 @@ namespace eval odfi::tests {
     variable mainSuite ""
 
     #################################################
-    ## Factories
+    ## Main Factory
     #################################################
     proc suite {name closure} {
  
         odfi::common::println "Create suite $name"
         ## Create Suite
-        set odfi::tests::mainSuite [::new [namespace current]::Suite #auto $name $closure]  
-    
+        set mainSuite [::new [namespace current]::Suite #auto $name $closure]
+        $mainSuite printExpectList
     }
 
+    proc expandExpectName {name expect_list} {
+        set return_list {}
+        foreach {element} $expect_list {
+            set expect_name [lindex $element 0]
+            set status [lindex $element 1]
+            lappend return_list [list ${name}_$expect_name $status]
+        }
 
+        return $return_list
+    }
 
     #################################################
     ## Classes
@@ -50,6 +59,8 @@ namespace eval odfi::tests {
         ## The Tests
         odfi::common::classField public tests {}
 
+        odfi::common::classField public expect_list {}
+
         constructor {cName cClosure} {
             ## Set Name and execute Closure
             set name $cName
@@ -59,12 +70,27 @@ namespace eval odfi::tests {
         public method test {name closure} {
             odfi::common::println "Create test $name in [$this name]"
 
-            ## Create Test
+            ## Create Test object
             set test [::new odfi::tests::Test #auto $name $closure]
 
-            ## Add to Current Suite if necessary
-            
+            ## Add to Current Suite
             lappend tests $test
+            lappend expect_list [odfi::tests::expandExpectName [$this name] [$test expect_list]]
+        }
+
+        public method printExpectList {} {
+            ::puts $expect_list
+        }
+
+        public method suite {name closure} {
+            odfi::common::println "Create suite $name in [$this name]"
+
+            ## Create Suite object
+            set suite [::new odfi::tests::Test #auto $name $closure]
+
+            #Add to Current Suite
+            lappend subSuites $suite
+            $this expect_list [odfi::tests::expandExpectName [$this name] [$suite expect_list]]
         }
 
     }
@@ -73,6 +99,8 @@ namespace eval odfi::tests {
 
         ## The name of the Test
         odfi::common::classField public name ""
+        
+        odfi::common::classField public expect_list {}
 
         ## The Closure to be run for the test
         odfi::common::classField public testClosure {}
@@ -89,12 +117,14 @@ namespace eval odfi::tests {
         #################################################
         ## Expectations
         #################################################
-        
+       
         public method expect {name expected actual} {
-        
+            
             if {$expected != $actual} {
+                lappend expect_list [list "[$this name]_$name" FAIL]
                 ::puts "\[  FAIL \] Failed $name , expected: $expected, actual value: $actual"
             } else {
+                lappend expect_list [list "[$this name]_$name" SUCCESS]
                 ::puts "\[SUCCESS\] $name"
             }
         
@@ -128,10 +158,5 @@ namespace eval odfi::tests {
         }
 
     }
-
-
-
-
-
 
 }

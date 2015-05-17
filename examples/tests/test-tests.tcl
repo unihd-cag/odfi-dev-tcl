@@ -1,5 +1,6 @@
 package require odfi::tests 1.0.0
 
+## buggy function
 proc intAdd {a b} {
     if {![string is integer $a]} {
         return fasle
