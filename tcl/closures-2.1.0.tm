@@ -969,13 +969,14 @@ namespace eval odfi::closures {
         if {$savedIterator!=""} {
 
             #::puts "Restoring iterator to $savedIterator"
-            if {[llength $res]>1} {
+            #if {[llength $res]>1} 
+            if {[llength $savedIterator]>1} {
 
                 uplevel $execLevel "set it \"$savedIterator\""
 
             } else {
 
-                uplevel $execLevel "set it $savedIterator"
+               uplevel $execLevel "set it $savedIterator"
             }
             
         } else {

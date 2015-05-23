@@ -20,6 +20,113 @@ package require odfi::closures 3.0.0
 
 namespace eval odfi::richstream {
 
+    ## Main Rich Stream class 
+    ###################
+    itcl::class RichStream {
+
+        variable data
+        variable pos
+
+        variable channel -1
+
+        constructor args {
+            #if {$encoding eq ""} {set encoding [encoding system]}
+            #set data [encoding convertto $encoding $string]
+            set data ""
+            set pos 0
+        }
+
+        
+        ## Embedded Stream
+        #######################
+        public method << template {
+            puts [getChannel] [[namespace parent]::embeddedTclFromStringToString "$template" -execLevel 2]
+        }
+
+        ## Print
+        #################
+        public method puts str {
+            ::puts [getChannel] $str
+        }
+
+        ## Output 
+        #################
+        public method toString args {
+            return [::read [getChannel]]
+        }
+
+        ## Channel
+        #############################
+        public method getChannel args {
+            if {$channel==-1} {
+          
+                set channel [chan create "write read" "$this"]
+                #if {[string length [lindex $args 0]]>0} {
+                    #puts "initial value for string channel [string length $args] pm $result "
+                #    puts $result "[lindex $args 0]"
+                #    flush $result
+                #}
+
+            }
+
+            return $channel
+            
+        }
+        
+
+
+        method initialize {ch mode} {
+            return "initialize finalize watch read seek write"
+        }
+        method finalize {ch} {
+            set data ""
+            set pos 0
+        }
+
+        method watch {ch events} {
+            # Must be present but we ignore it because we do not
+            # post any events
+        }
+
+        # Must be present on a readable channel
+        method read {ch count} {
+            set d [string range $data $pos [expr {$pos+$count-1}]]
+            incr pos [string length $d]
+            return $d
+        }
+
+        ## Must be present on write channel
+        method write {channelId nData} {
+
+            set data "$data$nData"
+            return [string length $nData]
+        }
+
+        # This method is optional, but useful for the example below
+        method seek {ch offset base} {
+            switch $base {
+                start {
+                    set pos $offset
+                }
+                current {
+                    incr pos $offset
+                }
+                end {
+                    set pos [string length $data]
+                    incr pos $offset
+                }
+            }
+            if {$pos < 0} {
+                set pos 0
+            } elseif {$pos > [string length $data]} {
+                set pos [string length $data]
+            }
+            return $pos
+        }
+
+
+    }
+
     
     ## \brief Executes command in args, into +1 exec level, and add result  as string  to eRes variable available in the +1 exec also
     proc push args {
@@ -182,17 +289,17 @@ namespace eval odfi::richstream {
                     ##   - streamOut
                     if {[uplevel $execLevel "namespace current"]!="::"} {
                         namespace   export puts
-                        uplevel $execLevel "namespace import -force [namespace current]::puts"
+                        uplevel $execLevel "namespace import -force ::odfi::richstream::puts"
                     }
                     namespace  export streamOut
-                    uplevel $execLevel "namespace import -force [namespace current]::streamOut"
+                    uplevel $execLevel "namespace import -force ::odfi::richstream::streamOut"
 
                     ## Eval Script
                     ###########################
                     set script [string trim $script]
 
                    # puts "Calling closure"
-                    if {[catch {set evaled [string trim [odfi::closures::doClosureToString $script $execLevel]]} res]} {
+                    if {[catch {set evaled [string trim [uplevel $execLevel [list odfi::closures::applyLambda $script]]]} res]} {
 
                         ## This may be a variable, just output the content to eout
                         #::puts "Invalid command ($res), doing error"
@@ -206,7 +313,7 @@ namespace eval odfi::richstream {
                         #::puts " Closure: $script"
                         #::puts "[dict get $resOptions -errorinfo]"
 
-                        error "Embedded TCL error in $script"
+                        error "Embedded TCL error $res in $script"
                         #$res [dict get $resOptions -errorinfo]
 
                         #puts "- Error While evaluating script $script. $res"
@@ -217,7 +324,7 @@ namespace eval odfi::richstream {
                     ## Deexport streamOut
                     #########
                     if {[uplevel $execLevel "namespace current"]!="::"} {
-                        uplevel $execLevel "rename puts \"\""
+                        catch {uplevel $execLevel "rename puts \"\""}
                     }
                     uplevel $execLevel "rename streamOut \"\""
 
@@ -294,13 +401,13 @@ namespace eval odfi::richstream {
     ## Replace embbeded TCL between <% %> markors in source string with evaluated tcl, and returns the result as a string
     ## <% standard eval %>
     ## <%= evaluation result not outputed %>
-    proc embeddedTclFromStringToString {inputString {caller ""}} {
+    proc embeddedTclFromStringToString {inputString args} {
 
         ## Open source file
         set inChannel  [odfi::common::newStringChannel $inputString]
 
         ## Replace and store result
-        set res [embeddedTclStream $inChannel -execLevel 2 -caller $caller]
+        set res [embeddedTclStream $inChannel -execLevel 2 ]
 
         ## Close
         close $inChannel
