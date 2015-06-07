@@ -30,7 +30,7 @@ namespace eval odfi::tests {
         odfi::common::println "Create suite $name"
         ## Create Suite
         set mainSuite [::new [namespace current]::Suite #auto $name $closure]
-        $mainSuite printExpectList
+        $mainSuite printStats
     }
 
     proc expandExpectName {name expect_list} {
@@ -38,7 +38,7 @@ namespace eval odfi::tests {
         foreach {element} $expect_list {
             set expect_name [lindex $element 0]
             set status [lindex $element 1]
-            lappend return_list [list ${name}_$expect_name $status]
+            lappend return_list ${name}_$expect_name $status
         }
 
         return $return_list
@@ -75,11 +75,43 @@ namespace eval odfi::tests {
 
             ## Add to Current Suite
             lappend tests $test
-            lappend expect_list [odfi::tests::expandExpectName [$this name] [$test expect_list]]
+            lappend expect_list {*}[odfi::tests::expandExpectName [$this name] [$test expect_list]]
         }
 
-        public method printExpectList {} {
-            ::puts $expect_list
+        public method printStats {} {
+            set SUCCESS 0
+            set FAIL 0
+            
+            foreach {expect status} $expect_list {
+                if {$status == "FAIL"} {
+                    incr FAIL
+                } else {
+                    incr SUCCESS
+                }
+            }
+            
+            set SUM [expr $FAIL + $SUCCESS]
+
+            odfi::common::println ""
+
+            odfi::common::println "######################"
+            odfi::common::println "Summary"
+            odfi::common::println "######################"
+            odfi::common::println ""
+            odfi::common::println "Processed $SUM expects"
+            odfi::common::println "[expr double($SUCCESS)/double($FAIL + $SUCCESS)]% ($SUCCESS/$SUM) passed"
+            odfi::common::println "[expr double($FAIL)/double($FAIL + $SUCCESS)]% ($FAIL/$SUM) failed"
+            
+            odfi::common::println ""
+
+            foreach {expect status} $expect_list {
+                if {$status == "FAIL"} {
+                    odfi::common::println "$expect: $status" 
+                }
+            }
+
+            odfi::common::println ""
+
         }
 
         public method suite {name closure} {

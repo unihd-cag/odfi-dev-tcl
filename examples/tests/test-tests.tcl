@@ -13,7 +13,6 @@ proc intAdd {a b} {
 
 odfi::tests::suite Suite1 {
     test positiveNumbers {
-        ::puts "This is a test"
         expect "2+2" 4 [intAdd 2 2]
         expect "2+3" 5 [intAdd 2 3]
         expect "0+0" 0 [intAdd 0 0] 
