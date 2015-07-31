@@ -103,6 +103,19 @@ namespace eval odfi::flextree {
             return ${:parents}
         }
         
+        ## Go up the main parent line until no more
+        :public method getRoot args {
+            
+            set current [current object]
+            while {true} {
+                if {[$current isRoot]} {
+                    return $current
+                } else {
+                    set current [$current parent]
+                }
+            }
+        }
+        
         ## Detach removes this node from any parent
         :public method detach args {
             
@@ -337,38 +350,8 @@ namespace eval odfi::flextree {
             }
         }
 
-        :public method walkDepthFirst closure {
 
-           # puts "-- Walking tree of $this"
-
-            ## Prepare list : Pairs of Parent / node
-            ##################
-            set componentsFifo [$this components]
-
-            ## Go on FIFO 
-            ##################
-            while {[llength $componentsFifo]>0} {
-
-                set it [lindex $componentsFifo 0]
-                set componentsFifo [lreplace $componentsFifo 0 0]
-
-
-                #puts "--> Element $it"
-
-                set res [odfi::closures::doClosure $closure 1]
-
-                ##puts "---> Decision: $res"
-
-                ## If Decision is true and we have a group -> Go down the tree 
-                #################
-                if {([string is boolean $res] && $res) && [$it isa [namespace current]]} {
-                    set componentsFifo [concat [$it components] $componentsFifo]
-                }
-
-            }
-        }
-
-        :public method walkDepthFirstPreorder closure {
+        :public method walkDepthFirstPreorder wclosure {
 
             ## Prepare list : Pairs of Parent / node
             ##################
@@ -396,7 +379,7 @@ namespace eval odfi::flextree {
 
                         ## Shade match 
                         if {[:shadeMatch]} {
-                            odfi::closures::applyLambda %closure
+                            odfi::closures::applyLambda $wclosure
                         }
 
                         ## Keep Going
@@ -407,19 +390,51 @@ namespace eval odfi::flextree {
                             $componentsFifo addFirst [list $node $it] 
                         }
                     }
+                    #puts "CFifo Size: [$componentsFifo size]"           
+            }
 
-                    
+        }
+        
+        :public method walkDepthFirst wclosure {
+        
+            ## Prepare list : Pairs of Parent / node
+            ##################
+            set componentsFifo [odfi::flist::MutableList new]
+            #$componentsFifo += [:children]
+            $componentsFifo += [list "false" [current object]]
 
-                    
-                    
-              
-                   
-                    
+            #puts "CFifo Size: [$componentsFifo size]"
 
-                    #puts "CFifo Size: [$componentsFifo size]"
+            ## Go on FIFO 
+            ##################
+            $componentsFifo popAll {
+                
+                parentAndNode => 
 
+                    #puts "PANODE $parentAndNode"
+                    set node [lindex $parentAndNode 1]
+                    set parent [lindex $parentAndNode 0]
+                
+                    #odfi::log::info "On node2 [$node info class]"
                     
+                    ## Evaluation With heuristic
+                    #############
+                    $node inShade {
 
+                        ## Shade match 
+                        if {[:shadeMatch]} {
+                            odfi::closures::applyLambda $wclosure
+                        }
+
+                        ## Keep Going
+                        #################
+               
+                        ## Add children of current to front 
+                        ${:children} foreach {
+                            $componentsFifo += [list $node $it] 
+                        }
+                    }
+                    #puts "CFifo Size: [$componentsFifo size]"           
             }
 
         }

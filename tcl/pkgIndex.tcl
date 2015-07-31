@@ -46,6 +46,8 @@ package ifneeded odfi::ewww::webdata   1.0.0 [list source [file join $dir ewww w
 
 package ifneeded odfi::nx::domainmixin   1.0.0 [list source [file join $dir nx-domainmixin.tm]]
 
+package ifneeded odfi::language 1.0.0 [list source [file join $dir language/language-1.0.0.tm]]
+
 
 ## External :Tkcon ####################
 package ifneeded tkcon::odfi 2.5 [subst {

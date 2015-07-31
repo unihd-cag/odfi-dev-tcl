@@ -43,12 +43,13 @@ namespace eval odfi::functional::pattern {
         }
 
         :protected method some {varName closure {-level 2}} {
-            if {!${:none}} {     
+            if {!${:none}} {   
+               
                 uplevel $level [list odfi::closures::applyLambda $closure [list $varName "${:content}"]]
             }
         }
 
-        :protected method none {closure {-level 1}} {
+        :protected method none {closure {-level 2}} {
             if {${:none}} {
                 uplevel $level [list odfi::closures::applyLambda $closure]
             }
@@ -420,27 +421,6 @@ namespace eval odfi::flist {
             ## Return empty
             return [odfi::functional::pattern::Option::none]
 
-            ## Loop
-            ::foreach it ${:content} {
-
-                ## Fix empty it case
-                if {$it==""} {
-                    set it "\"\""
-                }
-                set it $it
-
-                ## Run Search Closure 
-                #puts "---> Search closure"
-                set res [odfi::closures::applyLambda $searchClosure [list it "$it"]]
-                #puts "-----> Return $res"
-                ## Return Matched
-                if {$res} {
-                    return [odfi::functional::pattern::Option some $it]
-                }
-            }
-
-            ## Return empty
-            return [odfi::functional::pattern::Option::none]
 
         }
 
