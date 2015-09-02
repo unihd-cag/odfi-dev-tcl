@@ -84,7 +84,7 @@ namespace eval odfi::flist {
     nx::Class create MutableList {
 
         ## Content 
-        :variable -accessor public content {}
+        :property -accessor public {content {}}
 
         ## Operators 
         #######################
@@ -106,6 +106,9 @@ namespace eval odfi::flist {
             
         }
         
+        :public method remove item {
+            :-= $item
+        }
         :public method -= item {
                 
             ##get index
@@ -156,6 +159,28 @@ namespace eval odfi::flist {
             set :content {}
         }
         
+        ## Set value for specific index 
+        :public method setAt {i value} {
+            if {$i>=[:size]} {
+                error "Index $i out of boundaries for list of size [:size]"
+            }
+
+            set :content [lreplace ${:content} $i $i $value]
+        }
+
+        ## Append value to existing value at index 
+        :public method appendAt {i value} {
+
+            ## Get actual value 
+            set actual [:at $i]
+
+            ## Append 
+            lappend actual $value 
+
+            ## Set 
+            :setAt $i $actual
+        }
+
         ## Stack Like operators
         ##########################
         
@@ -181,10 +206,74 @@ namespace eval odfi::flist {
             }
         }
 
+        :public method foreachOpt {closure {-level 1}} {
+
+            odfi::closures::withITCLLambda $closure $level {
+                ::foreach it ${:content} {
+                    $lambda apply [list it $it]
+                }
+            }
+
+            return 
+            #set itclLambda [odfi::closures::buildITCLLambda $closure]
+            #$itclLambda configure -definition $closure
+            #$itclLambda configure -level $level
+            #$itclLambda prepare
+
+           # puts "in foreach of ${:content}"
+            ::foreach it ${:content} {
+                #puts "---> SForeach"
+                #uplevel $level [list odfi::closures::applyLambda $closure [list it "$it"]]
+
+                $itclLambda apply [list it $it]
+            }
+
+            unset itclLambda
+        }
+
+        :public method foreachOpt2 {closure {-level 1}} {
+
+            set lambdaObj [odfi::closures::Lambda::build $closure]
+            $lambdaObj prepare
+
+           # puts "in foreach of ${:content}"
+            ::foreach it ${:content} {
+                #puts "---> SForeach"
+                #uplevel $level [list odfi::closures::applyLambda $closure [list it "$it"]]
+
+                $lambdaObj apply [list it $it]
+            }
+        }
+
         ## Pop the first and run closure on it, until empty
         :public method popAll {closure} {
             while {[:size]>0} {
                 uplevel [list odfi::closures::applyLambda $closure [list it [:pop]]]
+            }
+        }
+
+        ## Pop the first and run closure on it, until empty
+        :public method popAllOpt {closure} {
+            
+            odfi::closures::withITCLLambda $closure 1 {
+                while {[:size]>0} {
+                     $lambda apply [list it [:pop]]
+                }
+
+            }
+            return 
+
+            set itclLambda [::new odfi::closures::LambdaITCL #auto]
+            $itclLambda configure -definition $closure
+            $itclLambda prepare
+
+            try {
+                while {[:size]>0} {
+                    #uplevel [list odfi::closures::applyLambda $closure [list it [:pop]]]
+                    uplevel [list $itclLambda apply [list it [:pop]]]
+                }
+            } finally {
+                odfi::common::deleteObject $itclLambda
             }
         }
 
@@ -236,6 +325,10 @@ namespace eval odfi::flist {
             }
 
             
+        }
+
+        :public method reverse args {
+            return [MutableList new -content [lreverse ${:content}]]
         }
         
         ## Positioning
@@ -438,7 +531,7 @@ namespace eval odfi::flist {
                 }
 
                 :none {
-                    puts "Error message?  // [info exists errorMessage]"
+                    #puts "Error message?  // [info exists errorMessage]"
                     if {[info exists errorMessage]} {
                         error "$errorMessage"
                     } else {
