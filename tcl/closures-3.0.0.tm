@@ -883,7 +883,7 @@ namespace eval odfi::closures {
             }
 
             ## Find variables using regexp
-            set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_]+)\}))} ${definition} "\\1\[odfi::closures::value {\\2\\3} \]"]
+            set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_\$]+)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
 
             ## Replace Variable set and pull functions
             set preparedClosure [regsub -all -line {^\s*(incr|set|lappend)} ${preparedClosure} "::odfi::closures::\\1"]
@@ -1038,10 +1038,40 @@ namespace eval odfi::closures {
                 #puts "Exec res: $_c_res_"
 
                 ## Normal return 
-                #uplevel $execLevel [list ::return $_c_res_]
-                return $_c_res_
+                uplevel $execLevel [list ::return $_c_res_]
+                #return $_c_res_
 
-            } finally {
+            } on break {res resOptions} {
+
+            #::puts "(CL) Caught break"
+            uplevel $execLevel return -code break 0
+
+        } on continue {res resOptions} {
+
+            #::puts "(CL) Caught Continue"
+            uplevel $execLevel return -code continue 0
+
+        } on error {res resOptions} {
+
+            ::set line [dict get $resOptions -errorline]
+            ::set stack [dict get $resOptions -errorstack]
+            ::set errorInfo [dict get $resOptions -errorinfo]
+            ::set errorInfo [regsub -all {\[odfi::closures::value {([^{}]+)}\]} $errorInfo "\$\\1"]
+            #puts "(CL) Found error: $res at line $line"
+            #puts "(CL) last stack: $stack"
+
+            dict set resOptions replace -errorinfo [regsub -all {\[odfi::closures::value {([^{}]+)}\]} $errorInfo "\$\\1"]
+
+            error $errorInfo
+
+        } on return {res resOptions} {
+
+           # puts "Caught return $res" 
+            #uplevel $execLevel return $res
+            uplevel $execLevel [list ::return $res]
+            #::return $res
+
+        } finally {
 
                 ## Unprotect args 
                 ######################
@@ -1070,6 +1100,10 @@ namespace eval odfi::closures {
     }
     variable currentLambda 0
     proc buildITCLLambda definition {
+
+        if {${::odfi::closures::currentLambda}>=15} {
+            error "No Lambda available in pool anymore"
+        } 
 
         set lambda [lindex ${::odfi::closures::lambdaPool}  ${::odfi::closures::currentLambda}]
         ${lambda} configure -definition $definition
@@ -1373,7 +1407,22 @@ namespace eval odfi::closures {
     ## Executes the closure count times, with $i variable updated
     proc ::repeat {__count closure args} {
         
-        ::set __count [expr $__count]
+        odfi::closures::withITCLLambda $closure 1 {
+
+            ::set __count [expr $__count]
+            ::odfi::closures::protect i
+            for {::set i 0} {$i<$__count} {::incr i} {
+                try {        
+                    $lambda apply [list i $i]
+                } on break {res resOptions} {
+                    #puts "Caught break"
+                    break            
+                }
+            }
+            ::odfi::closures::restore i    
+        }
+
+        
 #    uplevel [list odfi::closures::::applyLambda { \
 #        for {::set i 0} {$i<$count} {::incr i} {  \
 #            eval $closure  \
@@ -1383,20 +1432,12 @@ namespace eval odfi::closures {
 #       
 #        return
         
-        ::odfi::closures::protect i
-        for {::set i 0} {$i<$__count} {::incr i} {
-            try {        
-                uplevel [list odfi::closures::::applyLambda [concat $closure $args] [list i $i]]
-            } on break {res resOptions} {
-                #puts "Caught break"
-                break            
-            }
-        }
-        ::odfi::closures::restore i        
+            
 
 
     }
     
+
     
     proc ::repeatf {__count closure args} {
         
@@ -1422,6 +1463,7 @@ namespace eval odfi::closures {
      
 
     ## Extract: Extract indices of a list to variables 
+    ## Format extract list index index ... variable variable ...
     proc ::extract {lst args} {
 
         ## Args must be an even count 
@@ -1453,6 +1495,28 @@ namespace eval odfi::closures {
 
     }
 
+
+    ## Loop over the indexes provided by from and to
+    proc ::range {from to closure} {
+
+        ## Prepare closure 
+        odfi::closures::withITCLLambda  $closure 1 {
+
+            ::set from [expr $from]
+            ::set to   [expr $to]
+            ::odfi::closures::protect i
+            for {::set i $from} {$i<$to} {::incr i} {
+                try {        
+                    $lambda apply [list i $i]
+                } on break {res resOptions} {
+                    #puts "Caught break"
+                    break            
+                }
+            }
+            ::odfi::closures::restore i    
+
+        }
+    }
    
 
 }
