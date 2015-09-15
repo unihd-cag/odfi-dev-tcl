@@ -16,7 +16,7 @@
 #
 
 package provide odfi::common 1.0.0
-package require Itcl 3.4
+package require Itcl
 
 #package require textutil::adjust
 
@@ -89,24 +89,33 @@ namespace eval odfi::common {
     ## \brief returns 1 if object is of classname type, otherwise 0
     proc isClass {object className} {
 
+        set result false 
+
         ## Search ITCL  and NX 
-        if {[catch {set itclRes [itcl::find objects $object -isa $className]}]} {
-            set itclRes 0
+        if {[catch {set result [itcl::find objects $object -isa $className]}]} {
+            set result false
+        } else {
+            if {$result==""} {
+                set result false
+            } else {
+                set result true
+            }
+            #set result true
         }
         #if {[catch {set nxRes [string equal [$object info class] $className]}]} {
         #    set nxRes 0
         #}
-        if {[::nsf::is object $object] && ([$object info has type $className] || [$object info has mixin $className])} {
-            set nxRes 1
+        if {!$result && [::nsf::is object $object] && ([$object info has type $className] || [$object info has mixin $className])} {
+            set result true
         } else {
-            set nxRes 0
+            #set nxRes 0
         }
         
         
         #puts "NX RES: $nxRes -> [$object info class]"
         
         ## Search
-        return [expr $itclRes||$nxRes]
+        return $result
     }
 
     ## \brief Deletes object without outputing an error if the object is not found
