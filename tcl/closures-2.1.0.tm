@@ -1096,4 +1096,31 @@ namespace eval odfi::closures {
 
     }
 
+    ## Executes the closure count times, with $i variable updated
+    proc ::range {__from __to closure} {
+
+        ## Preserve existing i variable
+        uplevel {
+            unset -nocomplain i_backup
+            if {[info exists i]} {
+                set i_backup $i
+            }
+        }
+
+        for {set i ${__from}} {$i<${__to}} {incr i} {
+
+            uplevel "set i $i"
+            odfi::closures::doClosure $closure 1
+
+        }
+
+        ## Restore i if necessary
+        uplevel {
+            if {[info exists i_backup]} {
+                set i $i_backup
+            }
+        }
+
+    }
+
 }
