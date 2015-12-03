@@ -2,6 +2,7 @@ package provide odfi::nx::domainmixin 1.0.0
 package require nx 2.0.0
 package require nx::trait
 package require nsf
+package require odfi::common
 
 namespace eval odfi::nx {
 
@@ -159,7 +160,7 @@ namespace eval odfi::nx::domainmixin {
 
       :public method value=add {obj prop value {-prefix ""}} {
 
-        puts "In Add: $obj -> $prop -> $value "
+        #puts "In Add: $obj -> $prop -> $value $prefix "
         set value [string trimleft $value ::]
 
         ## If No prefix is defined, just add as a mixin
@@ -179,7 +180,7 @@ namespace eval odfi::nx::domainmixin {
 
                 set currentsuperclass [string trimleft [lindex [$currentClass info superclasses] 0] ::]
 
-                puts "CurrentClass $currentClass is  [$currentClass info class] -> $currentsuperclass "
+                #puts "CurrentClass $currentClass is  [$currentClass info class] -> $currentsuperclass "
 
                 if {$currentsuperclass!="" &&  [$currentsuperclass info class] =="::nx::Trait"  } {
                     lappend superclasses $currentsuperclass
@@ -196,7 +197,7 @@ namespace eval odfi::nx::domainmixin {
 
             ## Loop on Classes to create. Those already existing are ignored
             ###########################
-            puts "Superclass chain: $superclasses"
+            #puts "Superclass chain: $superclasses"
             set nextSuperclass ""
             foreach currentClass $superclasses {
 
@@ -216,17 +217,55 @@ namespace eval odfi::nx::domainmixin {
                 }
 
                 ## Create
-                #puts "Domain $prefix: recreating ::$currentClass in NS [namespace current]"
+                #puts "Domain $prefix: recreating ::$currentClass as $classTargetName in NS [namespace current], methos: [::$currentClass info methods -callprotection all]"
 
                 #namespace eval $prefix {
 
 
                     eval "::nx::Class create $classTargetName $superclassCommand"
+
+                    ## Gather Local Methods
+                    set localMethods [::$currentClass info methods -callprotection all]
+                    #puts "Local methods $localMethods"
+
                     foreach imethod [::$currentClass info methods -callprotection all] {
                             #puts "importing method $imethod from $currentClass -> "
                             #puts "-> [lrange  [::$currentClass info method definition $imethod]  1 end ]"
+
+                            ## Get Definition 
                             set mdef [lrange  [::$currentClass info method definition $imethod]  1 end]
+
+                            ## Replace Name with prefix
                             set mdef [lreplace $mdef 2 2 "${prefix}:[lindex $mdef 2]"]
+
+                            ## Search for local method calls 
+                            set basecode  [lindex $mdef 4]
+                            set code $basecode
+
+                            set localCalls [regexp -inline -indices -all {(?:\s+|\[):([\w_.-]+)} $code]
+                            #puts "calls of locals for [lindex $mdef 2]: $localCalls"
+
+                            ## Gather all local calls, and filter out non local calls
+                            set localCallsToReplace {}
+
+                            foreach {matchIndices matchedCallIndices} $localCalls {
+                                #set matchedCallIndices   [lindex $localCall 1]
+                                #puts "Called indices: $matchedCallIndices"
+                                set matchedCall          [string range $basecode [lindex $matchedCallIndices 0] [lindex $matchedCallIndices 1]]
+                                #puts "Called $matchedCall //$localMethods // [lsearch $localMethods $matchedCall]"
+                                if {[lsearch $localMethods $matchedCall]>=0} {
+                                  #  puts "Replacing $matchedCall"
+                                    #set code [string replace $code [lindex $matchedCallIndices 0] [lindex $matchedCallIndices 1] ${prefix}:$matchedCall]
+                                    lappend  localCallsToReplace :$matchedCall :${prefix}:$matchedCall
+                                    
+                                }
+                            }
+
+                            ## Replae Code 
+                            set code [string map $localCallsToReplace $code]
+                            set mdef [lreplace $mdef 4 4 $code]
+                            #puts "code after: $code"
+                            
                             #puts "importing method $imethod from $currentClass as $mdef "
                             eval "$classTargetName $mdef"
                     }
@@ -239,6 +278,7 @@ namespace eval odfi::nx::domainmixin {
             }
 
             ## Add The newly recreated domain mixin as standard mixin
+            #puts "Finally adding as normal mixin ::${value}_$prefix "
             $obj mixins add ::${value}_$prefix
 
         }
@@ -259,4 +299,60 @@ namespace eval odfi::nx::domainmixin {
         -multiplicity 0..n \
         -elementtype class
 
+
+    ## Add Extra stuff for objects 
+    ##################################### 
+    ::nx::Object public method isClass test {
+
+        return [odfi::common::isClass [current object] $test]
+
+    }
+    
+    #### Method chaning 
+    ####  - Call a method with args, and the next one on the result of the previous
+    ####  Format: > method args > method args 
+    ::nx::Object public method > args {
+
+        if {[llength $args]==1} {
+            set args [lindex $args 0]
+        }
+
+        ## Get Method and args 
+        set method [lindex $args 0]
+        set args   [lreplace $args 0 0]
+
+        set methodArgs [lindex $args 0]
+        if {$methodArgs== ">"} {
+            set methodArgs {}
+        } else {
+            set args   [lreplace $args 0 0]
+        }
+
+        ## replace possible next > 
+        if {[lindex $args 0]!="" && [lindex $args 0]!=">"} {
+            error "Method chain syntax wrong, after method and args extraction, remaining $args must start with >"
+        } 
+        set args   [lreplace $args 0 0]
+
+        ## Prepare next coming 
+        #puts "Calling $method $methodArgs , and next is $args"
+
+        ## Call 
+        #set result [:$method $methodArgs]
+        set result [eval ":$method $methodArgs"]
+
+        ## Call next, or return 
+        if {[llength $args]>0 && ($result=="" || ![::odfi::common::isClass $result ::nx::Object])} {
+            error "Cannot continue call chain $args on non Object result: $result"
+        } elseif {[llength $args]>0} {
+
+            ## Call 
+            return [$result > $args]
+        } else {
+            ## Return 
+            return $result
+        }
+
+
+    }
 }
