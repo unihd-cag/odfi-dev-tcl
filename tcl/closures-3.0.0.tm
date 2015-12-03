@@ -157,6 +157,7 @@ namespace eval odfi::closures {
             #::set value "{}"
         }
         
+        ## Try to set using normal set, 
         
 #        if {$value==""} {
 #            ::set value  [list ]
@@ -225,7 +226,7 @@ namespace eval odfi::closures {
         #::puts " ->available levels for $var: $levels"
         
         ## Upvar if the first found level is > 1
-        if {[lindex $levels 0]>1} {
+        if {[lindex $levels 0]>0} {
             uplevel [list upvar [expr [lindex $levels 0]] "$var" "$var"]
         } 
         
@@ -248,7 +249,7 @@ namespace eval odfi::closures {
         #return "0"
         #return 0
         
-        #::puts "(CL) Resolving value of $var Available levels $levels"        
+        ##::puts "(CL) Resolving value of $var Available levels $levels"        
         if {[lindex $levels 0]>0} {
             
             if {[string index $var 0]==":"} {
@@ -289,6 +290,8 @@ namespace eval odfi::closures {
         ## Args
         ::set allLevels [expr [lsearch -exact $args  "-allLevels"]==-1?false:true]
         
+
+
         # Try to resolve by searching levels up 
         ################
         ::set availableLevels {}         
@@ -368,6 +371,8 @@ namespace eval odfi::closures {
         
         #::puts "-> Found $availableLevels"
         
+        #::puts "(CL) Resolving value of $var Available levels $availableLevels"       
+
         return $availableLevels
 
     }
@@ -459,7 +464,7 @@ namespace eval odfi::closures {
     }
 
     ## Runs a closure
-    proc run {closure args} {
+    proc run2 {closure args} {
 
         ::set closure [retrieveClosure $closure]
 
@@ -686,7 +691,7 @@ namespace eval odfi::closures {
     #####################################
     ## Lamda Support
     #####################################
-    proc applyLambda {lambda args} {
+    proc applyLambda2 {lambda args} {
 
         #puts "Run $lambda with args $args"
 
@@ -883,7 +888,7 @@ namespace eval odfi::closures {
             }
 
             ## Find variables using regexp
-            set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_\$]+)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
+            set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_\$-]+)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
 
             ## Replace Variable set and pull functions
             set preparedClosure [regsub -all -line {^\s*(incr|set|lappend)} ${preparedClosure} "::odfi::closures::\\1"]
@@ -1064,9 +1069,9 @@ namespace eval odfi::closures {
 
             error $errorInfo
 
-        } on return {res resOptions} {
+        } on return res {
 
-           # puts "Caught return $res" 
+            #puts "Caught return $res" 
             #uplevel $execLevel return $res
             uplevel $execLevel [list ::return $res]
             #::return $res
@@ -1095,7 +1100,7 @@ namespace eval odfi::closures {
 
     ## Lambda Pool
     set lambdaPool {}
-    for {set _i 0} {$_i<15} {incr _i} {
+    for {set _i 0} {$_i<50} {incr _i} {
         lappend lambdaPool [::new LambdaITCL #auto]
     }
     variable currentLambda 0
@@ -1114,15 +1119,39 @@ namespace eval odfi::closures {
 
     }
 
+    ## Does not use the lambda pool
+    proc newITCLLambda definition {
+
+        set lambda [::new LambdaITCL #auto]
+        ${lambda} configure -definition $definition
+        ${lambda} configure -level 0
+        ${lambda} prepare 
+        
+        return $lambda
+
+    }
+
     proc redeemITCLLambda definition {
         incr ::odfi::closures::currentLambda -1
     }
 
     proc withITCLLambda {definition level script} {
 
-        ## Build 
-        set lambda [odfi::closures::buildITCLLambda $definition]
-        $lambda configure -level $level
+        ## If Definition is a closure already, don't do anything
+        set redeem false
+        if {[odfi::common::isClass $definition odfi::closures::LambdaITCL]} {
+           
+           #puts "Defi $definition is a lambda class"
+           set lambda $definition
+
+        } else {
+            ## Build 
+            set lambda [odfi::closures::buildITCLLambda $definition]
+            $lambda configure -level $level
+            set redeem true
+        }
+
+       
 
         ## Execute 
         try {
@@ -1133,7 +1162,9 @@ namespace eval odfi::closures {
         } finally {
 
             ## Redeem
-            odfi::closures::redeemITCLLambda $lambda 
+            if {$redeem} {
+                odfi::closures::redeemITCLLambda $lambda 
+            }
             uplevel odfi::closures::restore lambda 
 
         }
@@ -1495,6 +1526,39 @@ namespace eval odfi::closures {
 
     }
 
+    ## Extract: Extract elements of a list to variables 
+    ## Format extract list  variable variable ...
+    proc ::extractVars {lst args} {
+
+        ## Args must be an even count 
+        set argsCount [llength $args]
+        if {$argsCount<2 } {
+            error "Extract args must be >= 2 "
+        }
+
+        ## Get indices and variables start index 
+        #set vars        [lrange $args 0 end] 
+        set varsCount   [llength $args]
+
+        ## Loop overs indicesCount, extract indices from list, and set to matching variable index 
+        uplevel ::odfi::closures::protect i
+        try {
+            #set i 0
+            ::repeat $varsCount {
+
+                set fromList [lindex $lst $i]
+                set variable [lindex $args $i]
+
+                uplevel set $variable [list $fromList]
+
+                #incr i
+            }
+        } finally {
+            uplevel ::odfi::closures::restore i            
+        }
+
+    }
+
 
     ## Loop over the indexes provided by from and to
     proc ::range {from to closure} {
@@ -1518,5 +1582,9 @@ namespace eval odfi::closures {
         }
     }
    
+
+    proc ::ignore cl {
+
+    }
 
 }
