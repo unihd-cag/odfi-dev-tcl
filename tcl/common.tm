@@ -105,11 +105,14 @@ namespace eval odfi::common {
         #if {[catch {set nxRes [string equal [$object info class] $className]}]} {
         #    set nxRes 0
         #}
-        if {!$result && [::nsf::is object $object] && ([$object info has type $className] || [$object info has mixin $className])} {
-            set result true
-        } else {
-            #set nxRes 0
+        if {![catch {package present nx}]} {
+            if {!$result && [::nsf::is object $object] && ([$object info has type $className] || [$object info has mixin $className])} {
+                set result true
+            } else {
+                #set nxRes 0
+            }
         }
+        
         
         
         #puts "NX RES: $nxRes -> [$object info class]"
