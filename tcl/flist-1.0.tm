@@ -44,14 +44,19 @@ namespace eval odfi::functional::pattern {
 
         :protected method some {varName closure {-level 2}} {
             if {!${:none}} {   
-               
-                uplevel $level [list odfi::closures::applyLambda $closure [list $varName "${:content}"]]
+               odfi::closures::withITCLLambda $closure $level {
+                    $lambda apply [list $varName "${:content}"]
+               }
+               # uplevel $level [list odfi::closures::applyLambda $closure [list $varName "${:content}"]]
             }
         }
 
         :protected method none {closure {-level 2}} {
             if {${:none}} {
-                uplevel $level [list odfi::closures::applyLambda $closure]
+                odfi::closures::withITCLLambda $closure $level {
+                    $lambda apply
+                }
+                #uplevel $level [list odfi::closures::applyLambda $closure]
             }
         }
 
@@ -93,17 +98,31 @@ namespace eval odfi::flist {
         :public method += args {
 
             foreach arg $args {
-                if {[odfi::common::isClass $arg [namespace current]::MutableList]} {
-                    set :content [concat ${:content} [$arg content get]]
-                } else {
+                #if {[odfi::common::isClass $arg [namespace current]::MutableList]} {
+                #    set :content [concat ${:content} [$arg content get]]
+                #} else {
                     lappend :content $arg
-                }
+                #}
                 
             }
+            return [current object]
             
             #puts "Appending $element"
             
             
+        }
+
+        ## Add Elements to the list. If one of them is another list, then just concact
+        :public method import args {
+            foreach arg $args {
+                if {[odfi::common::isClass $arg odfi::flist::MutableList]} {
+                    $arg foreach {
+                        :+= $it
+                    }
+                } else {
+                    :+= $arg
+                }
+            }
         }
         
         :public method remove item {
@@ -198,19 +217,14 @@ namespace eval odfi::flist {
 
         ## Iterator
         ###########################
-        :public method foreach {closure {-level 1}} {
-           # puts "in foreach of ${:content}"
-            ::foreach it ${:content} {
-                #puts "---> SForeach"
-                uplevel $level [list odfi::closures::applyLambda $closure [list it "$it"]]
-            }
-        }
 
-        :public method foreachOpt {closure {-level 1}} {
+        :public method foreach {closure {-level 1}} {
 
             odfi::closures::withITCLLambda $closure $level {
+                set i 0
                 ::foreach it ${:content} {
-                    $lambda apply [list it $it]
+                    $lambda apply [list it $it] [list i $i]
+                    incr i
                 }
             }
 
@@ -231,29 +245,40 @@ namespace eval odfi::flist {
             unset itclLambda
         }
 
-        :public method foreachOpt2 {closure {-level 1}} {
+        :public method foreachWithIndex {closure {-level 1}} {
 
-            set lambdaObj [odfi::closures::Lambda::build $closure]
-            $lambdaObj prepare
-
-           # puts "in foreach of ${:content}"
-            ::foreach it ${:content} {
-                #puts "---> SForeach"
-                #uplevel $level [list odfi::closures::applyLambda $closure [list it "$it"]]
-
-                $lambdaObj apply [list it $it]
+            odfi::closures::withITCLLambda $closure $level {
+                set i 0
+                ::foreach it ${:content} {
+                    $lambda apply [list it $it] [list i $i]
+                    incr i
+                }
             }
+
         }
 
+
+        :public method foreachFrom {start closure {-level 1}} {
+
+            odfi::closures::withITCLLambda $closure $level {
+                #puts "FOreach from $start"
+                for {::set __i $start} {$__i<[:size]} {::incr __i} {
+                     $lambda apply [list it [lindex ${:content} $__i]] [list i $__i]
+                }
+             
+            }
+
+        }            
+
         ## Pop the first and run closure on it, until empty
-        :public method popAll {closure} {
+        :public method popAllOld {closure} {
             while {[:size]>0} {
                 uplevel [list odfi::closures::applyLambda $closure [list it [:pop]]]
             }
         }
 
         ## Pop the first and run closure on it, until empty
-        :public method popAllOpt {closure} {
+        :public method popAll {closure} {
             
             odfi::closures::withITCLLambda $closure 1 {
                 while {[:size]>0} {
@@ -331,6 +356,36 @@ namespace eval odfi::flist {
             return [MutableList new -content [lreverse ${:content}]]
         }
         
+        ## Returns a TCL List with format: { VALUE MUTABLELIST VALUE MUTABLELIST}
+        ## Each list contains an element whose closure returned the key value        
+        :public method groupByAsList closure {
+
+            set resList {}
+            odfi::closures::withITCLLambda $closure 0 {
+
+                ::foreach it ${:content} {
+
+                    set key [$lambda apply [list it $it]]
+
+                    ## Search for key 
+                    ## Create list, or get existing and add 
+                    set keyIndex [lsearch -exact $resList $key]
+                    if {$keyIndex==-1} {
+                        set list  [MutableList new]
+                        lappend resList $key $list
+                    } else {
+                        set list [lindex $resList [expr $keyIndex+1]]
+                    }
+                    $list += $it
+
+                }
+
+            }
+
+            return $resList
+
+        }
+
         ## Positioning
         #############################
         
@@ -372,6 +427,19 @@ namespace eval odfi::flist {
             set resList [[namespace current]::MutableList new ]
 
             ## Map
+            odfi::closures::withITCLLambda $closure $level {
+
+
+                ::foreach it ${:content} {
+
+                    set res [$lambda apply [list it "$it"]]
+                    $resList += $res
+                }
+                    
+            
+            }
+
+            return $resList
             ::foreach it ${:content} {
 
                 ## Run
@@ -424,10 +492,17 @@ namespace eval odfi::flist {
             if {[:size] == 0} {
                 set front "" 
                 set back ""
+                return ""
             }
 
+            if {[:size] == 1} {
+                return $front[lindex ${:content} 0]$back
+            } else {
+                return $front[lindex ${:content} 0]$main[join [lrange ${:content} 1 end] $main]$back
+            }
 
-            return $front[join ${:content} $main]$back
+            #puts "MKLIST with $front , $main , $back"
+            #return $front[lindex ${:content} 0 0][join [lrange ${:content} 1 end] $main]$back
 
         }
 
@@ -459,21 +534,52 @@ namespace eval odfi::flist {
             ## Prepare result list 
             set resList [[namespace current]::MutableList new ]
 
+            ## Filter on All 
             ## Map
-            ::foreach it ${:content} {
+            odfi::closures::withITCLLambda $closure $level {
 
-                ## Run
-                set res [uplevel $level [list odfi::closures::applyLambda $closure [list it "$it"]]]
 
-                #puts "Filter res: $res"
-                if {$res==true || $res==1} {
-                    $resList += $it
+                ::foreach it ${:content} {
+
+                    set res [$lambda apply [list it "$it"]]
+                    if {$res==true || $res==1} {
+                        $resList += $it
+                    }
+            
                 }
-               
+                    
+            
             }
-
-            ## Return 
             return $resList
+
+            
+
+        }
+
+        :public method filterNot {closure {-level 1}} {
+
+            ## Prepare result list 
+            set resList [[namespace current]::MutableList new ]
+
+            ## Filter on All 
+            ## Map
+            odfi::closures::withITCLLambda $closure $level {
+
+
+                ::foreach it ${:content} {
+
+                    set res [$lambda apply [list it "$it"]]
+                    if {$res==false || $res==0} {
+                        $resList += $it
+                    }
+            
+                }
+                    
+            
+            }
+            return $resList
+
+            
 
         }
 
@@ -496,8 +602,31 @@ namespace eval odfi::flist {
         ## @return The resulting object, or a None value
         :public method findOption {searchClosure {-level 1}} {
 
-        
+            #set timeCall [clock milliseconds]
+
             ## Loop
+            set returnRes [odfi::functional::pattern::Option::none]
+            odfi::closures::withITCLLambda $searchClosure $level {
+
+
+                ::foreach it ${:content} {
+
+                    set res [$lambda apply [list it "$it"]]
+                    if {$res} {
+                        #puts "$timeCall -> Returning Found"
+                        set returnRes [odfi::functional::pattern::Option some $it]
+                        break
+                    }
+            
+                }
+                    
+            
+            }
+
+            ## Return empty
+            #puts "$timeCall -> Returning $returnRes"
+            return  $returnRes
+
             ::foreach it ${:content} {
 
                ## Run
@@ -565,9 +694,13 @@ namespace eval odfi::flist {
         :public object method fromList lst {
 
             set mlist [MutableList new]
+           # puts "Creating new list $mlist ([$mlist size]) with input of size [llength $lst]"
+            #set ti 0 
             foreach elt $lst {
                 $mlist += $elt
+               # incr ti
             }
+           # puts "Done, now $mlist [$mlist size] big, counter $ti"
 
             return $mlist
 
