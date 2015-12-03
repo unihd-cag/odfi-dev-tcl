@@ -35,6 +35,18 @@ namespace eval odfi::files {
 
     }
 
+    ## Read File Content 
+    proc readFileContent {filePath} {
+
+        set f [open $filePath]
+        set content [read $f]
+        close $f
+
+        return $content
+
+
+    }
+
     ## Improved Glob, that can run recursively and executes provided closure on each file
     proc glob {args closure} {
 
@@ -138,11 +150,14 @@ namespace eval odfi::files {
 
         public method eachLine closure {
 
-            set line [line] 
-            while {$line!=-1} {
-                uplevel odfi::closures::::applyLambda [list $closure] [list [list line \"$line\"]]
+             odfi::closures::withITCLLambda $closure 1 {
                 set line [line] 
-            }
+                while {$line!=-1} {
+                    $lambda apply [list line \"$line\"]
+                    set line [line] 
+                }
+             }
+            
         }
 
         public method skipLines count {
@@ -182,7 +197,10 @@ namespace eval odfi::files {
             set sectionReader [::new [namespace current] #auto $sectionChannel]
 
             ## Call Closure with sectionReader
-            uplevel odfi::closures::::applyLambda [list $closure] [list [list sectionReader $sectionReader]]
+            odfi::closures::withITCLLambda $closure 1 {
+                $lambda apply [list sectionReader $sectionReader]
+            }
+            #uplevel odfi::closures::::applyLambda [list $closure] [list [list sectionReader $sectionReader]]
         
 
             ## Return reader anyways
