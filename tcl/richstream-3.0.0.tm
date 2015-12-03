@@ -16,7 +16,7 @@
 
 package provide odfi::richstream 3.0.0
 package require odfi::closures 3.0.0
-
+package require odfi::files 2.0.0
 
 namespace eval odfi::richstream {
 
@@ -40,7 +40,10 @@ namespace eval odfi::richstream {
         ## Embedded Stream
         #######################
         public method << template {
-            puts [getChannel] [[namespace parent]::embeddedTclFromStringToString "$template" -execLevel 2]
+            
+            ::puts [getChannel] $template
+            ::flush [getChannel]
+            #::puts [getChannel] [string trimright [[namespace parent]::embeddedTclFromStringToString "$template" -execLevel 2]]
         }
 
         ## Print
@@ -49,11 +52,41 @@ namespace eval odfi::richstream {
             ::puts [getChannel] $str
         }
 
+        ## Stream 
+        ################
+
+        ## Changes the target channel to the target file 
+        ## Outputs all existing content to the file before swithcing 
+        public method streamToFile f {
+
+            ## Open 
+            set fOut [open $f w]
+
+            ## Write buffer so far 
+            ::puts -nonewline $fOut [toString]
+            close
+            ::flush $fOut 
+
+            ## Switch channel to file 
+            set channel $fOut
+
+        }
+
         ## Output 
         #################
         public method toString args {
             return [::read [getChannel]]
         }
+
+        public method writeToFile file {
+            odfi::files::writeToFile $file [toString]
+        }
+
+        public method toFile file {
+            odfi::files::writeToFile $file [toString]
+        }
+
+
 
         ## Channel
         #############################
@@ -124,10 +157,20 @@ namespace eval odfi::richstream {
             return $pos
         }
 
+        public method close args {
+            ::flush [getChannel]
+            ::close [getChannel]
+        }
+
 
     }
 
     
+}
+
+namespace eval odfi::richstream::template {
+
+
     ## \brief Executes command in args, into +1 exec level, and add result  as string  to eRes variable available in the +1 exec also
     proc push args {
 
@@ -289,17 +332,21 @@ namespace eval odfi::richstream {
                     ##   - streamOut
                     if {[uplevel $execLevel "namespace current"]!="::"} {
                         namespace   export puts
-                        uplevel $execLevel "namespace import -force ::odfi::richstream::puts"
+                        uplevel $execLevel "namespace import -force ::odfi::richstream::template::puts"
                     }
                     namespace  export streamOut
-                    uplevel $execLevel "namespace import -force ::odfi::richstream::streamOut"
+                    uplevel $execLevel "namespace import -force ::odfi::richstream::template::streamOut"
 
                     ## Eval Script
                     ###########################
                     set script [string trim $script]
 
                    # puts "Calling closure"
-                    if {[catch {set evaled [string trim [uplevel $execLevel [list odfi::closures::applyLambda $script]]]} res]} {
+                    set closureObj [odfi::closures::newITCLLambda $script]
+                    $closureObj configure -level $execLevel
+
+                    #if {[catch {set evaled [string trim [uplevel $execLevel [list odfi::closures::applyLambda $script]]]} res]} 
+                    if {[catch {set evaled [$closureObj apply]} res]} {
 
                         ## This may be a variable, just output the content to eout
                         #::puts "Invalid command ($res), doing error"
@@ -319,6 +366,7 @@ namespace eval odfi::richstream {
                         #puts "- Error While evaluating script $script. $res"
 
                     }
+                    ::itcl::delete object $closureObj
 
                     ## Restore original puts command if needed
                     ## Deexport streamOut
@@ -401,13 +449,13 @@ namespace eval odfi::richstream {
     ## Replace embbeded TCL between <% %> markors in source string with evaluated tcl, and returns the result as a string
     ## <% standard eval %>
     ## <%= evaluation result not outputed %>
-    proc embeddedTclFromStringToString {inputString args} {
+    proc stringToString {inputString {-level 2}} {
 
         ## Open source file
         set inChannel  [odfi::common::newStringChannel $inputString]
 
         ## Replace and store result
-        set res [embeddedTclStream $inChannel -execLevel 2 ]
+        set res [embeddedTclStream $inChannel -execLevel ${-level} ]
 
         ## Close
         close $inChannel
@@ -415,10 +463,31 @@ namespace eval odfi::richstream {
         return $res
     }
 
+    ## Replace embbeded TCL between <% %> markors in source string with evaluated tcl, and returns the result as a string
+    ## <% standard eval %>
+    ## <%= evaluation result not outputed %>
+    proc stringToFile {inputString outputFile} {
+
+        ## Open source file
+        set inChannel  [odfi::common::newStringChannel $inputString]
+        set outChannel [open $outputFile "w+"]
+
+        ## Replace and store result
+        set res [embeddedTclStream $inChannel -execLevel 2 ]
+        ::puts -nonewline $outChannel $res
+            
+        ## Close
+        close $inChannel
+        flush $outChannel
+        close $outChannel
+
+        return $res
+    }
+
     ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and returns the result as a string
     ## <% standard eval %>
     ## <%= evaluation result not outputed %>
-    proc embeddedTclFromFileToString {inputFile {caller ""}} {
+    proc fileToString {inputFile {caller ""}} {
 
         ## Open source file
         set inChannel  [open $inputFile "r"]
@@ -435,7 +504,7 @@ namespace eval odfi::richstream {
     ## Replace embbeded TCL between <% %> markors in source file with evaluated tcl, and writes result to outfile
     ## <% standard eval %>
     ## <%= evaluation result not outputed %>
-    proc embeddedTclFromFileToFile {inputFile outputFile {caller ""}} {
+    proc fileToFile {inputFile outputFile {caller ""}} {
 
 
 
@@ -459,7 +528,7 @@ namespace eval odfi::richstream {
 
     ## Process all files in inputFiles list through the embeded TCL procedure
     ## and append all results to the target outputFile
-    proc embeddedTclFromFilesToFile {inputFiles outputFile} {
+    proc filesToFile {inputFiles outputFile} {
 
         ## Open target file
         set outChannel [open $outputFile "w+"]
@@ -480,5 +549,5 @@ namespace eval odfi::richstream {
         close $outChannel
 
     }
-    
+
 }
