@@ -31,8 +31,9 @@ namespace eval odfi::flextree {
         ## Current Shading 
         :variable -accessor public currentShading ""
 
-        :method init {} {
-            
+        :method init args {
+            next
+
             #::puts "Flexnode init"
             ## Init parent and children
             set :parents [odfi::flist::MutableList new]
@@ -40,8 +41,23 @@ namespace eval odfi::flextree {
 
             ## Register Event Points 
             :registerEventPoint childAdded child
+            :registerEventPoint parentAdded parent
 
-            next
+            
+        }
+
+        ## Mem copy: Reinit the class
+        #################
+        :public method copy args {
+            set cp [next]
+            #puts "Got copy $cp"
+            $cp apply {
+                :init
+            }
+            #set :parents [odfi::flist::MutableList new]
+            #set :children [odfi::flist::MutableList new]
+
+            return $cp
         }
 
         ## Closure Apply 
@@ -50,6 +66,12 @@ namespace eval odfi::flextree {
         ## \brief Executes the provided closure into this object
         :public method apply closure {
 
+
+            #odfi::closures::withITCLLambda $closure 2 {
+            #    $lambda apply
+            #}
+
+            #return
             #::odfi::closures::run %closure
             #return 
 
@@ -79,6 +101,7 @@ namespace eval odfi::flextree {
             
             if {![${:parents} contains $p]} {
                 ${:parents} += $p
+                :callParentAdded $p
                 next
                 return true 
             }
@@ -90,10 +113,18 @@ namespace eval odfi::flextree {
         }
 
         ## Return the primary parent, or an empty string if none
-        :public method parent args {
+        :public method parent { {method ""} args } {
             
             set parents [:parents]
             if {[$parents size]>0} {
+
+                set p [$parents at 0]
+
+                if {$method !=""} {
+                    #puts "Running $method"
+                    return [$p $method $args]
+                }
+
                 return [$parents at 0]
             } else {
                 return ""
@@ -155,6 +186,14 @@ namespace eval odfi::flextree {
             ${:parents} clear
         }
 
+        ## Clear Parents 
+        ## @noshade
+        :public method clearParents args {
+            
+            ${:parents} clear
+        }
+
+
         ## @return The depth of this node from provided parent, using direct line, meaning, only the primary parents
         :public method getTreeDepth {{baseParent false}} {
             switch -exact -- [${:parents} size] {
@@ -201,10 +240,10 @@ namespace eval odfi::flextree {
             while {![$current isRoot]} {
 
                 ## Take parent 
-                set parent [${:parents} at 0]
+                set parent [[$current getParentsRaw] at 0]
 
                 ## Check shading before adding to list 
-                if {${:currentShading}=="" || [odfi::closures::applyLambda ${:currentShading} [list it $parent]]} {
+                if {[$parent shadeMatch ${:currentShading}]} {
                     $res addFirst $parent 
                 }
 
@@ -218,6 +257,63 @@ namespace eval odfi::flextree {
             return $res  
 
         }
+
+        ## Find Parent that matches a closure from the primary line
+        ## @noshade
+        :public method findParentInPrimaryLine cl {
+
+            set result ""
+            odfi::closures::withITCLLambda $cl 0 {
+
+                ## Go up 
+                set current [current object]
+                while {![$current isRoot]} {
+
+                    ## Take parent 
+                    set parent [[$current getParentsRaw] at 0]
+
+                    ## Test 
+                    set res [$lambda apply [list it $parent]]
+                    if {$res} {
+                        set result $parent 
+                        break
+                    }
+                
+
+                    ## Next current is parent 
+                    set current $parent
+
+
+                }
+            }
+
+            return $result
+            
+
+        }
+
+        ## Returns a hierarchy string by running a closure on each parent 
+        ## @shade
+        :public method formatHierarchyString {closure separator} {
+
+            #set res {}
+            #odfi::closures::withITCLLambda $closure 0 {
+             #   set res [[:getPrimaryParents] map $closure]
+
+                #return $res
+            #}
+            set res [[:getPrimaryParents] map $closure]
+
+            #puts "Done MAP hierarchy string $res [$res size] -> [$res mkString $separator]"
+            return [$res mkString $separator]
+           
+
+            #set parents [:shade odfi::dev::hw::h2dl::Module getPrimaryParents]
+            #return [[$parents map { return [$it name get]}] mkString $separator]
+
+        }
+
+
         
         ## Children Interface 
         ################################
@@ -232,7 +328,7 @@ namespace eval odfi::flextree {
                 ${:children} foreach {
                     #puts "is $it of type $select"
                     #if {[odfi::common::isClass $it ${:currentShading}]}
-                    if {[eval ${:currentShading}]} {
+                    if {[$it shadeMatch ${:currentShading}]} {
                         $res += $it
                     
                     }
@@ -243,24 +339,31 @@ namespace eval odfi::flextree {
         }
 
 
-        :public method eachChild {closure} {
-            [:children] foreach {
-                odfi::closures::applyLambda $closure [list it $it]
-            }
+        ## @shade
+        :public method eachChild closure {
+            [:children] foreach $closure
+            #${:children} foreach $closure -level 1
+        }
+
+        ## @shade
+        :public method eachChildFrom {start closure} {
+            [:children] foreachFrom $start $closure
             #${:children} foreach $closure -level 1
         }
 
         
-
+        ## @shade
         :public method child index {
+           
             return [[:children] at $index]
         }
 
-
+        ## @shade
         :public method childCount args {
             return [[:children] size]
         }
 
+        ## @shade
         :public method isLeaf args {
             if {[:childCount]>0} {
                 return false
@@ -270,29 +373,48 @@ namespace eval odfi::flextree {
         }
         
         ## Add the node as child of this, and adds itself to the possible parents
-        :public method addChild node {
+        :public method addChild nodes  {
 
-            ## Check node is a flexnode
-            if {![odfi::common::isClass $node [namespace current]::FlexNode]} {
-                error "Cannot add node $node to [[curren$at object] info class] if it is not a FlexNode"
+            foreach node $nodes {
+
+                if {$node=="" || $node==[current object]} {
+                    continue
+                }
+
+                ## Return if node is empty 
+                #puts "Trying to add $node"
+                ## Check node is a flexnode
+                if {![odfi::common::isClass $node [namespace current]::FlexNode]} {
+                    error "Cannot add node $node to [[curren$at object] info class] if it is not a FlexNode"
+                }
+                
+                ## If already a child, ignore 
+                if {![${:children} contains $node]} {
+
+                    $node addParent [current object]
+
+                    ## Double safe in case addParent inserts itself
+                    if {![${:children} contains $node]} {
+
+                       # puts "adding $node"
+                        ${:children} += $node
+
+                        ## Event point 
+                        #puts "Calling event point"
+                        :callChildAdded $node
+                    }
+
+                }
+                
+                
+        
+
+                
             }
-            
-            ## If already a child, ignore 
-            if {![${:children} contains $node]} {
 
-                $node addParent [current object]
-                ${:children} += $node
 
-                ## Event point 
-                :callChildAdded $node
-
-            }
-            
-            
-            
             next
-
-            return $node
+            
         }
         
         ## Add the node as child of this, and adds itself to the possible parents
@@ -306,7 +428,21 @@ namespace eval odfi::flextree {
         :public method remove child {
             ${:children} -= $child
         }
+
+        ## Remove
+        :public method removeChild child {
+            ${:children} -= $child
+        }
         
+        
+
+        ## Clear Parents 
+        ## @noshade
+        :public method clearChildren args {
+            
+            ${:children} clear
+        }
+
         ## Change child position
         :public method setChildAt {child position} {
         
@@ -320,15 +456,59 @@ namespace eval odfi::flextree {
             }
         }
         
+        ## @noshade
         :public method indexOf child {
             return [${:children} indexOf $child]
         }
         
         ## Returns a sublist of children from start index to end index
         :public method select {start end} {
-            return [${:children} sublist $start $end]
+            return [[:children] sublist $start $end]
         }
         
+        ## Find a child by testing a property
+        ## @shade
+        :public method findChildByProperty {name value} {
+           # try {
+                #puts "lookin for property $name $value"
+               # return [[:children] find [list expr {[$it $name get] == $value}]
+               set opt [[:children] findOption [list expr {[$it $name get] == $value}]]
+               $opt match {
+                :some res {
+                    return $res 
+                }
+                :none {
+                    return ""
+                }
+               }
+            #} on error {res resOptions} {
+                #return ""
+            #}
+         
+        }
+
+        ## Find children by testing a property
+        ## @shade
+        ## @parameter -match uses string matching instead of equivalence
+        :public method findChildrenByProperty {name value {-match false}} {
+
+            ## Prepare Filder Closure
+            if {$match} {
+                set filterClosure "string match $value \[\$it $name get\]"
+            } else {
+                set filterClosure [list expr {[$it $name get] == $value}]
+            }
+
+            ## Take children and filter 
+            set children [:children]
+            set result   [$children filter $filterClosure]
+
+            return $result
+        
+         
+        }
+
+
         #  Self positioning
         #######################
         
@@ -379,8 +559,12 @@ namespace eval odfi::flextree {
         ## Tree Walking 
         ####################
 
-        :public method walkDepthFirst wclosure {
-        
+        ## Breadth First is a level order walk        
+        :public method walkBreadthFirst { {-level 0} wclosure} {
+
+
+
+
             ## Prepare list : Pairs of Parent / node
             ##################
             set componentsFifo [odfi::flist::MutableList new]
@@ -389,8 +573,14 @@ namespace eval odfi::flextree {
 
             #puts "CFifo Size: [$componentsFifo size]"
 
+             ## Create Walk Closure Object 
+            ::set walkLambda  [::new odfi::closures::LambdaITCL #auto]
+            $walkLambda configure -definition $wclosure
+            $walkLambda configure -level $level
+            $walkLambda prepare
+
             ## Visited list 
-            set visited {}
+            ::set visited {}
 
             ## Common Shade 
             set shade ${:currentShading}
@@ -402,22 +592,23 @@ namespace eval odfi::flextree {
                 parentAndNode => 
 
                     #puts "PANODE $parentAndNode"
-                    set node [lindex $parentAndNode 1]
-                    set parent [lindex $parentAndNode 0]
+                    ::set node [lindex $parentAndNode 1]
+                    ::set parent [lindex $parentAndNode 0]
                 
-                    #odfi::log::info "On node2 [$node info class]"
-                    
+                    #odfi::log::info "On node2 [$node info class] $visited"
+                    #äodfi::log::info "on node $node, parent: $parent ()"
                     ## Evaluation With heuristic
                     #############
                     lappend visited $node
                     
-                    $node inShade {
+                    #$node inShade {
                         #puts "On Node $node [$node info class] with shade [$node currentShading get]"
 
                         ## Shade match 
                         ::set continue true 
                         if {[$node shadeMatch $shade]} {
-                            set tres [odfi::closures::applyLambda $wclosure]
+                            set tres [$walkLambda apply [list node $node] [list parent $parent]]
+                            #puts "Red after $node -> $tres"
                             if {$tres!="" && [string is boolean $tres]} {
                                 ::set continue  $tres
                             }
@@ -430,7 +621,8 @@ namespace eval odfi::flextree {
                         if {$continue} {
                             ## WARNING: If a child has already been visited, don't add it to avoid cycles
                             set currentDepth [$node noShade getPrimaryTreeDepth]
-                            ${:children} foreach {
+                            set nodeChildren [$node noShade children]
+                            $nodeChildren foreach {
                                 #puts "---> adding chuld of depth [$it noShade getPrimaryTreeDepth] from $currentDepth "
                                 #if {[$it noShade getPrimaryTreeDepth]>$currentDepth} {
                                 #    $componentsFifo += [list $node $it] 
@@ -442,13 +634,106 @@ namespace eval odfi::flextree {
                             }
                         }
                         
-                    }
+                    #}
                     #puts "CFifo Size: [$componentsFifo size]"           
             }
 
+            #puts "Done WB"
+            #unset walkLambda
+            #$walkLambda destroy
+             itcl::delete object $walkLambda
         }
 
-        :public method walkDepthFirstPreorder wclosure {
+        ## Breadth First is a level order walk        
+        :public method walkDepthFirstPreorder {{-level 0} wclosure} {
+
+
+            ## Prepare list : Pairs of Parent / node
+            ##################
+            set componentsFifo [odfi::flist::MutableList new]
+            #$componentsFifo += [:children]
+            $componentsFifo += [list "false" [current object]]
+
+            #puts "CFifo Size: [$componentsFifo size]"
+
+             ## Create Walk Closure Object 
+            set walkLambda  [::new odfi::closures::LambdaITCL #auto]
+            $walkLambda configure -definition $wclosure
+            $walkLambda configure -level $level
+            $walkLambda prepare
+
+            ## Visited list 
+            set visited {}
+
+            ## Common Shade 
+            set shade ${:currentShading}
+
+            #odfi::log::info "Starting with shade $shade"
+
+            ## Go on FIFO 
+            ##################
+            $componentsFifo popAll {
+                
+                parentAndNode => 
+
+                    #puts "PANODE $parentAndNode"
+                    set node [lindex $parentAndNode 1]
+                    set parent [lindex $parentAndNode 0]
+                
+                    #odfi::log::info "On node [$node info class], which has own shading: [$node currentShading get]"
+                    
+                    ## Evaluation With heuristic
+                    #############
+                    lappend visited $node
+                    
+                    #$node inShade {
+                        #puts "On Node $node [$node info class] with shade [$node currentShading get]"
+
+                        ## Shade match 
+                        ::set continue true 
+                        if {[$node shadeMatch $shade]} {
+                            set tres [$walkLambda apply [list node $node]]
+                            if {$tres!="" && [string is boolean $tres]} {
+                                ::set continue  $tres
+                            }
+                        }
+
+                        ## Keep Going
+                        #################
+               
+                        ## Add children of current to back 
+                        if {$continue} {
+                            ## WARNING: If a child has already been visited, don't add it to avoid cycles
+                            set currentDepth [$node getPrimaryTreeDepth]
+                            set nodeChildren [$node noShade children]
+
+                            ## AddFirst to proceed by depth first, but reverse children order otherwise is reverses the order
+                            foreach c [lreverse [$nodeChildren asTCLList]] {
+                           
+                                #puts "---> adding chuld of depth [$it noShade getPrimaryTreeDepth] from $currentDepth "
+                                #if {[$it noShade getPrimaryTreeDepth]>$currentDepth} {
+                                #    $componentsFifo += [list $node $it] 
+                                #}
+                                if {[lsearch -exact $visited $c]==-1} {
+                                    $componentsFifo addFirst [list $node $c] 
+                                }
+                                
+                            }
+                        }
+                        
+                    #}
+                    #puts "CFifo Size: [$componentsFifo size]"           
+            }
+
+           #unset walkLambda
+
+        }
+
+
+
+        
+
+        :public method walkDepthFirstPreorderOld wclosure {
 
             ## Prepare list : Pairs of Parent / node
             ##################
@@ -515,7 +800,7 @@ namespace eval odfi::flextree {
         }  
 
         ## Breadth First is a level order walk        
-        :public method walkBreadthFirst wclosure {
+        :public method walkBreadthFirstOld wclosure {
 
             ## Prepare list : Pairs of Parent / node
             ##################
@@ -584,86 +869,7 @@ namespace eval odfi::flextree {
 
         }
 
-        ## Breadth First is a level order walk        
-        :public method walkBreadthFirstOpt wclosure {
-
-
-
-
-            ## Prepare list : Pairs of Parent / node
-            ##################
-            set componentsFifo [odfi::flist::MutableList new]
-            #$componentsFifo += [:children]
-            $componentsFifo += [list "false" [current object]]
-
-            #puts "CFifo Size: [$componentsFifo size]"
-
-             ## Create Walk Closure Object 
-            set walkLambda  [::new odfi::closures::LambdaITCL #auto]
-            $walkLambda configure -definition $wclosure
-            $walkLambda prepare
-
-            ## Visited list 
-            set visited {}
-
-            ## Common Shade 
-            set shade ${:currentShading}
-
-            ## Go on FIFO 
-            ##################
-            $componentsFifo popAllOpt {
-                
-                parentAndNode => 
-
-                    #puts "PANODE $parentAndNode"
-                    set node [lindex $parentAndNode 1]
-                    set parent [lindex $parentAndNode 0]
-                
-                    #odfi::log::info "On node2 [$node info class]"
-                    
-                    ## Evaluation With heuristic
-                    #############
-                    lappend visited $node
-                    
-                    #$node inShade {
-                        #puts "On Node $node [$node info class] with shade [$node currentShading get]"
-
-                        ## Shade match 
-                        ::set continue true 
-                        if {[$node shadeMatch $shade]} {
-                            set tres [$walkLambda apply [list node $node]]
-                            if {$tres!="" && [string is boolean $tres]} {
-                                ::set continue  $tres
-                            }
-                        }
-
-                        ## Keep Going
-                        #################
-               
-                        ## Add children of current to back 
-                        if {$continue} {
-                            ## WARNING: If a child has already been visited, don't add it to avoid cycles
-                            set currentDepth [$node getPrimaryTreeDepth]
-                            set nodeChildren [$node children]
-                            $nodeChildren foreach {
-                                #puts "---> adding chuld of depth [$it noShade getPrimaryTreeDepth] from $currentDepth "
-                                #if {[$it noShade getPrimaryTreeDepth]>$currentDepth} {
-                                #    $componentsFifo += [list $node $it] 
-                                #}
-                                if {[lsearch -exact $visited $it]==-1} {
-                                    $componentsFifo += [list $node $it] 
-                                }
-                                
-                            }
-                        }
-                        
-                    #}
-                    #puts "CFifo Size: [$componentsFifo size]"           
-            }
-
-            unset walkLambda
-
-        }
+        
         
         
         
@@ -674,7 +880,7 @@ namespace eval odfi::flextree {
         ## - produces a result for each
         ## - Go to upper level, calling the reduce function, with the subtree results
         ## Closure format: (node, results)
-        :public method reduce {{reduceClosure {}}} {
+        :public method reduceOld {{reduceClosure {}}} {
             
             
             ##set reduceClosure false
@@ -1204,7 +1410,7 @@ namespace eval odfi::flextree {
         ## - produces a result for each
         ## - Go to upper level, calling the reduce function, with the subtree results
         ## Closure format: (node, results)
-        :public method reduce3Opt { {reduceClosure ""}} {
+        :public method reduce { {reduceClosure ""}} {
             
             ## If no reduce closure, then map to reduceProduce function
             if {$reduceClosure==""} {
@@ -1220,12 +1426,16 @@ namespace eval odfi::flextree {
             ## Prepare list : Pairs of Parent / node
             ##################
             set componentsFifo [odfi::flist::MutableList new]
+            set componentsFifoList [current object]
+
             #$componentsFifo += [:children]
             $componentsFifo push [current object]
 
             #puts "CFifo Size: [$componentsFifo size]"
             ## Parents Stack Reducing parents
             set parentStack [odfi::flist::MutableList new]
+
+            set topNode [current object]
 
             ## Results Depth list 
             ## Format: 
@@ -1245,10 +1455,14 @@ namespace eval odfi::flextree {
 
             ## Go on FIFO 
             ##################
-            $componentsFifo popAllOpt {
+            while {[llength $componentsFifoList]>0} {
+            #$componentsFifo popAll
                             
-                node => 
+                #node => 
                     
+                    set node [lindex $componentsFifoList 0]   
+                    set componentsFifoList [lreplace $componentsFifoList 0 0]
+
                     ## Work on the node using the actually defined Shade
                     
                     #$node currentShading set $shade    
@@ -1304,7 +1518,7 @@ namespace eval odfi::flextree {
                             
                             if {[$node isLeaf] && [$node shadeMatch $shade]} {
                                 
-                                #::odfi::log::info "On Node [$node info class] which is a leaf at level $currentLevel"
+                               # ::odfi::log::info "On Node [$node info class] which is a leaf at level $currentLevel"
 
                                 ## Produce result, and add as as result list
                                 ##########
@@ -1347,7 +1561,9 @@ namespace eval odfi::flextree {
 
                                 ## Bounce back to top, and add children to be done before
                                 #::puts "---> Not leaf, Push on top [[current object] info class]"
-                                $componentsFifo addFirst $node
+                                
+                                #$componentsFifo addFirst $node
+                                set componentsFifoList [concat $node $componentsFifoList]
 
                                 set childrenOfCurrent [$node children]
 
@@ -1355,7 +1571,9 @@ namespace eval odfi::flextree {
 
                                 foreach it [lreverse [$childrenOfCurrent asTCLList]] {
                                     #::odfi::log::info "Adding node $it"
-                                    $componentsFifo addFirst $it 
+                                    
+                                    #$componentsFifo addFirst $it 
+                                    set componentsFifoList [concat $it $componentsFifoList]
                                 }
 
                                 ## Open level 
@@ -1411,7 +1629,7 @@ namespace eval odfi::flextree {
         ## Mapper can be
         ##  - A Closure, in which case, the closure is used to produced the mapping tree
         ##  - A Type name, in which case, the internal node map function is used to produced trees
-        :public method map mapType {
+        :public method mapOld mapType {
                   
             ## Prepare Stacks and list 
             set parentStack [odfi::flist::MutableList new]
@@ -1616,23 +1834,27 @@ namespace eval odfi::flextree {
         ## Mapper can be
         ##  - A Closure, in which case, the closure is used to produced the mapping tree
         ##  - A Type name, in which case, the internal node map function is used to produced trees
-        :public method map3 mapFunc {
+        :public method map { {-root ""} mapFunc} {
                   
             ## If map function is a type, adapt to be calling mapNode function 
             if {[::nsf::is class $mapFunc]} {
-                set mapFunc "return \[\$node mapNode $mapFunc\]"
+                ::set mapFunc "return \[\$node mapNode $mapFunc\]"
             }
 
-
+            ## Create Lambda
+            ::set mapLambda  [::new odfi::closures::LambdaITCL #auto]
+            $mapLambda configure -definition $mapFunc
+            #$mapLambda configure -level 1
+            $mapLambda prepare
 
             ## Prepare Stack and list
-            set topRes ""
-            set componentsFifo [odfi::flist::MutableList new]
-            $componentsFifo push [list "" [current object]]
-            set destackList [odfi::flist::MutableList new]
+            ::set topRes $root
+            ::set componentsFifo [odfi::flist::MutableList new]
+            $componentsFifo push [list $root [current object]]
+            ::set destackList [odfi::flist::MutableList new]
 
             ## Visited list 
-            set visited {}
+            ::set visited {}
 
             ## Proceed 
             $componentsFifo popAll {
@@ -1640,8 +1862,8 @@ namespace eval odfi::flextree {
                 
 
                 
-                set parent [lindex $nodeAndParent   0]
-                set node   [lindex $nodeAndParent   1]
+                ::set parent [lindex $nodeAndParent   0]
+                ::set node   [lindex $nodeAndParent   1]
                 
 
                 ## Destack closure,if parent is CLOSURE , then the node is a closure 
@@ -1654,15 +1876,15 @@ namespace eval odfi::flextree {
                 } else {
 
                     ## Visited list 
-                    lappend visited $node
+                    ::lappend visited $node
 
                    
                     ## See if node is leaf before mapping, because mapping may keep result node stored as child
-                    set isLeaf [$node isLeaf]
+                    ::set isLeaf [$node isLeaf]
 
                     ## Map Node to new Node 
-                    set newNode [odfi::closures::applyLambda $mapFunc [list it $node]]
-                    set destackClosure {}
+                    ::set newNode [$mapLambda apply [list node $node] [list parent $parent]]
+                    ::set destackClosure {}
 
                     ## New node format: NODE or {NODE DESTACKCLOSURE}
                     if {[llength $newNode]>1} {
@@ -1670,19 +1892,19 @@ namespace eval odfi::flextree {
                         ::extract $newNode 0 1 newNode destackClosure
                     }
 
-                    set nextParent $newNode
+                    ::set nextParent $newNode
 
                     ## Check result is node 
-                    set resultIsNode [odfi::common::isClass $newNode odfi::flextree::FlexNode]
+                    ::set resultIsNode [odfi::common::isClass $newNode odfi::flextree::FlexNode]
 
                     ## If result is not a node, keep actual parent as next parent and ignore it from there
                     if {!$resultIsNode} {
-                        set nextParent $parent
+                        ::set nextParent $parent
                     } else {
 
                         ## Add to current parent or as top if no current parent 
                         if {$topRes=="" && $parent==""} {
-                            set topRes $newNode
+                            ::set topRes $newNode
                         } elseif {$topRes!="" && $parent==""} {
                             error "In Map, no actual parent and top result is already set, something weird happened"
                         } else {
@@ -1700,7 +1922,7 @@ namespace eval odfi::flextree {
                     if {!$isLeaf} {
                         
                         ## Check non visited nodes to avoid loops 
-                        [$node children] foreach {
+                        [$node noShade children] foreach {
                             if {[lsearch -exact $visited $it]==-1} {
                                 $componentsFifo += [list $nextParent $it]
                             }
@@ -1743,54 +1965,26 @@ namespace eval odfi::flextree {
         
         
 
-        ## Generic Walk
-        ## - Walk the tree
-        ## - Run provided closure on each node
-        :public method genericWalk closure {
-            
-            ## Prepare list : Pairs of Parent / node
-            ##################
-            set componentsFifo [odfi::flist::MutableList new]
-            #$componentsFifo += [:children]
-            $componentsFifo push [current object]
+        ## Search/Find 
+        #########################
 
-            #puts "CFifo Size: [$componentsFifo size]"
+        ## @noshade
+        :public method findFirstInTree closure {
 
-            ## Go on FIFO 
-            ##################
-            $componentsFifo popAll {
-                
-                node => 
-
-                    #odfi::log::info "On node2 [$node info class]"
-                    
-                    ## evaluate 
-                    set hres [odfi::closures::applyLambda $closure]
-
-                    ## Don't add children if heuristic result is false 
-                    #odfi::log::info "Heuristic result: $hres"
-                    if {$hres} {
-                        
-                        $componentsFifo += [$node children]
-                    }
-                    
-
-                    #puts "CFifo Size: [$componentsFifo size]"
-
-                    
-
+            set found false
+            set res "" 
+            set matchClosure [odfi::closures::newITCLLambda $closure]
+            :walkBreadthFirst {
+                if {!$found} {
+                    set found [$matchClosure apply [list it $node]]
+                    set res $node
+                }
+                return [expr ! $found]
             }
-           
-           
 
-                ## If Decision is true and we have a group -> Go down the tree 
-                #################
-                #if {$res && [$it isa [namespace current]]} {
-                #    set componentsFifo [concat $componentsFifo [$it components]]
-                #}
+            ::odfi::common::deleteObject $matchClosure
 
-        
-            
+            return $res
         }
         
         
@@ -1825,12 +2019,16 @@ namespace eval odfi::flextree {
             }
 
             ## Set shading 
-            set :currentShading $select 
+            #set :currentShading $select 
+            set :currentShading  [odfi::closures::buildITCLLambda $select]
 
             ## Propagate and make sure shading is resetted 
             try {
-                :$method [lindex $args  0]
+                #puts "Calling method $method with [lindex $args  0] // $args  "
+                #:$method [lindex $args  0]
+                eval ":$method $args"
             } finally {
+                odfi::closures::redeemITCLLambda ${:currentShading}
                 set :currentShading ""
             }
         }   
@@ -1852,19 +2050,38 @@ namespace eval odfi::flextree {
         ## Checks against provided shade in args if so 
         :public method shadeMatch {{provided ""}} {
 
-            if {$provided!=""} {
-                return [odfi::closures::applyLambda $provided [list it [current object]] ]
+            set returnRes true
+            if {$provided!="" && ![odfi::common::isClass $provided odfi::closures::LambdaITCL ]} {
+                puts "Runing on $provided"
+                odfi::closures::withITCLLambda $provided 0 {
+                    set returnRes [$lambda apply [list it [current object] ] ]
+                }
+               
+               # return [odfi::closures::applyLambda $provided [list it [current object]] ]
             
-            }
+            } elseif {$provided!=""} {
 
-            #puts "Shade match [current object] with $args"
-            if {${:currentShading}==""} {
+                set returnRes [$provided apply [list it [current object] ] ]
+
+            } elseif {${:currentShading}==""} {
+
                 return true 
+
             } else {
                 #::puts "Shade Match testing [[current object] info class] against ${:currentShading}"
                 #return [odfi::common::isClass [current object] ${:currentShading}]
-                return [odfi::closures::applyLambda ${:currentShading} [list it [current object]] ]
-            }
+                
+                #return [odfi::closures::applyLambda ${:currentShading} [list it [current object]] ]
+                
+                #odfi::closures::withITCLLambda ${:currentShading} 0 {
+                #    set returnRes [$lambda apply [list it [current object]]]
+                #}
+                set returnRes [${:currentShading} apply [list it [current object] ] ]
+                
+            } 
+
+            #puts "Shade match [current object] with $args"
+            return $returnRes
         }
 
 
