@@ -1,7 +1,6 @@
 
 set dir [file dirname [file normalize [info script]]]
 
-
 ## ODFi Common package ###############################################################
 package ifneeded odfi::common 1.0.0 [list source [file join $dir common.tm]]
 
@@ -47,6 +46,16 @@ package ifneeded odfi::ewww::webdata   1.0.0 [list source [file join $dir ewww w
 package ifneeded odfi::nx::domainmixin   1.0.0 [list source [file join $dir nx-domainmixin.tm]]
 
 package ifneeded odfi::language 1.0.0 [list source [file join $dir language/language-1.0.0.tm]]
+
+package ifneeded odfi::epoints 1.0.0  [list source [file join $dir epoints-1.x.tm]]
+
+## Ewww stuf ####################
+set packages {
+    odfi::ewww::html 2.0.0 ewww-2.x/html-2.x.tm
+}
+foreach {name version relativePath} $packages {
+    package ifneeded $name $version [list source [file join $dir $relativePath]]
+}
 
 
 ## External :Tkcon ####################
