@@ -8,6 +8,21 @@ namespace eval odfi::log {
     variable pipeOut stdout
     variable pipeIn  stdin
 
+    ## Filtering 
+    ###################
+    
+    ## FORMAT: {PATH LEVEL PATH LEVEL}
+    variable loggersLevels {}
+
+    proc setLogLevel {path level} {
+
+        ##search 
+        set pathIndex [lsearch -exact $::odfi::log::loggersLevels $path]
+    }
+
+    ## Methods 
+    #######################
+
     proc prefix args {
         return $odfi::log::prefix
     }
@@ -26,11 +41,19 @@ namespace eval odfi::log {
             set logRealm [regsub -all {::} $logRealm "."]
 
             ## Get Command path 
-            set frameInfo [::info frame 2]
-            set commandName [lindex [lindex $frameInfo 5] 0]
+            set frameInfo [::info frame -2]
+
+            ## Get 'method', otherwise pick first element in cmd
+            set methodIndex [lsearch -exact $frameInfo method] 
+            if {$methodIndex!=-1} {
+                set commandName [lindex $frameInfo [expr $methodIndex+1]]
+            } else {
+                set commandName [lindex [lindex $frameInfo 5] 0]
+            }
+
             set commandName [regsub -all {:} $commandName ""]
 
-           # ::puts "Log frame info: $frameInfo"
+            #::puts "Log frame info: $frameInfo"
             
             return $logRealm.$commandName
     }
@@ -45,54 +68,30 @@ namespace eval odfi::log {
 
     proc fine {message args} {
 
-        set argRealm [lsearch -exact $args -realm]
-        if {$argRealm!=-1} {
-            set logRealm [lindex $args [expr $argRealm+1]]
-        } else {
-            set logRealm [uplevel 1 namespace current]  
-        }
 
-        set logRealm [regsub -all {::} $logRealm "."]
-
+        ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[FINE\] $message"
+        ::flush $odfi::log::pipeOut
        
 
-        ::puts "${prefix}$logRealm \[FINE\] $message"
+      
 
 
     }
 
     proc error {message args} {
 
-        set argRealm [lsearch -exact $args -realm]
-        if {$argRealm!=-1} {
-            set logRealm [lindex $args [expr $argRealm+1]]
-        } else {
-            set logRealm [uplevel 1 namespace current]  
-        }
-
-        set logRealm [regsub -all {::} $logRealm "."]
-
-       
-
-        ::puts stderr "${prefix}$logRealm \[ERROR\] $message"
-        ::error $message
+        ::puts stderr "[prefix][getLogPath] \[ERROR\] $message"
+        ::flush stderr
 
 
     }
 
     proc warning {message args} {
 
-        set argRealm [lsearch -exact $args -realm]
-        if {$argRealm!=-1} {
-            set logRealm [lindex $args [expr $argRealm+1]]
-        } else {
-            set logRealm [uplevel 1 namespace current]  
-        }
+        
+        ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[WARN\] $message"
+        ::flush $odfi::log::pipeOut
 
-        set logRealm [regsub -all {::} $logRealm "."]
-
-    
-        ::puts stderr "${prefix}$logRealm \[WARN\] $message"
 
 
     }
