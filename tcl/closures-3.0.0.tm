@@ -847,7 +847,7 @@ namespace eval odfi::closures {
     ## Lambda 2 
     #############################
     package require nx 2.0.0
-    package require Itcl 3.4
+    package require Itcl
 
     itcl::class LambdaITCL {
 

@@ -3,3 +3,5 @@ external
 *.run
 dist*
 *~
+.buildpath
+*.project
