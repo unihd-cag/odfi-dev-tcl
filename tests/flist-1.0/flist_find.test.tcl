@@ -12,7 +12,7 @@ $list += "d" "e" f
 
 ## List has 6 elements
 #################
-odfi::tests::expect "Listh as 6 Elements" 6 [$list size]
+#odfi::tests::expect "Listh as 6 Elements" 6 [$list size]
 
 
 ## Try Find with conflicting naming

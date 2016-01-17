@@ -15,7 +15,7 @@
 #
 
 package provide odfi::tests 1.0.0
-package require odfi::closures 2.0.0
+package require odfi::closures 3.0.0
 package require Itcl
 
 namespace eval odfi::tests {

@@ -7,6 +7,8 @@ package require odfi::nx::domainmixin
 
 namespace eval odfi::language {
 
+    variable debug false
+
 
     ##################
     ## Real Def
@@ -57,9 +59,23 @@ namespace eval odfi::language {
 
         :public object method default closure {
             set l [uplevel odfi::language::Language new]
+            uplevel [list variable language $l]
             uplevel [list $l apply $closure]
             uplevel [list $l produceNX]
             
+        }
+
+        ## Language Search Operation
+        ################
+        :public method onType {name cl}  {
+
+            set t [:shade odfi::language::Type findChildByProperty +simpleName $name] 
+            if {$t==""} {
+                error "Cannot find type $name in language"
+
+            }
+
+            return [$t apply $cl]
         }
  
         ## Language/Types definitions
@@ -74,6 +90,11 @@ namespace eval odfi::language {
 
             set typeName [[:getRoot] cget -+targetNamespace]::$name
 
+            ## Target Namspace is either in caller, or already set on top language
+            set targetNamespace [[:getRoot] cget -+targetNamespace]
+            if {$targetNamespace==""} {
+                set targetNamespace [uplevel 2 namespace current]
+            }
             set typeName [lindex $splittedTypeName 1]
             set targetType [lindex $splittedTypeName 2]
             set args [lindex $splittedTypeName end]
@@ -99,7 +120,7 @@ namespace eval odfi::language {
                     ## Create Type definition
                     #puts "TD: [namespace current]"
                     ##puts "Target NS: [uplevel 2 namespace current]"
-                    set newType [LanguageElement new -+name [uplevel 2 namespace current]::$name -+originalName $name]
+                    set newType [LanguageElement new -+name ${targetNamespace}::$name -+originalName $name]
         
                     ## Add Type to language
                     :addChild $newType
@@ -651,16 +672,15 @@ namespace eval odfi::language {
                         
                         :object variable -accessor public -incremental +builders:0..n  {}
 
+                        :public method init args {
+                            next 
+                            :registerEventPoint buildDone
+                        }
                         :public method +build args {
                             next 
                             #puts \"inside building of \[:info class\] (for level $className): \"
                            
                             try {
-                                
-                            } on return {res resOptions} {
-
-                            } finally {
-
                                 foreach b \[$className +builders get\] {
                                     #puts \"B \$b\"
                                     try {
@@ -669,6 +689,14 @@ namespace eval odfi::language {
 
                                     }
                                 }
+
+                            }  finally {
+
+                                
+
+                                ## Builder done
+                                ## Event poitn called by Builder Trait when building is really done (after builders and configuration closure)
+                                #:callBuildDone
 
                             }
                            
@@ -879,7 +907,7 @@ namespace eval odfi::language {
                                 ## Apply Closure
                                 ::unset args
                                 \$inst apply \$cl
-                                
+                                \$inst callBuildDone
                                 
                                 
 
@@ -976,6 +1004,7 @@ namespace eval odfi::language {
                                 ## Apply Closure
                                 ::unset args
                                 \$inst apply \$cl
+                                \$inst callBuildDone
                                 
                                 
                                 

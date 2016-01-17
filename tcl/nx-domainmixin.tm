@@ -307,52 +307,72 @@ namespace eval odfi::nx::domainmixin {
         return [odfi::common::isClass [current object] $test]
 
     }
+
+    ::nx::Object public method notClass test {
+
+        return [expr ! [:isClass $test]]
+
+    }
     
     #### Method chaning 
     ####  - Call a method with args, and the next one on the result of the previous
     ####  Format: > method args > method args 
-    ::nx::Object public method > args {
+    ::nx::Object public method @> args {
 
+   
+     
         if {[llength $args]==1} {
             set args [lindex $args 0]
         }
 
-        ## Get Method and args 
-        set method [lindex $args 0]
-        set args   [lreplace $args 0 0]
+        set current [current object]
+        while {[llength $args]>0} {
 
-        set methodArgs [lindex $args 0]
-        if {$methodArgs== ">"} {
-            set methodArgs {}
-        } else {
+            ## If Index 0 is >, remove it 
+            if {[lindex $args 0]=="@>"} {
+                set args   [lreplace $args 0 0]
+                if {[llength $args]==0} {
+                    break
+                }
+            } 
+
+
+            ## Get Method
+            set method [lindex $args 0]
             set args   [lreplace $args 0 0]
-        }
 
-        ## replace possible next > 
-        if {[lindex $args 0]!="" && [lindex $args 0]!=">"} {
-            error "Method chain syntax wrong, after method and args extraction, remaining $args must start with >"
-        } 
-        set args   [lreplace $args 0 0]
+            ## Get Method args, if it is ">", the method has no args so args stays the same for the next iteration
+            set methodArgs [lindex $args 0]
+            if {$methodArgs== "@>"} {
+                set methodArgs {}
+            } else {
+                set args   [lreplace $args 0 0]
+            }
 
-        ## Prepare next coming 
-        #puts "Calling $method $methodArgs , and next is $args"
+            #puts "Calling $method"
 
-        ## Call 
-        #set result [:$method $methodArgs]
-        set result [eval ":$method $methodArgs"]
-
-        ## Call next, or return 
-        if {[llength $args]>0 && ($result=="" || ![::odfi::common::isClass $result ::nx::Object])} {
-            error "Cannot continue call chain $args on non Object result: $result"
-        } elseif {[llength $args]>0} {
+            #puts "Calling $method , with arg $methodArgs , and next is $args"
 
             ## Call 
-            return [$result > $args]
-        } else {
-            ## Return 
-            return $result
+            #set result [:$method $methodArgs]
+            #::set current [eval "$current $method {$methodArgs}"]
+            ::set current [$current $method $methodArgs]
+
+            ## Call next, or return 
+            if {[llength $args]>0 && ($current=="" || ![::odfi::common::isClass $current ::nx::Object])} {
+                error "Cannot continue call chain $args on non Object result: $current"
+            } else {
+                ## Keep going 
+                #return $result
+            }
+
+            #exit 0
         }
 
+
+        return $current
+
+        
 
     }
 }

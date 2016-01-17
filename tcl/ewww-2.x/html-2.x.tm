@@ -1,13 +1,15 @@
 package provide odfi::ewww::html    2.0.0
 package require odfi::language      1.0.0
 package require odfi::richstream    3.0.0
+package require odfi::files         2.0.0
+package require http
 
 namespace eval odfi::ewww::html {
 
     ###########################
     ## Language 
     ###########################
-    odfi::language::Language2 define HTML {
+    odfi::language::Language define HTML {
 
 
         ## Common Types
@@ -42,6 +44,23 @@ namespace eval odfi::ewww::html {
             }
 
             ## Append to an attribute's value
+            +method @* args {
+
+                foreach spec $args {
+                    set pair [split $spec =]
+                    foreach val [lindex $pair 1] {
+                        :@ [lindex $pair 0] $val
+                    }
+                }
+               
+
+                #puts "Adding value to $attr -> [concat $value $args] -> [$attr value get]"
+                
+                
+            }
+
+            ## Set multiple attributes at once 
+            ##  @* name=value name value name {value value} name value
             +method @+ {attr value args} {
 
                 set attr [:getOrCreateAttribute $attr]
@@ -49,6 +68,14 @@ namespace eval odfi::ewww::html {
 
                 #puts "Adding value to $attr -> [concat $value $args] -> [$attr value get]"
                 
+                
+            }
+
+            ## Append a CSS class 
+            +method class args {
+                foreach cl $args {
+                    :@+ class $cl
+                }
                 
             }
 
@@ -82,6 +109,39 @@ namespace eval odfi::ewww::html {
                     
                 }
                 return $res
+
+            }
+
+            +method getAttribute name {
+
+                set found false 
+                [:noShade children] foreach {
+                    if {[$it isClass odfi::ewww::html::Attribute] && [$it name get]==$name} {
+                        set found $it
+                        #return $it
+                    }
+                }
+                if {$found!=false} {
+                    return [$found value get]
+                } else {
+                   return ""
+                }
+            }
+            +method hasAttribute name {
+                set found false 
+                [:noShade children] foreach {
+                    if {[$it isClass odfi::ewww::html::Attribute] && [$it name get]==$name} {
+                        set found $it
+                        break
+                        #return $it
+                    }
+                }
+                if {$found!=false} {
+                    return true 
+                } else {
+                    return false
+                }
+                #return false
 
             }
 
@@ -122,7 +182,7 @@ namespace eval odfi::ewww::html {
                     #}
 
                     +method reduceProduce args {
-                        return "<link rel='stylesheet' href='${:location}'/>"  
+                        return "<link rel='stylesheet' href='${:location}'/>\n"  
                     }
                 }
 
@@ -149,17 +209,24 @@ namespace eval odfi::ewww::html {
 
             :body : HTMLNode {
 
+                ## Normal Blocks 
+                ##################
+
                 :div : HTMLNode {
                     +exportTo ::odfi::ewww::html::HTMLNode
+                    +exportToPublic
                 }
                 :span : HTMLNode {
                     +exportTo HTMLNode
+                }
+                :i : HTMLNode {
+                    +exportToParent
                 }
 
                 ## H titles 
                 ###############
                 ::repeat 6 {
-                    :h$i : HTMLNode title {
+                    :h[expr $i +1] : HTMLNode title {
                         +exportTo HTMLNode
                         +builder {
                             :textContent ${:title} {
@@ -256,15 +323,16 @@ namespace eval odfi::ewww::html {
                         }
                         :onChildAdded {
 
-                            
+                            set child [:noShade child end]
                             #puts "Added child $child"
+                             
                             #return
-                            if {[$node isClass odfi::ewww::html::Tr]} {
+                            if {[$child isClass odfi::ewww::html::Tr]} {
                                 
-                                set child [:noShade child end]
+                                #set child [:noShade child end]
 
                                 #set tbody [:shade odfi::ewww::html::Tbody child 0]
-                                set tbody [:child 1]
+                                set tbody [:noShade child 1]
 
                                 #puts "IN TABLE ADD CHILD tbody [$tbody info class]"
                                 #set child [:noShade child end]
@@ -309,6 +377,11 @@ namespace eval odfi::ewww::html {
                                #     $tr addChild ${:columnHtml}
                                # }
                             #} 
+                        }
+
+                        +method reduceProduce args {
+                            next
+                            return " "
                         }
                     }
 
@@ -364,7 +437,7 @@ namespace eval odfi::ewww::html {
             set res [odfi::richstream::template::stringToString {
                 <<% return ${:+originalName} %> <% return $attrs %>>
 
-                    <% return [reduceJoin $args] %>
+                    <% return [string map {\{ "" \} ""} [reduceJoin0 $args \n]] %>
                 </<% return ${:+originalName} %>>
             }]
 
@@ -373,15 +446,112 @@ namespace eval odfi::ewww::html {
             return $res
         }
 
+        ## Create String and Return, and write to file if args is a file 
+        :public method toString args {
+
+            #puts "Inside HTML TOString $args"
+            ## Create String and 
+            set str [:reduce]
+
+            ## File write?
+            if {[llength $args]>0} {
+                set f [lindex $args 0]
+                odfi::files::writeToFile $f $str
+            }
+
+        }
+
     }
 
 }
 
 
-
 namespace eval odfi::ewww::html::bootstrap {
 
-    odfi::language::Language2 define BOOTSTRAP {
+    ## From TCL Documentation
+    proc httpcopy { url file {chunk 4096} } {
+        set out [open $file w]
+        set token [::http::geturl $url -channel $out \
+               -blocksize $chunk]
+        close $out
+
+        # -progress httpCopyProgress 
+
+        # This ends the line started by httpCopyProgress
+        #puts stderr ""
+
+        return $token
+        upvar #0 $token state
+        set max 0
+        foreach {name value} $state(meta) {
+            if {[string length $name] > $max} {
+                set max [string length $name]
+            }
+            if {[regexp -nocase ^location$ $name]} {
+                # Handle URL redirects
+                puts stderr "Location:$value"
+                return [httpcopy [string trim $value] $file $chunk]
+            }
+        }
+        incr max
+        foreach {name value} $state(meta) {
+            puts [format "%-*s %s" $max $name: $value]
+        }
+
+        return $token
+    }
+    proc httpCopyProgress {args} {
+        puts -nonewline stdout .
+        flush stdout
+    }
+
+    odfi::language::Language define BOOTSTRAP {
+
+        ## Download Utility
+        ################
+        +type BootstrapGetter {
+            #+exportTo ::odfi::ewww::html::Head
+
+            +method use args {
+                puts "In USE bootstrapr"
+                :javascript http://code.jquery.com/jquery-2.1.4.min.js {
+
+                }
+
+                :javascript https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js {
+
+                }
+                :stylesheet https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css {
+
+                }
+                :stylesheet https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css {
+
+                }
+            }
+
+            +method localUse folder {
+
+                ## Download 
+                odfi::ewww::html::bootstrap::httpcopy http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js $folder/bootstrap.min.js
+                odfi::ewww::html::bootstrap::httpcopy http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css $folder/bootstrap.min.css
+                odfi::ewww::html::bootstrap::httpcopy http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css $folder/bootstrap-theme.min.css
+                odfi::ewww::html::bootstrap::httpcopy http://code.jquery.com/jquery-2.1.4.min.js $folder/jquery-2.1.4.min.js
+
+                ## 
+                :javascript jquery-2.1.4.min.js {
+                    
+                }
+                :javascript bootstrap.min.js {
+
+                }
+                :stylesheet bootstrap.min.css {
+
+                }
+                :stylesheet bootstrap-theme.min.css {
+
+                }
+            }
+        }
 
         ## Structuring/Styling 
         #####################
@@ -505,4 +675,5 @@ namespace eval odfi::ewww::html::bootstrap {
     BOOTSTRAP produceNX
 
 
+    ::odfi::ewww::html::Head domain-mixins add [namespace current]::BootstrapGetter -prefix bootstrap
 }

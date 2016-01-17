@@ -3,6 +3,7 @@
 ## The events are simply named
 package provide odfi::epoints 1.0.0
 package require odfi::closures 3.0.0
+package require odfi::richstream 3.0.0
 package require nx 2.0.0
 
 namespace eval odfi::epoints {
@@ -45,7 +46,7 @@ namespace eval odfi::epoints {
                 :public object method on$nameWithFirstUpper cl {
 
                     ## Prepare Closure 
-                    set clObject [odfi::closures::newITCLLambda $cl]
+                    set clObject [odfi::closures::newITCLLambda [odfi::richstream::template::stringToString $cl]]
 
                     ## Get Caller 
                     set caller -1

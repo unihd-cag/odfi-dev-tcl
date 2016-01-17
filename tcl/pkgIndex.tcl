@@ -18,7 +18,7 @@ package ifneeded odfi::flist  1.0.0 [list source [file join $dir flist-1.0.tm]]
 package ifneeded odfi::flextree 1.0.0 [list source [file join $dir flextree-1.0.tm]]
 
 package ifneeded odfi::attributes 1.0.0 [list source [file join $dir attributes-1.0.tm]]
-
+package ifneeded odfi::attributes 2.0.0 [list source [file join $dir attributes-2.0.tm]]
 
 package ifneeded odfi::tests   1.0.0 [list source [file join $dir tests-1.0.0.tm]]
 

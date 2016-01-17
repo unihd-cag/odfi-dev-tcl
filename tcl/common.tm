@@ -274,6 +274,17 @@ namespace eval odfi::common {
 		return [file dirname [file normalize [info script] ]]
 	}
 
+    ## @return true if top script (frame 1)
+    proc isTopScript args {
+        set lvl [uplevel [list info level]]
+        puts "lvl: $lvl"
+        if {$lvl==0} {
+            return true
+        } else {
+            return false
+        }
+    }
+
     ### Handle request for a single argument
     proc handleCommandLineOption askedArgument {
 

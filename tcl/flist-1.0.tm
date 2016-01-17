@@ -451,18 +451,52 @@ namespace eval odfi::flist {
             return $resList
         }
 
+
+        ## Sorting 
+        ####################
+
+
         ## @return an Flist with content filtered for duplicates using lsort -unique
         :public method compact args {
 
             set resList [[namespace current]::MutableList new ]
 
-            foreach res [lsort -unique [:content]] {
+            foreach res [lsort -unique ${:content}] {
                 $resList += $res
             }
 
             return $resList
 
         }
+
+        ## map elements and sort based on map result 
+        :public method mapSort closure {
+
+            ## Map to { {elt mappedValue} }
+            set eltAndMapped {}
+            set mapped [[:map $closure] asTCLList]
+            set __i 0
+            foreach mappedElt $mapped {
+                lappend eltAndMapped [list [lindex ${:content} ${__i}] $mappedElt]
+                incr __i
+            }
+
+            ## Sort 
+            #puts "unsorted: $eltAndMapped"
+            set eltAndMapped [lsort -index 1 -nocase $eltAndMapped]
+            #puts "sorted: $eltAndMapped"
+
+            ## Set Result 
+            set resList [[namespace current]::MutableList new ]
+           
+            foreach res $eltAndMapped {
+                $resList += [lindex $res 0]
+            }
+
+            return $resList
+
+        }
+
 
         :public method asTCLList args {
             return ${:content}
@@ -549,6 +583,40 @@ namespace eval odfi::flist {
                 }
                     
             
+            }
+            return $resList
+
+            
+
+        }
+
+        ## Just like #filter , but removes the matching elements from list
+        :public method filterRemove {closure {-level 1}} {
+
+            ## Prepare result list 
+            set resList [[namespace current]::MutableList new ]
+
+            ## Filter on All 
+            ## Map
+            odfi::closures::withITCLLambda $closure $level {
+
+
+                ::foreach it ${:content} {
+
+                    set res [$lambda apply [list it "$it"]]
+                    if {$res==true || $res==1} {
+                        $resList += $it
+
+                    }
+            
+                }
+                    
+            
+            }
+
+            ## Remove 
+            $resList foreach {
+                :remove $it
             }
             return $resList
 

@@ -46,6 +46,11 @@ namespace eval odfi::richstream {
             #::puts [getChannel] [string trimright [[namespace parent]::embeddedTclFromStringToString "$template" -execLevel 2]]
         }
 
+        public method <<< template {
+            ::puts -nonewline [getChannel] $template
+            ::flush [getChannel]
+        }
+
         ## Print
         #################
         public method puts str {
