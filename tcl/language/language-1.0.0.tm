@@ -28,6 +28,28 @@ namespace eval odfi::language {
             next
         }
 
+        ## Util Type Resolution
+        ## converts to a valid type in targetNamespace if necessary or returns an error 
+        :public method resolveType base {
+
+            ## If a Type 
+            if {[::nsf::is class $base]} {
+                return $base 
+            } elseif {![string match "::*" $base]} {
+                ## Try targetNamespace ::$targetNamespace
+                ## Otherwise Error 
+                set testType ${:+targetNamespace}::$base 
+                if {[::nsf::is class $testType]} {
+                    return $testType
+                } else {
+                    ##error "Type $base cannot be found as existing type or in target namespace ${:+targetNamespace}"
+                    return $base
+                }
+            }
+            return $base
+        }
+ 
+
         ## Builder
         :public object method define {name closure} {
 
@@ -490,9 +512,10 @@ namespace eval odfi::language {
         ######################
         :public method +mixin args {
 
+
             set argsCount [llength $args ]
             if {$argsCount >= 1 && $argsCount < 3} {
-                lappend :+mixins [lindex $args 0]
+                lappend :+mixins [[:getRoot] resolveType [lindex $args 0]]
 
             } elseif {$argsCount>=3} {
                 lappend :+mixins [list [lindex $args 0] [lindex $args 2] ]
@@ -630,7 +653,7 @@ namespace eval odfi::language {
         :public method produceNX args {
 
             #puts "Producing NX Class"
-            :walkBreadthFirst {
+            :walkDepthFirstPreorder {
 
                 #puts "Start node [$node info class]"
 
@@ -730,13 +753,13 @@ namespace eval odfi::language {
                     #### Mixins
                     foreach mixin [$node cget -+mixins] {
                         if {[llength $mixin]==1} {
-
+                            #puts "Adding mixin $mixin"
                             ## Adapt Mixin Class 
                             ## Don't touch if absolute, add target namesapce if not
                             if {[string match ::* $mixin]} {
                                 $className mixins add $mixin
                             } else {
-                                $className mixins add [join [lrange [split $className ::] 0 end-1] ::]::$mixin
+                                $className mixins add [join [lrange [split $className ::] 0 end-1] :]:$mixin
                             }
                             
                         } else {

@@ -2,7 +2,7 @@ package provide odfi::ewww::html    2.0.0
 package require odfi::language      1.0.0
 package require odfi::richstream    3.0.0
 package require odfi::files         2.0.0
-package require http
+package require http 2.8.8
 
 namespace eval odfi::ewww::html {
 

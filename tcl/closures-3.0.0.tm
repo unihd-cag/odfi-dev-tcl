@@ -1135,6 +1135,14 @@ namespace eval odfi::closures {
         incr ::odfi::closures::currentLambda -1
     }
 
+    proc runITCLLambda {level script} {
+            ::set l [odfi::closures::buildITCLLambda $script]
+            try {
+                uplevel [list $l apply]
+            } finally {
+                odfi::closures::redeemITCLLambda $l
+            }
+    }
     proc withITCLLambda {definition level script} {
 
         ## If Definition is a closure already, don't do anything

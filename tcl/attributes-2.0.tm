@@ -40,6 +40,19 @@ namespace eval odfi::attributes {
                     ## Get value 
                     return [$attr value get]
                 }
+
+                +method hasAttribute {name } {
+                    ## Find Attribute 
+                    set attr [:shade odfi::attributes::Attribute findChildByProperty name $name]
+
+                    #puts "Searching attribute $name found $attr"
+                    
+                    if {$attr==""} {
+                        return false
+                    }
+                    ## Get value 
+                    return true
+                }
             }
 
             +method attribute {groupN name {value ""}} {
@@ -76,6 +89,17 @@ namespace eval odfi::attributes {
                 return [$group getAttribute $name $default] 
                 
                 
+            }
+
+            +method hasAttribute {groupN name} {
+                ## Find Group 
+                set group [:shade odfi::attributes::AttributeGroup findChildByProperty name $groupN]
+                if {$group==""} {
+                    #set group [:attributeGroup $group ]
+                    return false 
+                }
+
+                return [$group hasAttribute $name] 
             }
 
            

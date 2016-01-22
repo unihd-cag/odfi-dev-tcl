@@ -101,7 +101,7 @@ namespace eval odfi::files {
         set saved [pwd]
         cd $path
 
-        set catched [catch [list odfi::closures::doClosure $closure 1] res resOptions]
+        set catched [catch [list odfi::closures::runITCLLambda 1 $closure] res resOptions]
         cd $saved
 
         ## handle error
