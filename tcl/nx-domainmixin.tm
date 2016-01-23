@@ -1,7 +1,5 @@
 package provide odfi::nx::domainmixin 1.0.0
 package require nx 2.0.0
-package require nx::trait
-package require nsf
 package require odfi::common
 
 namespace eval odfi::nx {
