@@ -95,6 +95,16 @@ namespace eval odfi::log {
 
 
     }
+    
+    proc warn {message args} {
+    
+            
+        ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[WARN\] $message"
+        ::flush $odfi::log::pipeOut
+
+
+
+    }
 
 
  

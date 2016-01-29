@@ -366,6 +366,12 @@ namespace eval odfi::flextree {
                 return $res
             }
         }
+        
+        ## @shade
+        :public method indexOfChild child {
+            return [[:children] indexOf $child]
+            
+        }
 
 
         ## @shade
@@ -408,6 +414,33 @@ namespace eval odfi::flextree {
                 return false
             } else {
                 return true
+            }
+        }
+        
+        ## @shade
+        :public method isFirstChild args {
+            if {[:isRoot]} {
+                return true
+            } else {
+                set p [:noShade parent]
+                if {$p!="" && [$p firstChild]==[current object]} {
+                    return true
+                } else {
+                    return false
+                }
+                
+            }
+        }
+        
+        #### Siblings
+        
+        ## @shade
+        :public method getPreviousSibling args {
+            if {[:isFirstChild]} {
+                return ""
+            } else {
+               set p [:noShade parent]
+               return [$p child [expr [$p indexOf [current object]-1]]]   
             }
         }
         
@@ -454,12 +487,14 @@ namespace eval odfi::flextree {
 
             next
             
+            return $nodes
+            
         }
         
         ## Add the node as child of this, and adds itself to the possible parents
         :public method add node {
 
-            :addChild $node 
+            return [:addChild $node ]
             
         }
         
@@ -525,6 +560,15 @@ namespace eval odfi::flextree {
             #}
          
         }
+        
+        ## Find a child by testing a closure
+        ## @shade
+        :public method findFirstChild closure {
+
+          return [[:children] find $closure]
+                
+                
+        }        
 
         ## Find children by testing a property
         ## @shade
