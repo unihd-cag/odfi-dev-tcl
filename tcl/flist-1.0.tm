@@ -14,7 +14,14 @@ namespace eval odfi::functional::pattern {
 
         ## Matches 
         ##############
-        
+        :public method isNone args {
+            return ${:none}
+        }
+
+        :public method getContent args {
+            return ${:content}
+        }
+
         :public method match closure {
 
             if {!${:none}} {
