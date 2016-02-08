@@ -4,6 +4,27 @@ package require odfi::common
 
 namespace eval odfi::nx {
 
+
+
+    ## Utilities
+    ###################
+
+    proc getAllNXObjectsOfType type {
+
+        set res {}
+        foreach object [info commands ::nsf::*] {
+            if {[odfi::common::isClass $object $type]} {
+                lappend res $object
+            }
+        }
+        #puts "Commands: [info commands ::nsf::*]"
+        #set nxObjects [info commands "#_*"]
+        return $res
+    }
+
+    ## Class/Object  Improvements for Domain mixins 
+    ########################
+
     nx::Class create Object -superclasses nx::Object {
         
     }

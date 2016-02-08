@@ -135,6 +135,15 @@ namespace eval odfi::flist {
         :public method remove item {
             :-= $item
         }
+
+        ## Drops #count elements from the left of the list
+        :public method drop count {
+            ::repeat $count {
+                :-= [:at 0]
+            }
+        
+        }
+
         :public method -= item {
                 
             ##get index

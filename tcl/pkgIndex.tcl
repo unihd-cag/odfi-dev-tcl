@@ -21,6 +21,7 @@ package ifneeded odfi::attributes 1.0.0 [list source [file join $dir attributes-
 package ifneeded odfi::attributes 2.0.0 [list source [file join $dir attributes-2.0.tm]]
 
 package ifneeded odfi::tests   1.0.0 [list source [file join $dir tests-1.0.0.tm]]
+package ifneeded odfi::utests   1.0.0 [list source [file join $dir utests-1.x/utests-1.x.tm]]
 
 package ifneeded odfi::closures   2.0.0 [list source [file join $dir closures-2.0.0.tm]]
 package ifneeded odfi::closures   2.1.0 [list source [file join $dir closures-2.1.0.tm]]

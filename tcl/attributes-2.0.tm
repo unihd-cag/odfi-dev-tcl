@@ -14,6 +14,16 @@ namespace eval odfi::attributes {
                 :attribute name {
                     +var value ""
                 }
+                +method copy args {
+                    set newGroup [next]
+
+                    ## Copy Attributes 
+                    :shade odfi::attributes::Attribute eachChild {
+                        $newGroup addChild [$it copy]
+                    }
+
+                    return $newGroup
+                }
                 +method setAttribute {name value} {
 
                     ## Find Attribute 
