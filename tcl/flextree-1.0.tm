@@ -439,8 +439,12 @@ namespace eval odfi::flextree {
             if {[:isFirstChild]} {
                 return ""
             } else {
-               set p [:noShade parent]
-               return [$p child [expr [$p indexOf [current object]-1]]]   
+
+                ## Take Children and get previous index 
+                ::set __c [[:noShade parent] children]
+                #puts "Getting sibling with children count: [${__c} size] , current at: [${__c}  indexOf [current object]]"
+                return [${__c} at [expr [${__c}  indexOf [current object]]-1]]
+              
             }
         }
         
