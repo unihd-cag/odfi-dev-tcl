@@ -882,8 +882,8 @@ namespace eval odfi::closures {
         uplevel     $execLevel "set eRes {}"
 
         ## (imports are forced, because if doClosure is in a loop, push and + may be imported multiple times, causin and error)
-        uplevel     $execLevel "namespace import -force [namespace current]::push"
-        uplevel     $execLevel "namespace import -force [namespace current]::+"
+        catch {uplevel     $execLevel "namespace import -force [namespace current]::push"}
+         catch {uplevel     $execLevel "namespace import -force [namespace current]::+"}
 
 
         ## Try to detect possible errors in closure
