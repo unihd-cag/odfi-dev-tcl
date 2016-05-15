@@ -51,6 +51,8 @@ package ifneeded odfi::language 1.0.0 [list source [file join $dir language/lang
 
 package ifneeded odfi::epoints 1.0.0  [list source [file join $dir epoints-1.x.tm]]
 
+package ifneeded odfi::os 1.0.0  [list source [file join $dir os-1.0.0.tm]]
+
 ## Ewww stuf ####################
 set packages {
     odfi::ewww::html 2.0.0 ewww-2.x/html-2.x.tm
