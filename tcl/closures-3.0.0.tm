@@ -16,10 +16,13 @@
 
 package provide odfi::closures 3.0.0
 package require odfi::common
-
+package require odfi::nx::domainmixin 1.0.0
+package require Itcl
 
 ## \brief Closures utilities namespace
 namespace eval odfi::closures {
+
+    odfi::common::resetNamespaceClassesObjects ::odfi::closures
 
     ## Creates a normal proc, whose body is run through closures
     proc ::cproc {name args body} {
@@ -846,8 +849,7 @@ namespace eval odfi::closures {
     ############################
     ## Lambda 2 
     #############################
-    package require nx 2.0.0
-    package require Itcl
+
 
     itcl::class LambdaITCL {
 

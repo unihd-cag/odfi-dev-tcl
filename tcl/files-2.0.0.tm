@@ -20,7 +20,8 @@ package require odfi::list 3.0.0
 
 namespace eval odfi::files {
 
-
+    odfi::common::resetNamespaceClassesObjects ::odfi::files
+    
     #############################################################################
     ## File Utilities
     #############################################################################

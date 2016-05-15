@@ -19,7 +19,8 @@ package require odfi::closures 3.0.0
 package require odfi::files 2.0.0
 
 namespace eval odfi::richstream {
-
+    odfi::common::resetNamespaceClassesObjects ::odfi::richstream
+    
     ## Main Rich Stream class 
     ###################
     itcl::class RichStream {

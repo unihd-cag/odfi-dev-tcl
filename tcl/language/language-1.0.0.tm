@@ -1,9 +1,8 @@
 package provide odfi::language 1.0.0
 package require odfi::closures  3.0.0
 package require odfi::flist     1.0.0
-package require odfi::flextree
-package require nx
-package require odfi::nx::domainmixin
+package require odfi::flextree  1.0.0
+package require odfi::nx::domainmixin 1.0.0
 
 namespace eval odfi::language {
 
