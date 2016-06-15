@@ -594,6 +594,27 @@ namespace eval odfi::flextree {
         
          
         }
+        :public method findFirstChildByProperty {name value {-match false}} {
+        
+            ## Prepare Filder Closure
+            if {$match} {
+                set filterClosure "string match $value \[\$it $name get\]"
+            } else {
+                set filterClosure [list expr {[$it $name get] == $value}]
+            }
+
+            ## Take children and filter 
+            set children [:children]
+            set result   [$children filter $filterClosure]
+            if {[$result size]==0} {
+                return ""
+            } else {
+                return [$result at 0]
+            }
+           
+        
+         
+        }
 
 
         #  Self positioning

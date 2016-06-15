@@ -21,6 +21,10 @@ namespace eval odfi::ewww::html {
                 :attribute id $id
             }
 
+            ###########################
+            ## Attributes 
+            ###########################
+
             :attribute name value {
 
                 +method reduceProduce args {
@@ -145,10 +149,13 @@ namespace eval odfi::ewww::html {
 
             }
 
-
-
-
-            :textContent : HTMLNode text {
+            ###########################
+            
+            ###########################
+            ## Text
+            ###########################
+            
+            :text : HTMLNode text {
                 +method reduceProduce args {
                     return ${:text}  
                 }
@@ -200,8 +207,15 @@ namespace eval odfi::ewww::html {
                     +exportTo Stylesheet
                 }
 
-                :script : HTMLNode {
+                :script : HTMLNode path {
                     +exportTo Javascript
+                    +builder {
+                        :@ src $path
+                    }
+                }
+                
+                :title : HTMLNode {
+                    
                 }
                 
 
@@ -229,7 +243,7 @@ namespace eval odfi::ewww::html {
                     :h[expr $i +1] : HTMLNode title {
                         +exportTo HTMLNode
                         +builder {
-                            :textContent ${:title} {
+                            :text ${:title} {
 
                             }
                         }
@@ -449,13 +463,19 @@ namespace eval odfi::ewww::html {
         ## Create String and Return, and write to file if args is a file 
         :public method toString args {
 
-            #puts "Inside HTML TOString $args"
+            
+
+            puts "Inside HTML TOString $args"
             ## Create String and 
             set str [:reduce]
 
             ## File write?
             if {[llength $args]>0} {
+               
                 set f [lindex $args 0]
+                
+                puts "Output to file"
+                
                 odfi::files::writeToFile $f $str
             }
 

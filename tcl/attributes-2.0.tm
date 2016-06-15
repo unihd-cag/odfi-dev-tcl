@@ -56,12 +56,13 @@ namespace eval odfi::attributes {
                     set attr [:shade odfi::attributes::Attribute findChildByProperty name $name]
 
                     #puts "Searching attribute $name found $attr"
-                    
+                    #
                     if {$attr==""} {
                         return false
+                    } else {
+                        return true
                     }
-                    ## Get value 
-                    return true
+                   
                 }
             }
 
@@ -76,6 +77,7 @@ namespace eval odfi::attributes {
                 ## Set  Attribute Value 
                 if {$value!=""} {
                     $group setAttribute $name $value
+                    #puts "Set $groupN $name -> $value"
                     return $value 
                 } else {
                     return [$group getAttribute $name]
@@ -111,6 +113,28 @@ namespace eval odfi::attributes {
 
                 return [$group hasAttribute $name] 
             }
+            
+            +method attributeMatch {groupN name pattern} {
+            
+                    ## Find Group 
+                    set group [:shade odfi::attributes::AttributeGroup findChildByProperty name $groupN]
+                    if {$group==""} {
+                        #set group [:attributeGroup $group ]
+                        return false 
+                    }
+                    
+                    ## Get Attribute
+                    if {[$group hasAttribute $name]} {
+                        #puts " Checking $pattern against [$group getAttribute $name]"
+                        return [string match $pattern [$group getAttribute $name]]
+                      
+                    } else {
+                        #puts "Group has no attr $name"
+                           
+                        return false
+                    }
+                    
+                }
 
            
         }

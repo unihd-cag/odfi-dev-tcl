@@ -862,6 +862,7 @@ namespace eval odfi::language {
 
                         }
 
+                        ## The Builder is mixed in to targets to provide element creation and retrieval
                         ::nx::Class create ${className}Builder {
 
                             upvar realArgs realArgs
@@ -938,6 +939,9 @@ namespace eval odfi::language {
                             }"
                             eval $builderMethod
                             #puts "Created builder method: $builderMethod"
+                            
+                          
+                            
                         }
 
                         #puts "For ${className}Builder to [$node cget -+exportToParent]"
