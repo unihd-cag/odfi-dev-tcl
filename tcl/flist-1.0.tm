@@ -17,6 +17,9 @@ namespace eval odfi::functional::pattern {
         :public method isNone args {
             return ${:none}
         }
+        :public method isDefined args {
+            return [expr ! ${:none}]
+        }
 
         :public method getContent args {
             return ${:content}
@@ -711,21 +714,7 @@ namespace eval odfi::flist {
             #puts "$timeCall -> Returning $returnRes"
             return  $returnRes
 
-            ::foreach it ${:content} {
-
-               ## Run
-               set res [uplevel $level [list odfi::closures::applyLambda $searchClosure [list it "$it"]]]
-               #puts "Result -> $res"
-               
-               ## Return Matched
-                if {$res} {
-                    return [odfi::functional::pattern::Option some $it]
-                }
-
-            }
-
-            ## Return empty
-            return [odfi::functional::pattern::Option::none]
+            
 
 
         }

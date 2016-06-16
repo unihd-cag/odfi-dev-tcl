@@ -342,6 +342,28 @@ namespace eval odfi::flextree {
 
         }
 
+        ## Returns true if the node is the "left"; i.e first child of at least on parent
+        ## @shade
+        :public method isLeftOfOneParent args {
+            
+            # get parents
+            set p [:parents]
+        
+            # search
+            set found false
+            set current [current object]
+            set res [$p findOption {
+                if {[$it firstChild]!="" && [$it firstChild]==$current } {
+                    return true
+                } else {
+                    return false
+                }
+            }]
+            return [$res isDefined]
+            
+            return $found
+        
+        }
 
         
         ## Children Interface 
