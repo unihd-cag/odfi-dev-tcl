@@ -401,6 +401,12 @@ namespace eval odfi::flextree {
             [:children] foreach $closure
             #${:children} foreach $closure -level 1
         }
+        
+        ## @shade
+        :public method eachChildReverse closure {
+            [[:children] reverse] foreach $closure
+            #${:children} foreach $closure -level 1
+        }
 
         ## @shade
         :public method eachChildFrom {start closure} {
