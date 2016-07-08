@@ -477,7 +477,9 @@ namespace eval odfi::language {
 
             ## Apply
             if {[llength $args]>0} {
-                if {$args=="{}"|| $args=="" || [regexp {^[A-Za-z0-9_.-]+$} $args]} {
+                
+                ## old regexp: {^[A-Za-z0-9_.-/\]+$}
+                if {$args=="{}"|| $args=="" || [regexp {^[^\s]+$} $args]} {
                     #puts "Default for $name -> $args"
                     $newVar +default $args
                 } else {

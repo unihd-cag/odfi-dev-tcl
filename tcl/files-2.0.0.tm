@@ -48,6 +48,17 @@ namespace eval odfi::files {
 
     }
 
+
+    ## Copying 
+    proc mcopy { from baseFolder files filesList to outputBaseFolder} {
+    
+        foreach f $filesList {
+            catch {file delete -force $outputBaseFolder/$f}
+            file copy -force $baseFolder/$f $outputBaseFolder/$f
+        }
+    
+    }
+
     ## Improved Glob, that can run recursively and executes provided closure on each file
     proc glob {args closure} {
 

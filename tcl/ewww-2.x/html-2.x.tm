@@ -82,7 +82,19 @@ namespace eval odfi::ewww::html {
                 }
                 
             }
+            +method classes args {
+                foreach cl $args {
+                    :@+ class $cl
+                }
+                
+            }
 
+
+       
+            #################
+            ## Attributes
+            ##################
+            
             +method getOrCreateAttribute name {
 
                # puts "looking to update $name"
@@ -152,12 +164,18 @@ namespace eval odfi::ewww::html {
             ###########################
             
             ###########################
+            ## Data
+            ###########################
+            +method data {name value} {
+                :@ data-$name $value
+            }
+            ###########################
             ## Text
             ###########################
             
-            :text : HTMLNode text {
+            :text : HTMLNode content {
                 +method reduceProduce args {
-                    return ${:text}  
+                    return ${:content}  
                 }
             }
         }
@@ -165,8 +183,8 @@ namespace eval odfi::ewww::html {
         +type HTMLTransparentNode {
             +superclasses set odfi::ewww::html::HTMLNode
 
-            +method reduceProduce args {
-                return [reduceJoin $args]
+            +method reduceProduce results {
+                return $results
 
             }
         }
@@ -174,9 +192,17 @@ namespace eval odfi::ewww::html {
         ## Main Structure
         #######################
         :html : HTMLNode {
-            
             +exportToPublic
 
+           
+            +method reduceProduce results {
+                return "<!doctype html>
+<html>
+[$results @> map { return [lindex $it 1] } @> mkString]
+</html>"  
+            }
+
+            ## Head
             :head : HTMLNode {
 
                 
@@ -187,7 +213,9 @@ namespace eval odfi::ewww::html {
                     #        :@ rel "css"
                     #    }
                     #}
-
+                    +method setLocation l {
+                        set :location $l
+                    }
                     +method reduceProduce args {
                         return "<link rel='stylesheet' href='${:location}'/>\n"  
                     }
@@ -196,8 +224,8 @@ namespace eval odfi::ewww::html {
                 :javascript : HTMLTransparentNode location {
 
                     +builder {
-                        :script {
-                            :@ src ${:location}
+                        :script ${:location} {
+                           
                         }
                     }
 
@@ -210,7 +238,10 @@ namespace eval odfi::ewww::html {
                 :script : HTMLNode path {
                     +exportTo Javascript
                     +builder {
-                        :@ src $path
+                        if {${:path}!=""} {
+                            :@ src $path
+                        }
+                       
                     }
                 }
                 
@@ -236,6 +267,16 @@ namespace eval odfi::ewww::html {
                 :i : HTMLNode {
                     +exportToParent
                 }
+                
+                :img : HTMLNode src  {
+                    +exportTo HTMLNode
+                    +builder {
+                        :@ src ${src}
+                    }
+                    
+                }
+                
+                
 
                 ## H titles 
                 ###############
@@ -271,12 +312,29 @@ namespace eval odfi::ewww::html {
                 :a : HTMLNode text destination {
                     +exportTo HTMLNode
                     +builder {
-                        :textContent ${:text} {
+                        :text ${:text} {
 
                         }
                         :@ href ${:destination}
                     }
                 } 
+                
+                
+                ## Button 
+                ############
+                :button : HTMLNode buttonText {
+                    +exportTo HTMLNode
+                    
+                    +builder {
+                        :text ${:buttonText} {
+                        
+                        }
+                    }
+                    
+                    +method onClick script {
+                        :@ onclick "$script"
+                    }
+                }
 
 
                 ## Table 
@@ -373,7 +431,7 @@ namespace eval odfi::ewww::html {
                             #puts "Column buildier, parent: [[:parent] info class] , [[[:parent] child 0] info class]  "
                             set headerRow [[[:parent] child 0] child 0]
                             set :cell [$headerRow th {
-                                    :textContent ${:name}
+                                    :text ${:name}
                             } ]
 
                             #${:columnHtml} detach
@@ -438,20 +496,25 @@ namespace eval odfi::ewww::html {
 
         HTMLNode mixins add HTMLStringProducer
 
-        :public method reduceProduce args {
+        :public method reduceProduce results {
 
+            #puts "REduce Procuce on generic"
             set nextRes [next]
             if {$nextRes!=""} {
+                #puts " Result done already: $nextRes"
                 return $nextRes
             }
             ## Prepare Attributes 
             ############################
             set attrs [[[:shade odfi::ewww::html:::Attribute children] map { return "[$it name get]=\"[$it value get]\""}] mkString [list " " " " " "]]
 
+            #<% return [string map {\{ "" \} ""} [reduceJoin0 $args \n]] %>
             set res [odfi::richstream::template::stringToString {
                 <<% return ${:+originalName} %> <% return $attrs %>>
 
-                    <% return [string map {\{ "" \} ""} [reduceJoin0 $args \n]] %>
+                    
+                    <% return [$results @> map { return [lindex $it 1]} @> mkString] %>
+                    
                 </<% return ${:+originalName} %>>
             }]
 
@@ -463,21 +526,44 @@ namespace eval odfi::ewww::html {
         ## Create String and Return, and write to file if args is a file 
         :public method toString args {
 
+
+            #puts "Inside HTML TOString $args"
             
-
-            puts "Inside HTML TOString $args"
             ## Create String and 
-            set str [:reduce]
-
+            #set str [:reduce]
+            
+            set res [:reducePlus {
+                
+                ## Reduce Produce present?
+                set res ""
+                if {[$node info lookup method reduceProduce]!=""} {
+                    
+                    #puts "REduce Procuce on [$node info class]"
+                    set res [$node reduceProduce $results]
+                }
+                return $res
+                
+                #puts "Methods: [$node info lookup method reduceProduce]"
+                #exit
+            
+                
+            }]
+            #puts "RP: [$res info class]"
+            #puts "Res: [$res at 0]"
+            
+            set str [lindex [$res at 0] 1]
+            
             ## File write?
             if {[llength $args]>0} {
                
                 set f [lindex $args 0]
                 
-                puts "Output to file"
+                #puts "Output to file"
                 
                 odfi::files::writeToFile $f $str
             }
+            
+            return $str
 
         }
 

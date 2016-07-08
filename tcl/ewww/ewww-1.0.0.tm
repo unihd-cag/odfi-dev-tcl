@@ -1,5 +1,7 @@
 package provide odfi::ewww 1.0.0
 package require odfi::common
+package require odfi::closures 3.0.0
+package require odfi::files 2.0.0
 
 ### CODE Based on JohnBuckman http://wiki.tcl.tk/15244
 ###############################################################
@@ -91,7 +93,7 @@ namespace eval odfi::ewww {
                 #chan configure $listeningSocket -encoding utf-8
 
             }
-            odfi::common::logInfo "Listening socket: $listeningSocket started on port $port ..."
+            odfi::log::info "Listening socket: $listeningSocket started on port $port ..."
 
         }
 
@@ -106,7 +108,7 @@ namespace eval odfi::ewww {
         ## \brief Accept connection for a client
         public method accept {sock ip port} {
 
-            puts "Accepted connection from $ip"
+            odfi::log::fine "Accepted connection from $ip"
 
             ## Configure
             #chan configure $sock -encoding utf-8
@@ -146,7 +148,7 @@ namespace eval odfi::ewww {
         public method authenticate {sock ip auth} {
             if {[lsearch -exact $authList $auth]==-1} {
                 respond $sock 401 Unauthorized "WWW-Authenticate: Basic realm=\"$realm\"\n"
-                puts "Unauthorized from $ip"
+                odfi::log::warn "Unauthorized from $ip"
                 return 0
             } else {return 1}
         }
@@ -168,16 +170,18 @@ namespace eval odfi::ewww {
             #############################
             set requestPath "/$request(path)"
 
-           ## ::puts "Got request for URI: $uri , and path: $requestPath"
+           
 
             ## Clean all // -> /
-            set requestPathSplitted [odfi::list::filter [split $requestPath /] {
-                    expr [expr [string length $it] > 0 ? true : false]
-            }]
-            set requestPath [join $requestPathSplitted /]
+            #set requestPath [string map {// /} $requestPath]
+            set requestPath  [regsub -all {//+} $requestPath "/"]
+            
+            #set requestPathSplitted [odfi::list::filter [split $requestPath /] {
+            #        expr [expr [string length $it] > 0 ? true : false]
+            #}]
+            #set requestPath [join $requestPathSplitted /]
 
-            ## Make sure path starts with /
-            set requestPath "/$requestPath"
+            odfi::log::fine "Got request for URI: $uri , and path: $requestPath"
 
             ## Modify URI array
             array set request [list path $requestPath]
@@ -189,13 +193,16 @@ namespace eval odfi::ewww {
             switch -glob "$requestPath" $handlers
 
             if {$handler!=""} {
-
-                puts "Found handler for $requestPath : $handler"
-                $handler serve $this $sock $ip [array get request] $auth
+                
+                set localRequestPath [string map [list [$handler cget -path] "/" // /] "$requestPath"]
+                
+                odfi::log::fine "Found handler for $requestPath ([$handler cget -path]) -> $localRequestPath : $handler"
+                
+                $handler serve $localRequestPath $this $sock $ip [array get request] $auth
 
             } else {
 
-                puts "No handler found for $requestPath"
+                odfi::log::warn "No handler found for $requestPath"
 	        }
 
             #set handler [switch -glob $request(path) $handlers]
@@ -249,10 +256,16 @@ namespace eval odfi::ewww {
 
         public method addHandler  handler {
 
+            ## Clean Handler path
             set handlerPath /[$handler getPath]
             set handlerPath [regsub -all {/+} $handlerPath /]
 
-            #odfi::common::logFine "Registered Handler at $handlerPath"
+            ## If Ends with /, make it global for all subp aths
+            if {[string match "*/" $handlerPath]} {
+                set handlerPath ${handlerPath}*
+            }
+
+            #odfi::common::logInfo "Registered Handler at $handlerPath"
 
     		lappend handlers $handlerPath
     		lappend handlers [list set handler $handler]
@@ -281,7 +294,7 @@ namespace eval odfi::ewww {
 
         constructor {cPath cClosure} {
 
-            set path    $cPath
+            set path    [regsub -all {//+} $cPath "/"]
             set closure $cClosure
         }
 
@@ -291,7 +304,7 @@ namespace eval odfi::ewww {
 	   }
 
         ##\brief Common Method not designed for overwritting
-        public method serve {httpd sock ip uri auth} {
+        public method serve {localPath httpd sock ip uri auth} {
             odfi::closures::doClosure $closure
         }
 
@@ -323,6 +336,88 @@ namespace eval odfi::ewww {
 
 
     }
+    
+    ##\brief Handles a request, Serves a simple file
+    ###################################
+    itcl::class FSHandler {
+            inherit AbstractHandler
+
+        public variable baseFolder
+
+        constructor {cPath cBaseFolder cClosure} {AbstractHandler::constructor $cPath $cClosure} {
+            set baseFolder $cBaseFolder
+
+        }
+
+
+        ##\brief Serves on doServe
+        public method serve {localPath httpd sock ip uri auth} {
+
+            ## Eval Closure, must evaluate to an HTML string
+            odfi::log::fine "Service URI: $uri -> $localPath"
+            
+            ## Directory, try to find indexes
+            set foundFile -1
+            set targetRelativeFile $localPath
+            if {[string match "*/" $localPath]} {
+            
+                ## Try extensions
+                set targetRelativeFile $localPath/index.html 
+                if {[file exists $baseFolder/$targetRelativeFile]} {
+                    set foundFile $baseFolder/$targetRelativeFile
+                }
+                
+            } else {
+            
+                ## Try to find file
+                if {[file exists $baseFolder/$targetRelativeFile]} {
+                    set foundFile $baseFolder/$targetRelativeFile
+                }
+            }
+            
+           
+            
+            if {$foundFile==-1} {
+            
+                $httpd respond $sock 404 "text/plain" "Not Found: $targetRelativeFile"
+            
+            } else {
+                
+                ## Get File Content
+                set content [odfi::files::readFileContent $foundFile]
+                
+                ## determine mime type
+                set mimeType "text/plain"
+                switch -glob [file tail $foundFile] {
+                    "*.html" {
+                        set mimeType "text/html"
+                    }
+                    "*.css" {
+                        set mimeType "text/css"
+                    }
+                    "*.js" {
+                        set mimeType "text/javascript"
+                    }
+                    "*.ico" {
+                        set mimeType "image/icon"
+                    }
+                    default {
+                        $httpd respond $sock 503 "text/plain" "Cannot Determine MIME Type of $foundFile"
+                        error "Cannot Determine MIME Type of $foundFile"
+                    }
+                }
+                
+                ## Return
+                $httpd respond $sock 200 $mimeType $content
+                
+            }
+           
+
+        }
+
+
+
+    }
 
     ##\brief Handles a request, and tries to map to some user provided closures
     ###################################
@@ -337,41 +432,43 @@ namespace eval odfi::ewww {
             ## Add Each subpath <-> closure entry to the closures list
            foreach {subpath functionClosure} $closuresMap {
 
-               lappend closures "*/$subpath"
+               lappend closures [regsub -all {//+} "*/$subpath" /]
                lappend closures [list set functionClosure $functionClosure]
 
            }
 
         }
 
-	##\brief Common Method not designed for overwritting
-        public method serve {httpd sock ip uri auth} {
-		## Find Maping between request path and functions
-	      	array set request [uri::split $uri]
-		set functionClosure ""
-              	switch -glob $request(path) $closures
+        ##\brief Common Method not designed for overwritting
+        public method serve {localPath httpd sock ip uri auth} {
+            
+            
+            puts "Looking for closure in APIHandler for function $localPath"
+            foreach {subpath closure} $closures {
+                puts "-- available: $subpath"
+            }
+                
+                
+        	## Find Maping between request path and functions
+          	array set request [uri::split $uri]
+        	set functionClosure ""
+          	switch -glob $localPath $closures
+        
+    	
+          	if {$functionClosure!=""} {
 
-		puts "Looking for closure in APIHandler for function $request(path)"
-		foreach {subpath closure} $closures {
-            		puts "-- available: $subpath"
-
-
-           	}
-
-              	if {$functionClosure!=""} {
-
-                  	## Evaluate Closure
-			puts "Found closure in APIHandler for function $request(path)"
-
-			set res [eval $functionClosure]
-
-			## Result must be type + content
-			set contentType [lindex $res 0]
-			set content [lindex $res 1]
-
-			$httpd respond $sock 200 $contentType $content
-
-              	}
+              	## Evaluate Closure
+        		puts "Found closure in APIHandler for function $request(path)"
+        
+        		set res [eval $functionClosure]
+        
+        		## Result must be type + content
+        		set contentType [lindex $res 0]
+        		set content [lindex $res 1]
+        
+        		$httpd respond $sock 200 $contentType $content
+        
+          	}
         }
 
     }

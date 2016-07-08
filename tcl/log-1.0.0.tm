@@ -14,10 +14,58 @@ namespace eval odfi::log {
     ## FORMAT: {PATH LEVEL PATH LEVEL}
     variable loggersLevels {}
 
+    variable availableLevels {
+        
+        ERROR
+        WARN
+        INFO
+        FINE
+        FINER
+        DEBUG
+    }
+
     proc setLogLevel {path level} {
 
+        ## verify level
+        if {[getLevelValue $level]==-1} {
+            error "Wrong Level in setLogLevel: $level, available: ${::odfi::log::availableLevels}"
+        }
+
         ##search 
-        set pathIndex [lsearch -exact $::odfi::log::loggersLevels $path]
+        set pathIndex [lsearch -exact ${::odfi::log::loggersLevels} $path]
+        if {$pathIndex==-1} {
+            lappend ::odfi::log::loggersLevels $path $level
+        } else {
+            set ::odfi::log::loggersLevels [lreplace ${::odfi::log::loggersLevels} [expr $pathIndex +1] [expr $pathIndex +1] $level]
+        }
+    }
+    
+    ## Return the value of the log level defined for the pat
+    ## If not defined, stick to info
+    proc getLogLevelValue path {
+    
+        
+        set pathIndex [lsearch -exact ${::odfi::log::loggersLevels} $path]
+        if {$pathIndex==-1} {
+            getLevelValue INFO
+        } else {
+            getLevelValue [lindex ${::odfi::log::loggersLevels} [expr $pathIndex +1]]
+        }
+    }
+    
+    proc getLevelValue level {
+        return [lsearch -exact ${::odfi::log::availableLevels} $level]
+    }
+    
+    ## If the level for path is smaller than the tested level, refuse
+    proc isLevelEnabled {path level} {
+        
+        if {[getLogLevelValue $path]<[getLevelValue $level]} {
+            return false
+        } else {
+            return true
+        }
+    
     }
 
     ## Methods 
@@ -59,22 +107,20 @@ namespace eval odfi::log {
     }
     proc info {message args} {
 
-
-        ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[INFO\] $message"
-        ::flush $odfi::log::pipeOut
+        if {[isLevelEnabled [getLogPath] INFO]} {
+            ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[INFO\] $message"
+            ::flush $odfi::log::pipeOut
+        }
 
 
     }
 
     proc fine {message args} {
 
-
-        ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[FINE\] $message"
-        ::flush $odfi::log::pipeOut
-       
-
-      
-
+        if {[isLevelEnabled [getLogPath] FINE]} {
+            ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[FINE\] $message"
+            ::flush $odfi::log::pipeOut
+        } 
 
     }
 
@@ -89,18 +135,22 @@ namespace eval odfi::log {
     proc warning {message args} {
 
         
+        if {[isLevelEnabled [getLogPath] WARN]} {
+        
         ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[WARN\] $message"
         ::flush $odfi::log::pipeOut
-
+        }
 
 
     }
     
     proc warn {message args} {
     
-            
-        ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[WARN\] $message"
-        ::flush $odfi::log::pipeOut
+        if {[isLevelEnabled [getLogPath] WARN]} {    
+            ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[WARN\] $message"
+            ::flush $odfi::log::pipeOut
+        
+         }
 
 
 

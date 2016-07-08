@@ -398,7 +398,7 @@ namespace eval odfi::flextree {
 
         ## @shade
         :public method eachChild closure {
-            [:children] foreach $closure
+            [:children] foreach $closure -level 2
             #${:children} foreach $closure -level 1
         }
         
@@ -443,6 +443,11 @@ namespace eval odfi::flextree {
             } else {
                 return true
             }
+        }
+        
+        ## @shade
+        :public method isEmpty args {
+            :isLeaf
         }
         
         ## @shade
@@ -1752,7 +1757,7 @@ namespace eval odfi::flextree {
             set nodeResults {}
             set lastNode [current object]
 
-            ::odfi::log::info "Reduce Start with shade ${:currentShading}"
+            ::odfi::log::fine "Reduce Start with shade ${:currentShading}"
             set shade ${:currentShading}
 
             ## Go on FIFO 
