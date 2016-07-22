@@ -469,6 +469,23 @@ namespace eval odfi::flist {
             ## Return 
             return $resList
         }
+        
+        :public method flatten args {
+        
+            set resList [[namespace current]::MutableList new ]
+            :foreach {
+                if {[$it isClass [namespace current]::MutableList]} {
+                    $it foreach {
+                        $resList += $it
+                    }
+                } else {
+                    $resList += $it
+                }
+            }
+            
+            return $resList
+        }
+        
 
 
         ## Sorting 

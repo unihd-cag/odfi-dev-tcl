@@ -1,10 +1,9 @@
-package provide odfi::ewww::webdata 1.0.0
-package require odfi::ewww 1.0.0
+package provide odfi::ewww::webdata 2.0.0
+package require odfi::ewww 2.0.0
 
 
 ## Other files to source for this module
 set otherFiles {
-    webdata-html-1.0.0.tm
     json.tm
 }
 
@@ -141,26 +140,31 @@ namespace eval odfi::ewww::webdata {
         ## \brief The folder where the application can be located
         ## Used for resources auto-find
         protected variable applicationFolder ""
+        
+        protected variable filesystemPath ""
 
         protected variable applicationPath
 
         ## \brief Build the Application
-        constructor {cPath cClosure} {odfi::ewww::AbstractHandler::constructor "$cPath/*" {}} {
+        constructor {cPath cBasePath cClosure} {odfi::ewww::AbstractHandler::constructor "$cPath/*" {}} {
 
             ## Init
             ###############
             set sourceFile [file normalize [info script]]
             set applicationPath $cPath
-
+            set filesystemPath $cBasePath
+            
+            ## Set FS Handler
+            ##############
+            set fsH [::new odfi::ewww::FSHandler $cPath
+            
             ## Set default handler
             #################
-            view / {
-
-                html {
-                    set content "You reached the application $application"
-                }
-
-            }
+            #view / {
+            #    html {
+            #        set content "You reached the application $application"
+            #   }
+            #}
 
 
             ## Closure

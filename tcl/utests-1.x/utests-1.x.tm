@@ -10,12 +10,36 @@ namespace eval odfi::utests {
         :suite name {
             +exportToPublic
             +exportTo Suite 
-
+            +var success true
+            
             ## Test 
             :test name script {
-
+            
+                ## Running
                 +method run args {
-                    :apply ${:script}
+                    if {[catch {:apply ${:script}} res resOptions]} {
+                        odfi::log::info $res
+                        [:parent] success set false
+                    }
+                }
+                
+                ## Assertions
+                +method assertNXObject v {
+                    set res false
+                    if {$v!="" && [::nsf::is object $v]} {
+                        set res true
+                    } 
+                    
+                    :assert "Expecting $v is an NX Object" true $res
+                }   
+                
+                +method assert {message expected value} {
+                    
+                    if {$expected!=$value} {
+                        error "Assertion $message failed, expected=$expected, found=$value"
+                    }
+                    
+                    
                 }
             }
         }

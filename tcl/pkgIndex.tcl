@@ -56,7 +56,9 @@ package ifneeded odfi::os 1.0.0  [list source [file join $dir os-1.0.0.tm]]
 
 ## Ewww stuf ####################
 set packages {
-    odfi::ewww::html 2.0.0 ewww-2.x/html-2.x.tm
+    odfi::ewww          2.0.0 ewww-2.x/ewww-2.x.tm
+    odfi::ewww::html    2.0.0 ewww-2.x/html-2.x.tm
+    odfi::ewww::webdata 2.0.0 ewww-2.x/webdata-2.x.tm
 }
 foreach {name version relativePath} $packages {
     package ifneeded $name $version [list source [file join $dir $relativePath]]

@@ -395,4 +395,9 @@ namespace eval odfi::nx::domainmixin {
         
 
     }
+    
+    ## Output the object to a local variable name
+    ::nx::Object public method @>> name {
+        uplevel [set $name [current object]]
+    }
 }
