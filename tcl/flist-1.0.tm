@@ -101,6 +101,45 @@ namespace eval odfi::flist {
         ## Content 
         :property -accessor public {content {}}
 
+
+        ## Infos and testing
+        ####################
+        
+        :public method size args {
+           return [llength ${:content}]
+        }
+        
+        ## Return true or false. can be used as: isEmpty script else script
+        :public method isEmpty args {
+        
+            if {[:size]>0} {
+            
+                ## Run code in else case?
+                set elseIndex [lsearch -exact $args else ]
+                if {$elseIndex>=0 && [llength $args]>$elseIndex} {
+                    set elseScript [lindex $args [epxr $elseIndex +1]]
+                    
+                    odfi::closures::withITCLLambda $elseScript 1 {
+                        $lambda apply
+                    }
+            
+                }
+                return false
+            } else {
+            
+                ## Run code in normal case?
+                if {[llength $args]>0 && [lindex $args 0]!="else"} {
+                
+                    odfi::closures::withITCLLambda [lindex $args 0] 1 {
+                        $lambda apply
+                    }
+                
+                }
+                return true
+            }
+
+        }
+       
         ## Operators 
         #######################
 
@@ -325,9 +364,7 @@ namespace eval odfi::flist {
         ## Accessor
         ####################
 
-        :public method size args {
-            return [llength ${:content}]
-        }
+       
 
         :public method first args {
             return [lindex ${:content} 0]

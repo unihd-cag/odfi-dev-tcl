@@ -535,6 +535,13 @@ namespace eval odfi::flextree {
             
         }
         
+        ## Add node as first child
+        :public method addFirstChild node {
+            
+            set n [:addChild $node ]
+            :setChildAt $n 0
+        }
+        
         ## Remove
         :public method remove child {
             ${:children} -= $child
@@ -559,12 +566,7 @@ namespace eval odfi::flextree {
         
             ${:children} setIndexOf $child $position            
             return
-            set index [${:children} indexOf $child]
-            if {$index==-1} {
-                error "Cannot call setChildAt for a non-owned child"   
-            } else {
-                ${:children} setIndexOf $child $position
-            }
+            
         }
         
         ## @noshade

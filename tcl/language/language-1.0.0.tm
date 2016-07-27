@@ -494,13 +494,27 @@ namespace eval odfi::language {
             return $newVar
         }
         
+        ## Create a Class Constant (object variable) 
+        ############
+        :public method +constant {name value} {
+
+            ## Create Var Def
+            set newConstant [TypeConstant new -+name $name -+value $value]
+
+            ## Add
+            :addChild $newConstant
+
+            #puts "Adding var $newVar $name -> $args"
+            return $newConstant
+        }
+        
         ## Create a Class Method 
         ####################
         :public method +method {name args body} {
 
             set typeMethod [TypeMethod new -+name $name -+args $args -+body $body]
 
-            :addChild $typeMethod
+            :addFirstChild $typeMethod
 
             return $typeMethod
 
@@ -575,7 +589,20 @@ namespace eval odfi::language {
         }
 
     }
+    
+    ## Constant in Type definition, aka Object variable
+    nx::Class create TypeConstant  -superclasses odfi::flextree::FlexNode {
+        
+        :property -accessor public +name
+        :property -accessor public +value
 
+        :method init args {
+            next
+            set :+superclasses {odfi::flextree::FlexNode}
+            
+        }
+
+    }
     nx::Class create TypeMethod  -superclasses odfi::flextree::FlexNode {
 
         :property -accessor public +name
@@ -1111,6 +1138,16 @@ namespace eval odfi::language {
                                 
 
                             }
+                    }
+                    
+                    
+                    ## Type Constant
+                    ##################
+                    [$node shade ::odfi::language::TypeConstant children] foreach {
+
+                            [$node cget -+name] object variable -accessor public [list [$it cget -+name] [$it cget -+value]]  
+                               
+                      
                     }
 
 

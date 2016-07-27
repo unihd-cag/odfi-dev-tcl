@@ -123,6 +123,15 @@ namespace eval odfi::log {
         } 
 
     }
+    
+    proc debug {message args} {
+    
+        if {[isLevelEnabled [getLogPath] DEBUG]} {
+            ::puts $odfi::log::pipeOut "[prefix][getLogPath] \[DEBUG\] $message"
+            ::flush $odfi::log::pipeOut
+        } 
+
+    }
 
     proc error {message args} {
 

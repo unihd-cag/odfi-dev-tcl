@@ -24,13 +24,18 @@ namespace eval odfi::utests {
                 }
                 
                 ## Assertions
-                +method assertNXObject v {
+                +method assertNXObject {v args} {
                     set res false
                     if {$v!="" && [::nsf::is object $v]} {
                         set res true
                     } 
                     
                     :assert "Expecting $v is an NX Object" true $res
+                    
+                    ## If the args contain -> name , then output the tested value to the name
+                    if {[lindex $args 0]=="->" && [llength $args]>1} {
+                        uplevel [list set [lindex $args 1] $v]
+                    }
                 }   
                 
                 +method assert {message expected value} {
