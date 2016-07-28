@@ -245,10 +245,12 @@ namespace eval odfi::nx::domainmixin {
                     eval "::nx::Class create $classTargetName $superclassCommand"
 
                     ## Gather Local Methods
+                    ##############
                     set localMethods [::$currentClass info methods -callprotection all]
                     #puts "Local methods $localMethods"
-
-                    foreach imethod [::$currentClass info methods -callprotection all] {
+                    
+                    ## Go through all local methods and recreate then in target Class
+                    foreach imethod $localMethods {
                             #puts "importing method $imethod from $currentClass -> "
                             #puts "-> [lrange  [::$currentClass info method definition $imethod]  1 end ]"
 
@@ -289,6 +291,21 @@ namespace eval odfi::nx::domainmixin {
                             #puts "importing method $imethod from $currentClass as $mdef "
                             eval "$classTargetName $mdef"
                     }
+                    ## EOF Create Methods
+                    
+                    ## Recreate variables
+                    ################
+                    set localVariables [::$currentClass info variables]
+                    foreach v $localVariables {
+                    
+                        set variableDefinition  [::$currentClass info variable definition $v]
+                        puts "Recreating variable $v -> $variableDefinition"
+                        
+                        ::$currentClass variable -accessor public "[lindex $variableDefinition end-1]" [lindex $variableDefinition end-1] 
+                        
+                        
+                    }
+                    #exit
 
 
                 #}
@@ -331,6 +348,18 @@ namespace eval odfi::nx::domainmixin {
     ::nx::Object public method notClass test {
 
         return [expr ! [:isClass $test]]
+
+    }
+    
+    ::nx::Object public method isOneClass args {
+        
+        foreach cl $args {
+            if {[:isClass $cl]} {
+                return true
+            }
+        }
+        return false
+    
 
     }
     

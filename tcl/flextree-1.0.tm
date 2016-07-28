@@ -1,7 +1,6 @@
 ## Flex tree is a common tree interface for various ODFI TCL tools
 package provide odfi::flextree 1.0.0
 package require odfi::flist 1.0.0
-package require odfi::log 1.0.0
 package require odfi::epoints 1.0.0
 
 namespace eval odfi::flextree {

@@ -24,6 +24,10 @@ namespace eval odfi::functional::pattern {
         :public method getContent args {
             return ${:content}
         }
+        
+        :public method get args {
+            return ${:content}
+        }
 
         :public method match closure {
 
@@ -117,7 +121,7 @@ namespace eval odfi::flist {
                 ## Run code in else case?
                 set elseIndex [lsearch -exact $args else ]
                 if {$elseIndex>=0 && [llength $args]>$elseIndex} {
-                    set elseScript [lindex $args [epxr $elseIndex +1]]
+                    set elseScript [lindex $args [expr $elseIndex +1]]
                     
                     odfi::closures::withITCLLambda $elseScript 1 {
                         $lambda apply

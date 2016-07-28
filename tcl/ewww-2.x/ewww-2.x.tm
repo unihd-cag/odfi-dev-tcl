@@ -2,6 +2,8 @@ package provide odfi::ewww 2.0.0
 package require odfi::common
 package require odfi::closures 3.0.0
 package require odfi::files 2.0.0
+package require http 2.8.8
+#package require tls
 
 ### CODE Based on JohnBuckman http://wiki.tcl.tk/15244
 ###############################################################
@@ -25,7 +27,52 @@ namespace eval odfi::ewww {
 
     }
 
+    
+    ####################
+    ## Utils 
+    ####################
+    
+    ## From TCL Documentation
+    proc httpcopy { url file {chunk 4096} } {
+        set out [open $file w]
+        set token [::http::geturl $url -channel $out \
+               -blocksize $chunk]
+        close $out
 
+        # -progress httpCopyProgress 
+
+        # This ends the line started by httpCopyProgress
+        #puts stderr ""
+
+        return $token
+        upvar #0 $token state
+        set max 0
+        foreach {name value} $state(meta) {
+            if {[string length $name] > $max} {
+                set max [string length $name]
+            }
+            if {[regexp -nocase ^location$ $name]} {
+                # Handle URL redirects
+                puts stderr "Location:$value"
+                return [httpcopy [string trim $value] $file $chunk]
+            }
+        }
+        incr max
+        foreach {name value} $state(meta) {
+            puts [format "%-*s %s" $max $name: $value]
+        }
+
+        return $token
+    }
+    proc httpCopyProgress {args} {
+        puts -nonewline stdout .
+        flush stdout
+    }
+    
+
+    ######################
+    ## HTTPD Stuff
+    ######################
 
     itcl::class Httpd {
 

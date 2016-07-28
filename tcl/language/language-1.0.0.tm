@@ -519,6 +519,18 @@ namespace eval odfi::language {
             return $typeMethod
 
         }
+        
+        ## Create a Class Method In Target Container
+        ####################
+        :public method +targetMethod {name args body} {
+
+            set typeMethod [TypeMethod new -+name $name -+args $args -+body $body -+target true]
+
+            :addFirstChild $typeMethod
+
+            return $typeMethod
+
+        }
 
         ## Add Mixin to Class
         ## args can be:
@@ -530,7 +542,12 @@ namespace eval odfi::language {
 
             set argsCount [llength $args ]
             if {$argsCount >= 1 && $argsCount < 3} {
-                lappend :+mixins [[:getRoot] resolveType [lindex $args 0]]
+                if {$argsCount==1} {
+                    lappend :+mixins [[:getRoot] resolveType [lindex $args 0]]
+                } else {
+                    lappend :+mixins [list [[:getRoot] resolveType [lindex $args 0]] [lindex $args 1] ]
+                }
+                
 
             } elseif {$argsCount>=3} {
                 lappend :+mixins [list [lindex $args 0] [lindex $args 2] ]
@@ -608,6 +625,7 @@ namespace eval odfi::language {
         :property -accessor public +name
         :property -accessor public +args
         :property -accessor public +body
+        :property -accessor public {+target false}
 
     }
     
@@ -780,8 +798,13 @@ namespace eval odfi::language {
 
                     #### Mixins
                     foreach mixin [$node cget -+mixins] {
+                    
+                       
+                    
                         if {[llength $mixin]==1} {
-                            #puts "Adding mixin $mixin"
+                        
+                           # puts "Adding mixin $mixin to $className"
+                           
                             ## Adapt Mixin Class 
                             ## Don't touch if absolute, add target namesapce if not
                             if {[string match ::* $mixin]} {
@@ -791,8 +814,11 @@ namespace eval odfi::language {
                             }
                             
                         } else {
+                        
+                           # puts "Adding mixin [lindex $mixin 1] to $className with prefix [lindex $mixin 0]"
+                            
                             ## Import using domain mixin
-                            $className domain-mixins add [lindex $mixin 1] -prefix [lindex $mixin 0]
+                            $className domain-mixins add [lindex $mixin 0] -prefix [lindex $mixin 1]
                         }
                         
                     }
@@ -974,18 +1000,28 @@ namespace eval odfi::language {
                         }
 
                         #puts "For ${className}Builder to [$node cget -+exportToParent]"
-
+                        
+                        ## Inject Builder trait to parent type
+                        #################
                         if {[$parent info has type ::odfi::language::Type]} {
 
-                            ## Inject trait to parent type
-                            #################
+                           
                             #puts "Exporting ${className}Builder to  [$parent cget -+name]"
                             [$parent cget -+name] mixins add ${className}Builder
+                            
+                            
+                            ## Also Add all Methods tagged as "target"
+                            ##############
+                            [$node shade ::odfi::language::TypeMethod children] @> filter {return [$it +target get]} @> foreach {
+                                                  
+                                [$parent cget -+name] public method [$it cget -+name] [$it cget -+args] [$it cget -+body]
+                            }
 
                         }
+                        
 
-                        ## Export 
-
+                        ## Export to Parent Class Type
+                        ###################
                         if {[$node cget -+exportToParent]==true} {
 
                             ## Inject trait to superclass type
@@ -1145,7 +1181,8 @@ namespace eval odfi::language {
                     ##################
                     [$node shade ::odfi::language::TypeConstant children] foreach {
 
-                            [$node cget -+name] object variable -accessor public [list [$it cget -+name] [$it cget -+value]]  
+                        #puts "Setting object variable on class: [$node cget -+name] [$it cget -+name] [$it cget -+value] "
+                        [$node cget -+name] object variable -accessor public [$it cget -+name] [$it cget -+value] 
                                
                       
                     }
@@ -1190,6 +1227,12 @@ namespace eval odfi::language {
                                 $targetType mixins add ${className}Builder
                             } else {
                                 $targetType domain-mixins add ${className}Builder -prefix $targetPrefix 
+                            }
+                            
+                            ## Also Add all Methods tagged as "target"
+                            [$node shade ::odfi::language::TypeMethod children] @> filter {return [$it +target get]} @> foreach {
+                                                  
+                                $targetType public method [$it cget -+name] [$it cget -+args] [$it cget -+body]
                             }
 
                         }

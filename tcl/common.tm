@@ -1371,6 +1371,47 @@ namespace eval odfi::common {
         }
 
 	}
+	
+	
+	## Common EXEC
+	###################
+	
+    proc execRead chan {
+        if {[eof $chan]} {
+            fileevent $chan readable {}
+            set odfi::powerbuild::eofexec true
+            #puts "In Exec eof channel "
+        } else {
+            #puts "In Exec read "
+            puts -nonewline [read $chan]
+            #puts "In Exec done "
+            if {[eof $chan]} {
+                fileevent $chan readable {}
+                set odfi::common::eofexec true
+               # puts "In Exec eof channel "
+            }
+        }
+        
+
+    }
+
+    ##
+    proc exec args {
+
+
+        set monitorProcess [open "|$args 2>@1" r]
+        fconfigure $monitorProcess -blocking 0
+
+        #puts "Setup file event"
+        fileevent $monitorProcess readable  [list odfi::common::execRead $monitorProcess]
+        vwait odfi::common::eofexec
+
+        catch {close $monitorProcess}
+        return 0
+
+    }
+	
+	
 
 
     odfi::common::resetNamespaceClassesObjects [namespace current]

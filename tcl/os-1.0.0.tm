@@ -15,9 +15,35 @@
 #
 
 package provide odfi::os 1.0.0
-package require odfi::closures
+package require odfi::closures 3.0.0
 
 namespace eval odfi::os {
+
+
+    ## Returns the platform: win and linux for example
+    proc getPlatform args {
+    
+        ## Get Basic info
+        #############
+        set basePlatform [string tolower $::tcl_platform(os)]
+        
+        if {[string match "*windows*" $basePlatform]} {
+            return "win"
+        }
+        return $basePlatform
+    }
+
+    proc getArchitecture args {
+    
+        puts "All vars: [array get ::tcl_platform *]"
+        set arch  [string tolower $::tcl_platform(machine)]
+        if {[string match *64* $arch]} {
+            return "x86_64"
+        }
+        return $arch
+    }
+    
+
 
 
     ## Tries to return a precise description of OS.
@@ -53,11 +79,22 @@ namespace eval odfi::os {
             }
 
 
+        } elseif {[string match "*windows*" $baseOS]} {
+            return "windows"
         }
 
 
         return $baseOS
 
+    }
+
+    proc isWindows args {
+        
+        if {[string match "*win*" [getOs]]} {
+            return true
+        } else {
+            return false
+        }
     }
 
 

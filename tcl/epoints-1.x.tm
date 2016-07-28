@@ -91,15 +91,18 @@ namespace eval odfi::epoints {
 
                         ## Closure is of format: {CALLER Closure}
                         #puts "Closure list in event point: [lindex $eventPoint 2] "
+                        set res ""
                         foreach closure [lindex $eventPoint 2] {
 
                            # puts "Closure to run no [current method]: $closure"
 
                             #odfi::closures::applyLambda [lindex $closure 1] __caller [lindex $closure 0]
-                            [lindex $closure 1] apply [list __caller [lindex $closure 0]]
+                            set res [[lindex $closure 1] apply [list __caller [lindex $closure 0]]]
                            # puts "(Done)"
 
                         }
+                        
+                        return $res
                     } else {
                         error "Cannot call point $pointName, it has not been registered before"
                     }

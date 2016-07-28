@@ -1,5 +1,6 @@
 package provide odfi::log 1.0.0
 package require odfi::common
+package require odfi::flextree 1.0.0
 
 namespace eval odfi::log {
 
@@ -166,6 +167,54 @@ namespace eval odfi::log {
     }
 
 
+    ## Class Based Logging
+    ###################
+    nx::Class create Logger -superclass {::odfi::flextree::FlexNode} {
+    
+        :object variable -accessor public levels {
+            ERROR
+            WARN
+            INFO
+            FINE
+            FINER
+            DEBUG
+        }
+        
+        :variable -accessor public prefix "" 
+            
+    
+        :public method setPrefix p {
+            set :prefix $p
+            :prefix set $p
+        }
+    
+        :public method info msg {
+        
+        }
+        
+        :public method debug msg {
+            puts "[:prefix get] >> [:getCallingCommand] >> DEBUG >> $msg"
+        }
+        
+        :public method getCallingCommand args {
+        
+            ## Get Command path 
+            set frameInfo [::info frame -2]
+
+            ## Get 'method', otherwise pick first element in cmd
+            set methodIndex [lsearch -exact $frameInfo method] 
+            if {$methodIndex!=-1} {
+                set commandName [lindex $frameInfo [expr $methodIndex+1]]
+            } else {
+                set commandName [lindex [lindex $frameInfo 5] 0]
+            }
+
+            set commandName [regsub -all {:} $commandName ""]
+            
+            return $commandName
+        }
+        
+    }
  
 
 
