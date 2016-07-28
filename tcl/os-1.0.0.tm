@@ -35,7 +35,7 @@ namespace eval odfi::os {
 
     proc getArchitecture args {
     
-        puts "All vars: [array get ::tcl_platform *]"
+        #puts "All vars: [array get ::tcl_platform *]"
         set arch  [string tolower $::tcl_platform(machine)]
         if {[string match *64* $arch]} {
             return "x86_64"

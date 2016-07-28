@@ -189,11 +189,15 @@ namespace eval odfi::log {
         }
     
         :public method info msg {
+            puts "[:prefix get] >> [:getCallingCommand] >> INFO >> $msg"
+        }
         
+        :public method warning msg {
+            puts "[:prefix get] >> [:getCallingCommand] >> WARNING >> $msg"
         }
         
         :public method debug msg {
-            puts "[:prefix get] >> [:getCallingCommand] >> DEBUG >> $msg"
+            #puts "[:prefix get] >> [:getCallingCommand] >> DEBUG >> $msg"
         }
         
         :public method getCallingCommand args {

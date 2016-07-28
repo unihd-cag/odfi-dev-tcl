@@ -42,6 +42,8 @@ namespace eval odfi::utests {
                     
                     if {$expected!=$value} {
                         error "Assertion $message failed, expected=$expected, found=$value"
+                    } else {
+                        puts "\[OK\] $message"
                     }
                     
                     

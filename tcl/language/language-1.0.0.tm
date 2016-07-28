@@ -514,7 +514,19 @@ namespace eval odfi::language {
 
             set typeMethod [TypeMethod new -+name $name -+args $args -+body $body]
 
-            :addFirstChild $typeMethod
+            :addChild $typeMethod
+
+            return $typeMethod
+
+        }
+        
+        ## Create an Object Method 
+        ####################
+        :public method +objectMethod {name args body} {
+
+            set typeMethod [TypeObjectMethod new -+name $name -+args $args -+body $body]
+
+            :addChild $typeMethod
 
             return $typeMethod
 
@@ -628,6 +640,15 @@ namespace eval odfi::language {
         :property -accessor public {+target false}
 
     }
+    
+    nx::Class create TypeObjectMethod  -superclasses odfi::flextree::FlexNode {
+   
+           :property -accessor public +name
+           :property -accessor public +args
+           :property -accessor public +body
+           :property -accessor public {+target false}
+   
+       }
     
     ## Marker for types that are part of the language
     nx::Class create LanguageElement -superclasses {Type Language} {
@@ -1192,9 +1213,16 @@ namespace eval odfi::language {
                     ##################
                     [$node shade ::odfi::language::TypeMethod children] foreach {
                       
-
-                            #puts "Add Method [$it cget -+name]  parameter to [$node cget -+name]"
-                            [$node cget -+name] public method [$it cget -+name] [$it cget -+args] [$it cget -+body]
+                        #puts "Add Method [$it cget -+name]  parameter to [$node cget -+name]"
+                        [$node cget -+name] public method [$it cget -+name] [$it cget -+args] [$it cget -+body]
+                    }
+                    
+                    ## Type Object Method
+                    ##################
+                    [$node shade ::odfi::language::TypeObjectMethod children] foreach {
+                      
+                        #puts "Add Method [$it cget -+name]  parameter to [$node cget -+name]"
+                        [$node cget -+name] public object method [$it cget -+name] [$it cget -+args] [$it cget -+body]
                     }
                     
 
