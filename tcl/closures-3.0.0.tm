@@ -890,7 +890,12 @@ namespace eval odfi::closures {
             }
 
             ## Find variables using regexp
-            set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_\$-]+)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
+            #set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_\$-]+)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
+            set preparedClosure [regsub -all {([^\\])\$(?:(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)|(?:\{(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
+            
+            #set preparedClosure [regsub -all {([^\\])\$(?:\{?(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)\}?)} ${definition} "\\1\[odfi::closures::value {\\2\\3} \]"]
+            
+
 
             ## Replace Variable set and pull functions
             set preparedClosure [regsub -all -line {^\s*(incr|set|lappend)} ${preparedClosure} "::odfi::closures::\\1"]
@@ -1269,10 +1274,14 @@ namespace eval odfi::closures {
 
 
             ## Find variables using regexp
-            set :preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_]+)\}))} ${:definition} "\\1\[odfi::closures::value {\\2\\3} \]"]
+             set :preparedClosure [regsub -all {([^\\])\$(?:\{?(:?[a-zA-Z0-9][a-zA-Z0-9:_]*)\}?)} ${:definition} "\\1\[odfi::closures::value {\\2\\3} \]"]
+                        
+            ##set :preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_]+)\}))} ${:definition} "\\1\[odfi::closures::value {\\2\\3} \]"]
 
             ## Replace Variable set and pull functions
             set :preparedClosure [regsub -all -line {^\s*(incr|set|lappend)} ${:preparedClosure} "::odfi::closures::\\1"]
+            
+            puts "Res closure: $preparedClosure"
         }
 
         :public object method build definition {
