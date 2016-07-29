@@ -181,23 +181,37 @@ namespace eval odfi::log {
         }
         
         :variable -accessor public prefix "" 
-            
+        :variable -accessor public separator ">>" 
+        
+        :method init args {
+            next
+            set :separator ">>"
+            :separator set ">>"
+            puts "Set separator"
+        }
     
         :public method setPrefix p {
             set :prefix $p
             :prefix set $p
+            :separator set ">>"
+        }
+    
+        :public method raw msg {
+        
+            puts "[:prefix get] [:separator get] $msg"
+        
         }
     
         :public method info msg {
-            puts "[:prefix get] >> [:getCallingCommand] >> INFO >> $msg"
+            puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] INFO >> $msg"
         }
         
         :public method warning msg {
-            puts "[:prefix get] >> [:getCallingCommand] >> WARNING >> $msg"
+            puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] WARNING >> $msg"
         }
         
         :public method debug msg {
-            #puts "[:prefix get] >> [:getCallingCommand] >> DEBUG >> $msg"
+            #puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] DEBUG >> $msg"
         }
         
         :public method getCallingCommand args {
