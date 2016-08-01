@@ -54,6 +54,9 @@ package ifneeded odfi::epoints 1.0.0  [list source [file join $dir epoints-1.x.t
 
 package ifneeded odfi::os 1.0.0  [list source [file join $dir os-1.0.0.tm]]
 
+package ifneeded odfi::powerbuild 1.0.0 [list source [file join $dir powerbuild-1.x/powerbuild-1.x.tm]]
+
+
 ## Ewww stuf ####################
 set packages {
     odfi::ewww          2.0.0 ewww-2.x/ewww-2.x.tm

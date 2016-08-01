@@ -12,10 +12,15 @@ namespace eval odfi::epoints {
 
         ## Format: { {NAME ARGS {CLOSURE CLOSURE}} {NAME {CLOSURE CLOSURE}}  }
         :property -accessor public {__eventPoints {}}
-
+        
+        ## Format: { {NAME {CLOSURE CLOSURE}}}
+        :variable -accessor public looseEPoints {}
+        
+        
         :method init args {
             next
             set :__eventPoints {}
+            set :looseEPoints {}
 
         }
 
@@ -111,14 +116,13 @@ namespace eval odfi::epoints {
                 }
             }
             
-
-
+           
+            
+           
             
         }
 
-        ## Register a closure to an event point 
-
-
+     
     }
 
 

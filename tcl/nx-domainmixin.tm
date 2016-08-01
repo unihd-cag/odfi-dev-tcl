@@ -299,7 +299,8 @@ namespace eval odfi::nx::domainmixin {
                     foreach v $localVariables {
                     
                         set variableDefinition  [::$currentClass info variable definition $v]
-                        puts "Recreating variable $v -> $variableDefinition"
+                        
+                        #puts "Recreating variable $v -> $variableDefinition"
                         
                         ::$currentClass variable -accessor public "[lindex $variableDefinition end-1]" [lindex $variableDefinition end-1] 
                         
@@ -335,6 +336,7 @@ namespace eval odfi::nx::domainmixin {
     DomainMixinSlot create ::nx::Class::slot::domain-mixins \
         -multiplicity 0..n \
         -elementtype class
+
 
 
     ## Add Extra stuff for objects 

@@ -785,5 +785,5 @@ namespace eval odfi::ewww::html::bootstrap {
     BOOTSTRAP produceNX
 
 
-    ::odfi::ewww::html::Head domain-mixins add [namespace current]::BootstrapGetter -prefix bootstrap
+    #::odfi::ewww::html::Head domain-mixins add [namespace current]::BootstrapGetter -prefix bootstrap
 }

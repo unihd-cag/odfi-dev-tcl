@@ -649,6 +649,13 @@ namespace eval odfi::flextree {
         
          
         }
+        
+        ## Mapping
+        ## @shading
+        :public method mapChildren closure {
+        
+            return [[:children] map $closure]
+        }
 
 
         #  Self positioning
@@ -871,6 +878,93 @@ namespace eval odfi::flextree {
 
         }
 
+        
+        ## PreOrder Walk 
+        :public method walkDepthFirstLevelOrder {{-level 0} wclosure} {
+
+
+            ## Prepare list : Pairs of Parent / node
+            ##################
+            set componentsFifo [odfi::flist::MutableList new]
+            #$componentsFifo += [:children]
+            $componentsFifo += [list "false" [current object]]
+
+            #puts "CFifo Size: [$componentsFifo size]"
+
+             ## Create Walk Closure Object 
+            set walkLambda  [::new odfi::closures::LambdaITCL #auto]
+            $walkLambda configure -definition $wclosure
+            $walkLambda configure -level $level
+            $walkLambda prepare
+
+            ## Visited list 
+            set visited {}
+
+            ## Common Shade 
+            set shade ${:currentShading}
+
+            #odfi::log::info "Starting with shade $shade"
+
+            ## Go on FIFO 
+            ##################
+            $componentsFifo popAll {
+                
+                parentAndNode => 
+
+                    #puts "PANODE $parentAndNode"
+                    set node [lindex $parentAndNode 1]
+                    set parent [lindex $parentAndNode 0]
+                
+                    #odfi::log::info "On node [$node info class], which has own shading: [$node currentShading get]"
+                    
+                    ## Evaluation With heuristic
+                    #############
+                    lappend visited $node
+                    
+                    #$node inShade {
+                        #puts "On Node $node [$node info class] with shade [$node currentShading get]"
+
+                        ## Shade match 
+                        ::set continue true 
+                        if {[$node shadeMatch $shade]} {
+                            set tres [$walkLambda apply [list node $node] [list parent $parent]]
+                            if {$tres!="" && [string is boolean $tres]} {
+                                ::set continue  $tres
+                            }
+                        }
+
+                        ## Keep Going
+                        #################
+               
+                        ## Add children of current to back for level order
+                        if {$continue} {
+                            ## WARNING: If a child has already been visited, don't add it to avoid cycles
+                            set currentDepth [$node getPrimaryTreeDepth]
+                            set nodeChildren [$node noShade children]
+
+                            ## Add Last to proceed by level order first
+                            foreach c [$nodeChildren asTCLList] {
+                           
+                                #puts "---> adding chuld of depth [$it noShade getPrimaryTreeDepth] from $currentDepth "
+                                #if {[$it noShade getPrimaryTreeDepth]>$currentDepth} {
+                                #    $componentsFifo += [list $node $it] 
+                                #}
+                                if {[lsearch -exact $visited $c]==-1} {
+                                    $componentsFifo += [list $node $c] 
+                                }
+                                
+                            }
+                        }
+                        
+                    #}
+                    #puts "CFifo Size: [$componentsFifo size]"           
+            }
+
+           #unset walkLambda
+
+        }
+
+
 
 
         
@@ -981,737 +1075,7 @@ namespace eval odfi::flextree {
         ## Reducing
         ##########################
         
-        ## Reduce goes starts with leaves
-        ## - produces a result for each
-        ## - Go to upper level, calling the reduce function, with the subtree results
-        ## Closure format: (node, results)
-        :public method reduceOld {{reduceClosure {}}} {
-            
-            
-            ##set reduceClosure false
-           # if {[llength $args]>0} {
-            #    set reduceClosure [join $args]
-           # }
-            
-            ## Prepare list : Pairs of Parent / node
-            ##################
-            set componentsFifo [odfi::flist::MutableList new]
-            #$componentsFifo += [:children]
-            $componentsFifo push [current object]
-
-            #puts "CFifo Size: [$componentsFifo size]"
-            
-            set parentStack [odfi::flist::MutableList new]
-            set leafResults {}
-            set nodeResults {}
-  
-            ## Go on FIFO 
-            ##################
-            $componentsFifo popAll {
-                            
-                node => 
-                    
-                    $node inShade {
-                        
-                      
-                       # ::puts "-> On Object: [[current object] info class] with top stack being [$parentStack peek]"
-                        
-                        ## If on top of stack, then operate reduce if in shade
-                        ## Otherwise, go deeper in the tree
-                        if {[$parentStack peek]==[current object]} {
-                            
-                            if {[:shadeMatch]} {
-                                #::puts "---> Produce Result on parent [[current object] info class] which is now leaf "
-                               # ::puts "------> LR: [llength $leafResults] , NR: [llength $nodeResults]"
-                                
-                                ## If no leaf results-> use node results and clear them, save as leaf results
-                                ## if leaf results -> reduce and save to node results, clear leaf results
-                                if {[llength $leafResults]==0} {
-                                    
-                                    ## If closure provided, use it, otherwise try the reduce Produce
-                                    if {[llength $reduceClosure] >0} {
-                                        set reduceRes [odfi::closures::applyLambda $reduceClosure [list it [current object]] [list args $nodeResults]]                                   
-                                    } else {
-                                        set reduceRes [[current object] reduceProduce $nodeResults]   
-                                    }
-
-                                    ## If Reduce Results are not empty -> add 
-                                    ::puts "(REDUCE) Results: $reduceRes"
-                                    
-                                    #set leafResults [concat $leafResults $reduceRes]                                    
-                                    
-                                    if {[llength $reduceRes]>1} {
-                                        concat $leafResults $reduceRes      
-                                    } else {
-                                        #concat $leafResults $reduceRes      
-                                        #lappend leafResults $reduceRes                               
-                                    }                                       
-                                    
-                                     #lappend leafResults $reduceRes
-                                     set     nodeResults {}
-                                    
-                                } else {
-                                    
-                                    ## If closure provided, use it, otherwise try the reduce Produce
-                                    if {[llength $reduceClosure] >0} {
-                                        set reduceRes [odfi::closures::applyLambda $reduceClosure [list it [current object]] [list args $leafResults]]                                   
-                                    } else {
-                                        set reduceRes [[current object] reduceProduce $leafResults]   
-                                    }
-
-                                    ::puts "(REDUCE) Results: $reduceRes"
-                                    
-                                    set nodeResults [concat $nodeResults $reduceRes]
-                                    
-#                                    if {[llength $reduceRes]>1} {
-#                                        lappend nodeResults $reduceRes
-#                                    } else {
-#                                        lappend nodeResults $reduceRes                               
-#                                    }                                    
-                                    
-                                    #lappend nodeResults $reduceRes
-                                    set     leafResults {}
-                                    #::set     nodeResults {}
-                                   # ::puts "------> 2 LR: [llength $leafResults] , NR: [llength $nodeResults]"
-                                }
-                                #::puts "------> LR: [llength $leafResults] , NR: [llength $nodeResults]"
-                                
-                                
-                            }
-                            
-                            ## Remove from top to make sure we don't enter infinite loop
-                            $parentStack pop
-                            
-                        } else {
-                            
-                            ## Either Behave as parent, or as leave
-                            #############
-                            
-                            ## Determine leaf
-                            
-                            
-                            if {[$node isLeaf] && [:shadeMatch]} {
-                                
-                                ## Produce result, and add as as result list
-                                #::puts "---> Produce Result on leaf [[current object] info class]"
-                                
-                                ## If closure provided, use it, otherwise try the reduce Produce
-                                if { [llength $reduceClosure] >0} {
-                                    
-                                   #eval $reduceClosure
-                                    #lappend leafResults  "()"
-                                   # ::puts "**************** LEAF REs"
-                                    set reduceRes [odfi::closures::applyLambda $reduceClosure [list it [current object]] [list args ""]] 
-                                         
-                                    #::puts "(REDUCE) Results: $reduceRes [llength $reduceRes]"                           
-                                   # ::puts "**************** EOF LEAF REs"
-                                    #::puts "--------> $reduceRes (size: [llength $reduceRes]) "
-                                    
-                                    #::puts "------> LR: [llength $leafResults] , NR: [llength $nodeResults]"
-                                    
-                                } else {
-                                    set reduceRes [[current object] reduceProduce]  
-                                    #::puts "--------> $reduceRes (size: [llength $reduceRes]) "
-                                    #lappend leafResults $reduceRes
-                                }
-                                
-                                if {[llength $reduceRes]>1} {
-                                    lappend leafResults  [list $reduceRes]
-                                } else {
-                                    #lappend leafResults  [list $reduceRes]                                   
-                                }                                  
-                                
-                                #set reduceRes [[current object] reduceProduce]   
-                                #lappend leafResults $reduceRes
-                                
-                                
-                            } elseif {![$node isLeaf]} {
-                                
-                                ## Bounce back to top, and add children to be done before
-                                #::puts "---> Not leaf, Push on top [[current object] info class]"
-                                $componentsFifo addFirst [current object]
-                                foreach it [lreverse [${:children} asTCLList]] {
-                                    $componentsFifo addFirst $it 
-                                }
-                                #ä${:children} foreach {
-                                    
-                                #}
-                                
-                                ## Add our selves to the stack
-                                $parentStack push [current object]
-                                
-                            }
-                            
-                            
-                            
-                        }
-                         
-                        
-                    }       
-
-            }
-            
-            if {[llength $leafResults]} {
-                return [join $leafResults]
-            } else {
-                return [join $nodeResults]
-            }
-            
-
-            
-        }
-
-
-        ## Reduce goes starts with leaves
-        ## - produces a result for each
-        ## - Go to upper level, calling the reduce function, with the subtree results
-        ## Closure format: (node, results)
-        :public method reduce2 { {reduceClosure ""}} {
-            
-            ## If no reduce closure, then map to reduceProduce function
-            if {$reduceClosure==""} {
-                set reduceClosure {$it reduceProduce $args}
-            }
-          
-
-            ## Prepare list : Pairs of Parent / node
-            ##################
-            set componentsFifo [odfi::flist::MutableList new]
-            #$componentsFifo += [:children]
-            $componentsFifo push [current object]
-
-            #puts "CFifo Size: [$componentsFifo size]"
-            
-            set parentStack [odfi::flist::MutableList new]
-            set leafResults {}
-            set nodeResults {}
-            set lastNode [current object]
-
-            ::odfi::log::info "Reduce Start with shade ${:currentShading}"
-            set shade ${:currentShading}
-
-            ## Go on FIFO 
-            ##################
-            $componentsFifo popAll {
-                            
-                node => 
-                    
-                    ## Work on the node using the actually defined Shade
-                    $node inShade {
-                        
-                        
-                        ## Stack and reduce conditions:
-                        ##  -> If not a leaf
-
-                        
-                        ## If on top of stack, then operate reduce if in shade
-                        ## Otherwise, go deeper in the tree
-                        if {[$parentStack peek]==[current object]} {
-                            
-                            if {[$node shadeMatch $shade]} {
-
-                               
-
-                                ## Consume most up to date results 
-                                set tempResults {}
-                                if {[llength $leafResults]>0 && [llength $nodeResults]>0} {
-                                    set tempResults [concat $leafResults $nodeResults]
-                                    set leafResults {}
-                                    set nodeResults {}
-                                } elseif {[llength $leafResults]>0} {
-                                    set tempResults $leafResults
-                                    set leafResults {}
-                                } elseif {[llength $nodeResults]>0} { 
-                                    set tempResults $nodeResults
-                                    set nodeResults {}
-                                }
-
-                                #::odfi::log::info "Reduced back to Parent [[current object] info class] , with input $tempResults "
-
-                                ## Produce using leaf results 
-                                ::set reduceRes [odfi::closures::applyLambda $reduceClosure [list it [current object]] [list args $tempResults]] 
-                                set lastNode [current object]
-
-                                #::odfi::log::fine "-> Reduce res: $reduceRes"
-
-                                ## Now we are a node, so add to node results
-                                lappend nodeResults $reduceRes 
-
-                                ## Clean, if some leafResults were available, then we can just clean the leaf results 
-                                ## Otherwise we just merged some node results, so we are now leaf
-                                if {[llength $leafResults]>0} {
-                                    #::odfi::log::info "----> Cleaning Leaf Results, our results are in nodeResults: $nodeResults"
-                                    #set leafResults {}
-                                    #lappend nodeResults $reduceRes 
-                                } else {
-                                    
-                                    #lappend leafResults $nodeResults
-
-                                    #::odfi::log::info "----> Switch node results to leaf results: $leafResults"
-
-                                    #set nodeResults {}
-                                }
-                                
-
-                      
-                                
-                            } else {
-                                #::odfi::log::info "Reduced back to non active Parent [[current object] info class], just rejoin the leaf results to the nodes results "
-                                #lappend nodeResults [join $leafResults]
-                                #set leafResults {}
-                            }
-                            
-                            ## Remove from top to make sure we don't enter infinite loop
-                            $parentStack pop
-                            
-                        } else {
-                            
-                            ## Either Behave as parent, or as leaf
-                            #############
-                            
-                            
-                            if {[$node isLeaf] && [$node shadeMatch $shade]} {
-                                
-                                #::odfi::log::info "On Node [$node info class] which is a leaf [[$node children] size], Reduce"
-
-                                ## Produce result, and add as as result list
-                                #::puts "---> Produce Result on leaf [[current object] info class]"
-                                
-                                ## If closure provided, use it, otherwise try the reduce Produce
-                                set reduceRes [odfi::closures::applyLambda $reduceClosure [list it [current object]] [list args ""]] 
-                                set lastNode $node
-
-                                ## 
-                                #::odfi::log::fine "-> Reduce res $reduceRes"
-                                #puts "--------------------------"
-                                
-                                lappend leafResults  "$reduceRes"
-
-                                #puts "--------------------------"
-
-                                #::odfi::log::fine "-> Reduce temp res  $leafResults"
-                                #if {[llength $reduceRes]>1} {
-                                 #   lappend leafResults  "$reduceRes"
-                                #} else {
-                                 #   lappend leafResults  [list $reduceRes]
-                                    #lappend leafResults  [list $reduceRes]                                   
-                                #}                                  
-                                
-                                #set reduceRes [[current object] reduceProduce]   
-                                #lappend leafResults $reduceRes
-                                
-                                
-                            } elseif {![$node isLeaf]} {
-                                
-                                #::odfi::log::info "On Node [$node info class] which has children, add as parent and go to children "
-
-                                ## Bounce back to top, and add children to be done before
-                                #::puts "---> Not leaf, Push on top [[current object] info class]"
-                                $componentsFifo addFirst [current object]
-                                foreach it [lreverse [${:children} asTCLList]] {
-                                    $componentsFifo addFirst $it 
-                                }
-                                #ä${:children} foreach {
-                                    
-                                #}
-                                
-                                ## Add our selves to the stack
-                                $parentStack push [current object]
-                                
-                            }
-                            
-                            
-                            
-                        }
-                         
-                        
-                    }       
-
-            }
-            
-            #::odfi::log::fine "-> Reduce final res  $leafResults"
-
-            #return [join $leafResults]
-
-            if {[llength $leafResults]>0} {
-                return [join $leafResults]
-            } else {
-                return [join $nodeResults]
-            }
-            
- 
-            
-        }
-
-
-        ## Reduce goes starts with leaves
-        ## - produces a result for each
-        ## - Go to upper level, calling the reduce function, with the subtree results
-        ## Closure format: (node, results)
-        :public method reduce3 { {reduceClosure ""}} {
-            
-            ## If no reduce closure, then map to reduceProduce function
-            if {$reduceClosure==""} {
-                set reduceClosure {$it reduceProduce $args}
-            }
-          
-
-            ## Prepare list : Pairs of Parent / node
-            ##################
-            set componentsFifo [odfi::flist::MutableList new]
-            #$componentsFifo += [:children]
-            $componentsFifo push [current object]
-
-            #puts "CFifo Size: [$componentsFifo size]"
-            ## Parents Stack Reducing parents
-            set parentStack [odfi::flist::MutableList new]
-
-            ## Results Depth list 
-            ## Format: 
-            ##   - Each entry stores the results of a specific depth 
-            ##   - Each entry is a list of temp results 
-            ##   - Entries are cleared when parent is merged
-            set resultsList [odfi::flist::MutableList new]
-            set currentLevel 0
-
-
-            set leafResults {}
-            set nodeResults {}
-            set lastNode [current object]
-
-            ::odfi::log::info "Reduce Start with shade ${:currentShading}"
-            set shade ${:currentShading}
-
-            ## Go on FIFO 
-            ##################
-            $componentsFifo popAll {
-                            
-                node => 
-                    
-                    ## Work on the node using the actually defined Shade
-                    $node inShade {
-                        
-                    
-                      
-                        ## If on top of stack, then operate reduce if in shade
-                        ## Otherwise, go deeper in the tree
-                        if {[$parentStack peek]==[current object]} {
-                            
-                            ## WARNING: Level increase is independent from shading
-                            ## Decrease level 
-                            set currentLevel [expr $currentLevel-1]
-
-                            if {[$node shadeMatch $shade]} {
-
-                                ## Results: Take Content of currentLevel+1 (children)  and clear it
-                                set tempResults [$resultsList at [expr $currentLevel+1]]
-                                $resultsList setAt [expr $currentLevel+1] {}
-
-
-                                #::odfi::log::info "Reduced back to Parent [[current object] info class] , with input $tempResults "
-
-                                ## Produce using leaf results 
-                                ::set reduceRes [odfi::closures::applyLambda $reduceClosure [list it [current object]] [list args $tempResults]] 
-                                set lastNode [current object]
-
-                                #::odfi::log::fine "-> Reduce res: $reduceRes"
-
-                                ## Results: Set to parent's node level, which is the current level 
-                                ## Now we are a node, so add to node results
-                                $resultsList appendAt $currentLevel $reduceRes
-
-                           
-                      
-                                
-                            } 
-                            
-                            ## Remove from top to make sure we don't enter infinite loop
-                            $parentStack pop
-
-                           
-                            
-                        } else {
-                            
-                            ## Either Behave as parent, or as leaf
-                            #############
-                            
-                            
-                            if {[$node isLeaf] && [$node shadeMatch $shade]} {
-                                
-                                #::odfi::log::info "On Node [$node info class] which is a leaf at level $currentLevel"
-
-                                ## Produce result, and add as as result list
-                                ##########
-                                if {[catch {set reduceRes [odfi::closures::applyLambda $reduceClosure [list it [current object]] [list args ""]]} res]} {
-                                    ::odfi::log::info "Reduce error occured on node $node of type [$node info class]"
-                                    error $res 
-                                }
-                                set lastNode $node
-
-                                ## Add Results to current Level results 
-                                ##############
-
-                                ## The Results list of this level might not have been opened 
-                                ## Open level 
-                                if {[$resultsList size]<= $currentLevel} {
-                                    $resultsList += [list ]
-                                }
-
-                                $resultsList appendAt $currentLevel $reduceRes
-
-                               
-                                
-                                
-                            } elseif {![$node isLeaf]} {
-                                
-                                ## Parent:
-                                ##  - Set children to be processed 
-                                ##  - Open Level in results if necessary
-                                ##  - increase level 
-                                ##  - Add to stack for destacking
-
-                                ## Children 
-
-                                #::odfi::log::info "On Node [$node info class] which has children, add as parent and go to children "
-
-                                ## Bounce back to top, and add children to be done before
-                                #::puts "---> Not leaf, Push on top [[current object] info class]"
-                                $componentsFifo addFirst [current object]
-                                foreach it [lreverse [${:children} asTCLList]] {
-                                    $componentsFifo addFirst $it 
-                                }
-
-                                ## Open level 
-                                if {[$resultsList size]<= $currentLevel} {
-                                    $resultsList += [list ]
-                                }
-
-                                ## Increase level
-                                incr currentLevel
-                                
-                                ## Add our selves to the stack
-                                $parentStack push [current object]
-                                
-                            }
-                            
-                            
-                            
-                        }
-                         
-                        
-                    }       
-
-            }
-            
-            ## Return Current level 
-            return [join [$resultsList at $currentLevel]]
         
-            
- 
-            
-        }
-
-        ## Reduce goes starts with leaves
-        ## - produces a result for each
-        ## - Go to upper level, calling the reduce function, with the subtree results
-        ## Closure format: (node, results)
-        :public method reduce { {reduceClosure ""}} {
-            
-            ## If no reduce closure, then map to reduceProduce function
-            if {$reduceClosure==""} {
-                set reduceClosure {return [$it reduceProduce $args]}
-            }
-
-            ## Create reduce Object 
-            #set reduceLambda [odfi::closures::Lambda::build $reduceClosure]
-            set reduceLambda  [::new odfi::closures::LambdaITCL #auto]
-            $reduceLambda configure -definition $reduceClosure
-            $reduceLambda prepare
-
-            ## Prepare list : Pairs of Parent / node
-            ##################
-            set componentsFifo [odfi::flist::MutableList new]
-            set componentsFifoList [current object]
-
-            #$componentsFifo += [:children]
-            $componentsFifo push [current object]
-
-            #puts "CFifo Size: [$componentsFifo size]"
-            ## Parents Stack Reducing parents
-            set parentStack [odfi::flist::MutableList new]
-
-            set topNode [current object]
-
-            ## Results Depth list 
-            ## Format: 
-            ##   - Each entry stores the results of a specific depth 
-            ##   - Each entry is a list of temp results 
-            ##   - Entries are cleared when parent is merged
-            set resultsList [odfi::flist::MutableList new]
-            set currentLevel 0
-
-
-            set leafResults {}
-            set nodeResults {}
-            set lastNode [current object]
-
-            ::odfi::log::info "Reduce Start with shade ${:currentShading}"
-            set shade ${:currentShading}
-
-            ## Go on FIFO 
-            ##################
-            while {[llength $componentsFifoList]>0} {
-            #$componentsFifo popAll
-                            
-                #node => 
-                    
-                    set node [lindex $componentsFifoList 0]   
-                    set componentsFifoList [lreplace $componentsFifoList 0 0]
-
-                    ## Work on the node using the actually defined Shade
-                    
-                    #$node currentShading set $shade    
-                    
-                      
-                        ## If on top of stack, then operate reduce if in shade
-                        ## Otherwise, go deeper in the tree
-                        if {[$parentStack peek]==$node} {
-                            
-                            ## WARNING: Level increase is independent from shading
-                            ## Decrease level 
-                            set currentLevel [expr $currentLevel-1]
-
-                            if {[$node shadeMatch $shade]} {
-
-
-                                #::odfi::log::info "Reduced back to Parent [$node info class] "
-
-                                ## Results: Take Content of currentLevel+1 (children)  and clear it
-                                set tempResults [$resultsList at [expr $currentLevel+1] ]
-                                if {[$resultsList size]>[expr $currentLevel+1]} {
-                                    $resultsList setAt [expr $currentLevel+1] {}
-                                }
-                                
-
-
-                                
-
-                                ## Produce using leaf results 
-                                #::set reduceRes [odfi::closures::applyLambda $reduceClosure [list it $node] [list args $tempResults] ] 
-                                ::set reduceRes [$reduceLambda apply [list it $node] [list args $tempResults]]
-                                #::set reduceRes ""
-                                #set lastNode [current object]
-
-                                #::odfi::log::fine "-> Reduce res: $reduceRes"
-
-                                ## Results: Set to parent's node level, which is the current level 
-                                ## Now we are a node, so add to node results
-                                $resultsList appendAt $currentLevel $reduceRes
-
-                           
-                      
-                                
-                            } 
-                            
-                            ## Remove from top to make sure we don't enter infinite loop
-                            $parentStack pop
-
-                           
-                            
-                        } else {
-                            
-                            ## Either Behave as parent, or as leaf
-                            #############
-                            
-                            
-                            if {[$node isLeaf] && [$node shadeMatch $shade]} {
-                                
-                               # ::odfi::log::info "On Node [$node info class] which is a leaf at level $currentLevel"
-
-                                ## Produce result, and add as as result list
-                                ##########
-                                #if {[catch {set reduceRes [odfi::closures::applyLambda $reduceClosure [list it $node] [list args ""]]} res]} {
-                                #    ::odfi::log::info "Reduce error occured on node $node of type [$node info class]"
-                                #    error $res 
-                                #}
-
-                                #::set reduceRes [odfi::closures::applyLambda $reduceClosure [list it $node ] [list args "" ] ]
-                                ::set reduceRes [$reduceLambda apply [list it $node ] [list args ""] ]
-                                #::set reduceRes ""
-                                set lastNode $node
-
-                                #odfi::log::fine "Reduce Res on leaf: $reduceRes"
-                                ## Add Results to current Level results 
-                                ##############
-
-                                ## The Results list of this level might not have been opened 
-                                ## Open level 
-                                if {[$resultsList size]<= $currentLevel} {
-                                    $resultsList += [list ]
-                                }
-
-                                $resultsList appendAt $currentLevel $reduceRes
-
-                               
-                                
-                                
-                            } elseif {![$node isLeaf]} {
-                                
-                                ## Parent:
-                                ##  - Set children to be processed 
-                                ##  - Open Level in results if necessary
-                                ##  - increase level 
-                                ##  - Add to stack for destacking
-
-                                ## Children 
-
-                                #::odfi::log::info "On Node [$node info class] which has children, add as parent and go to children "
-
-                                ## Bounce back to top, and add children to be done before
-                                #::puts "---> Not leaf, Push on top [[current object] info class]"
-                                
-                                #$componentsFifo addFirst $node
-                                set componentsFifoList [concat $node $componentsFifoList]
-
-                                set childrenOfCurrent [$node children]
-
-                                #::odfi::log::info "On Node size: [$childrenOfCurrent size] "
-
-                                foreach it [lreverse [$childrenOfCurrent asTCLList]] {
-                                    #::odfi::log::info "Adding node $it"
-                                    
-                                    #$componentsFifo addFirst $it 
-                                    set componentsFifoList [concat $it $componentsFifoList]
-                                }
-
-                                ## Open level 
-                                if {[$resultsList size]<= $currentLevel} {
-                                    $resultsList += [list ]
-                                }
-
-                                ## Increase level
-                                incr currentLevel
-                                
-                                ## Add our selves to the stack
-                                $parentStack push $node
-                                
-                            }
-                            
-                            
-                            
-                        }
-                         
-                       
-
-            }
-            
-            ## Return Current level 
-            return [join [$resultsList at $currentLevel]]
-        
-            
- 
-            
-        }
 
         ## Reduce goes starts with leaves
         ## - produces a result for each
@@ -1758,7 +1122,7 @@ namespace eval odfi::flextree {
             set nodeResults {}
             set lastNode [current object]
 
-            ::odfi::log::fine "Reduce Start with shade ${:currentShading}"
+            #::odfi::log::fine "Reduce Start with shade ${:currentShading}"
             set shade ${:currentShading}
 
             ## Go on FIFO 
@@ -2295,6 +1659,38 @@ namespace eval odfi::flextree {
             ::odfi::common::deleteObject $matchClosure
 
             return $res
+        }
+        
+        :public method findFirstInTreeLevelOrder closure {
+            
+            set foundResult ""
+            set found false
+            set matchClosure [odfi::closures::newITCLLambda $closure] 
+            try {
+            :walkDepthFirstLevelOrder  {
+            
+                if {$found} {
+                    return false
+                } else {
+                    #puts "Testing: [$node info class]"
+                    if {[$matchClosure apply [list it $node]]} {
+                        set foundResult $node
+                        set found true
+                        return false
+                    } else {
+                        return true
+                    }
+                    
+                }
+                
+            }
+            } finally {
+                ::odfi::common::deleteObject $matchClosure
+            }
+            
+            return $foundResult
+            
+        
         }
         
         
