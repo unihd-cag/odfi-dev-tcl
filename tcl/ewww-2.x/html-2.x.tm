@@ -193,6 +193,7 @@ namespace eval odfi::ewww::html {
         #######################
         :html : HTMLNode {
             +exportToPublic
+            +exportTo HTMLNode
 
            
             +method reduceProduce results {
@@ -498,7 +499,7 @@ namespace eval odfi::ewww::html {
     ##########################
     nx::Class create HTMLStringProducer {
 
-        HTMLNode mixins add HTMLStringProducer
+        
 
         :public method reduceProduce results {
 
@@ -534,7 +535,7 @@ namespace eval odfi::ewww::html {
             #puts "Inside HTML TOString $args"
             
             ## Create String and 
-            #set str [:reduce]
+            
             
             set res [:reducePlus {
                 
@@ -570,6 +571,8 @@ namespace eval odfi::ewww::html {
             return $str
 
         }
+
+        HTMLNode mixins add HTMLStringProducer
 
     }
 

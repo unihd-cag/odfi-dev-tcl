@@ -210,6 +210,10 @@ namespace eval odfi::log {
             puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] WARNING >> $msg"
         }
         
+        :public method fine msg {
+            puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] FINE >> $msg"
+        }
+
         :public method debug msg {
             #puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] DEBUG >> $msg"
         }
