@@ -154,9 +154,11 @@ namespace eval odfi::closures {
 
     proc set {var value} {
 
-        if {[llength $value]>0} {
-            ::set value [list $value]
-        } else {
+        if {[catch {llength $value} res]>0} {
+            puts "Error in set closures: $res ($value)"
+            error $res
+        } elseif {$res>0} {
+             ::set value [list $value]
             #::set value "{}"
         }
         
