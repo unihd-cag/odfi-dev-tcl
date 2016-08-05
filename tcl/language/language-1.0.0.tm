@@ -442,6 +442,8 @@ namespace eval odfi::language {
         :property -accessor public +superclasses
         :property -accessor public +mixins
 
+        :property -accessor public +mergeWith
+
         :property -accessor public +builders
 
         :method init args {
@@ -452,6 +454,7 @@ namespace eval odfi::language {
             set :+mixins {}
             set :+simpleName [lindex [split ${:+name} :] end]
             set :+builders {}
+            set :+mergeWith false
 
             
         }
@@ -583,6 +586,13 @@ namespace eval odfi::language {
                 
             }
 
+        }
+
+        ## Add merge parameter
+        ## Merge will use the provided property to find an existing similar object and configure this previously existing object instead of creating a new one
+        :public method +mergeWith name {
+
+            set :+mergeWith $name
         }
 
         :public method apply closure {
@@ -930,12 +940,34 @@ namespace eval odfi::language {
                             set uniqueArg [$node cget -+unique]
 
                             set uniqueCode "
-                            set existing \[:shade [$node cget -+name] findChildByProperty $uniqueArg \$$uniqueArg \]
+                            ::set existing \[:shade [$node cget -+name] findChildByProperty $uniqueArg \$$uniqueArg \]
                             #puts \"Unique res [$node cget -+name]: \$existing looking for $uniqueArg \$$uniqueArg\"
                             if {\$existing!=\"\"} {
                                 return \$existing
                             }"
 
+                        }
+
+                        ## Merge Code: Create instance code either just creates, or uses the provided paramter to find similar objects
+                        ################
+                        ::set createInstanceCode "::set inst \[[$node cget -+name] new $constructorArgs\]"
+                        if {[$node cget -+mergeWith]!=false} {
+
+                            set mergeWithParameterName [$node cget -+mergeWith]
+
+                            ::set createInstanceCode "
+
+                            ## Create instance, because parameter can have a default value not set in constructor args
+                            ## Then search for existing
+                            $createInstanceCode
+                            ::set existing \[:shade [$node cget -+name] findChildByProperty $mergeWithParameterName \[\$inst $mergeWithParameterName get\] \]
+
+                            ## If Existing has been found, replace inst with the existing one
+                            if {\$existing!=\"\"} {
+                                ::set inst \$existing
+                            }"
+
+                            #puts "Class [$node cget -+name] has merge with $mergeWithParameterName, creation code is: \n $createInstanceCode"
                         }
 
                         ## The Builder is mixed in to targets to provide element creation and retrieval
@@ -971,8 +1003,6 @@ namespace eval odfi::language {
                                     ## overwrite
                                     ::set overwrites \[split \$args\]
 
-                                    ##
-                                    #\$inst apply \[lindex \$args 0\] 
                                 }
 
                                 #set overwrites {-iocount 5}
@@ -982,7 +1012,8 @@ namespace eval odfi::language {
                                 $uniqueCode
 
                                 ## Create instance
-                                ::set inst \[[$node cget -+name] new $constructorArgs\]
+                                $createInstanceCode
+                                #::set inst \[[$node cget -+name] new $constructorArgs\]
                                 
                                 #puts \"Created instance [$node cget -+name] \$inst\"
                                 

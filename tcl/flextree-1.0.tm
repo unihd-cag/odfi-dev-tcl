@@ -301,8 +301,18 @@ namespace eval odfi::flextree {
                     set parent [[$current getParentsRaw] at 0]
 
                     ## Test 
+                    #puts "Apply [$lambda cget -preparedClosure] ---->"
+                    
+                    #set it $parent
                     set res [$lambda apply [list it $parent]]
-                    if {$res} {
+                    #puts "<-------"
+                    #puts "Testing parent $parent [$parent info class] -> $res with $cl ($lambda)"
+                    
+                    #$parent eachChild {
+                    #    puts "[$it info class] -> [$it name get]"
+                    #}
+
+                    if {$res!="" && $res!=false} {
                         set result $parent 
                         break
                     }

@@ -919,7 +919,7 @@ namespace eval odfi::closures {
 
             ## Set Some Basic Parameters
             ################
-            set execLevel [expr ${level}+1]
+            ::set execLevel [expr ${level}+1]
 
             #set targetLevel [uplevel $execLevel info level]
             #set execNamespace [uplevel $execLevel namespace current]
@@ -997,16 +997,7 @@ namespace eval odfi::closures {
                        # ::puts "----- Setting arg $argName $argValue"
                         
                         uplevel $execLevel ::set $argName [list $argValue]
-                        #uplevel [list ::set $argName {}]
-                        #::foreach _av $argValue {
-                        #    ::puts "----- Arg index is $_av"
-                        #    if {[llength $_av]>0} {
-                        #        uplevel ::lappend  $argName [list $_av]
-                        #    } else {
-                        #        uplevel ::lappend  $argName $_av
-                        #    }
-                        #    
-                        #}
+                        
 
                     } elseif {[llength $argValue] ==0 && $argValue==""} {
                         #::puts "Setting $argName to $argValue 8force empty"
@@ -1024,30 +1015,7 @@ namespace eval odfi::closures {
             }
 
 
-            # set argsList {}
-            # foreach argInput $args {
-
-            #     set argValue [lindex $argInput end]
-
-            #     ## Protect 
-            #     uplevel odfi::closures::protect [lindex $argInput 0]
-
-            #     ## Set Arg Value
-            #     if {[llength $argValue]>1} {
-
-            #         uplevel ::set [lindex $argInput 0] [list $argValue]
-
-            #     } elseif {[llength $argValue] ==0 && $argValue==""} {
-            #         #::puts "Setting [lindex $argInput 0] to $argValue"
-            #         uplevel [list ::set [lindex $argInput 0] {}]
-            #     } else {
-            #         #::puts "Setting [lindex $argInput 0] to $argValue"
-            #         uplevel ::set [lindex $argInput 0] $argValue
-            #     }
-
-               
-
-            # }
+  
 
             ## Import Overwrites  // && $execNamespace!="::"
             #########
@@ -1058,7 +1026,7 @@ namespace eval odfi::closures {
             try {
 
                 #puts "Running closure  ${preparedClosure}"
-                set _c_res_ [uplevel $execLevel ${preparedClosure}]
+                ::set _c_res_ [uplevel $execLevel ${preparedClosure}]
 
                 #puts "Exec res: $_c_res_"
 
@@ -1068,50 +1036,50 @@ namespace eval odfi::closures {
 
             } on break {res resOptions} {
 
-            #::puts "(CL) Caught break"
-            uplevel $execLevel return -code break 0
+                #::puts "(CL) Caught break"
+                uplevel $execLevel return -code break 0
 
-        } on continue {res resOptions} {
+            } on continue {res resOptions} {
 
-            #::puts "(CL) Caught Continue"
-            uplevel $execLevel return -code continue 0
+                #::puts "(CL) Caught Continue"
+                uplevel $execLevel return -code continue 0
 
-        } on error {res resOptions} {
+            } on error {res resOptions} {
 
-            ::set line [dict get $resOptions -errorline]
-            ::set stack [dict get $resOptions -errorstack]
-            ::set errorInfo [dict get $resOptions -errorinfo]
-            ::set errorInfo [regsub -all {\[odfi::closures::value {([^{}]+)}\]} $errorInfo "\$\\1"]
-            #puts "(CL) Found error: $res at line $line"
-            #puts "(CL) last stack: $stack"
+                ::set line [dict get $resOptions -errorline]
+                ::set stack [dict get $resOptions -errorstack]
+                ::set errorInfo [dict get $resOptions -errorinfo]
+                ::set errorInfo [::odfi::closures::declosure $errorInfo]
+                #puts "(CL) Found error: $res at line $line"
+                #puts "(CL) last stack: $stack"
 
-            dict set resOptions replace -errorinfo [regsub -all {\[odfi::closures::value {([^{}]+)}\]} $errorInfo "\$\\1"]
+                dict set resOptions replace -errorinfo $errorInfo
 
-            error $errorInfo
+                error $errorInfo
 
-        } on return res {
+            } on return res {
 
-            #puts "Caught return $res" 
-            #uplevel $execLevel return $res
-            uplevel $execLevel [list ::return $res]
-            #::return $res
+                #puts "Caught return $res" 
+                #uplevel $execLevel return $res
+                uplevel $execLevel [list ::return $res]
+                #::return $res
 
-        } finally {
+            } finally {
 
-                ## Unprotect args 
-                ######################
-                foreach argInput $args {
-                    uplevel $execLevel odfi::closures::restore [lindex $argInput 0]
+                    ## Unprotect args 
+                    ######################
+                    foreach argInput $args {
+                        uplevel $execLevel odfi::closures::restore [lindex $argInput 0]
+                    }
+
+                    ## Remove overwrites 
+                    ##  - Don't remove if the target execution level in in this context
+                    ############################
+                      
                 }
+                
 
-                ## Remove overwrites 
-                ##  - Don't remove if the target execution level in in this context
-                ############################
-                  
             }
-            
-
-        }
 
     }
 
@@ -1120,8 +1088,8 @@ namespace eval odfi::closures {
 
     ## Lambda Pool
     set lambdaPool {}
-    for {set _i 0} {$_i<50} {incr _i} {
-        lappend lambdaPool [::new LambdaITCL #auto]
+    for {set _i 0} {$_i<50} {::incr _i} {
+        ::lappend lambdaPool [::new LambdaITCL #auto]
     }
     variable currentLambda 0
     proc buildITCLLambda definition {
@@ -1130,11 +1098,11 @@ namespace eval odfi::closures {
             error "No Lambda available in pool anymore"
         } 
 
-        set lambda [lindex ${::odfi::closures::lambdaPool}  ${::odfi::closures::currentLambda}]
+        ::set lambda [lindex ${::odfi::closures::lambdaPool}  ${::odfi::closures::currentLambda}]
         ${lambda} configure -definition $definition
         ${lambda} configure -level 0
         ${lambda} prepare 
-        incr ::odfi::closures::currentLambda
+        ::incr ::odfi::closures::currentLambda
         return $lambda
 
     }
@@ -1166,17 +1134,17 @@ namespace eval odfi::closures {
     proc withITCLLambda {definition level script} {
 
         ## If Definition is a closure already, don't do anything
-        set redeem false
+        ::set redeem false
         if {[odfi::common::isClass $definition odfi::closures::LambdaITCL]} {
            
            #puts "Defi $definition is a lambda class"
-           set lambda $definition
+           ::set lambda $definition
 
         } else {
             ## Build 
-            set lambda [odfi::closures::buildITCLLambda $definition]
+            ::set lambda [odfi::closures::buildITCLLambda $definition]
             $lambda configure -level $level
-            set redeem true
+            ::set redeem true
         }
 
        
@@ -1184,7 +1152,7 @@ namespace eval odfi::closures {
         ## Execute 
         try {
             uplevel odfi::closures::protect lambda  
-            uplevel set lambda $lambda
+            uplevel ::set lambda $lambda
             uplevel $script
 
         } finally {
