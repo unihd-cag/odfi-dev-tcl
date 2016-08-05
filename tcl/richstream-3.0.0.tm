@@ -472,11 +472,16 @@ namespace eval odfi::richstream::template {
     ## Replace embbeded TCL between <% %> markors in source string with evaluated tcl, and returns the result as a string
     ## <% standard eval %>
     ## <%= evaluation result not outputed %>
-    proc stringToFile {inputString outputFile} {
+    proc stringToFile {inputString outputFile args} {
+
+        set append "w+" 
+        if {[lsearch -exact $args -append]>=0} {
+            set append "a+"
+        }
 
         ## Open source file
         set inChannel  [odfi::common::newStringChannel $inputString]
-        set outChannel [open $outputFile "w+"]
+        set outChannel [open $outputFile $append]
 
         ## Replace and store result
         set res [embeddedTclStream $inChannel -execLevel 2 ]
