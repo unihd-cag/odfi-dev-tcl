@@ -179,7 +179,7 @@ namespace eval ::odfi::ewww {
                 }
 
                 :htmlView : Handler name path buildScript {
-
+                    +mixin  ::odfi::ewww::html::HTMLNode
 
                     +method getTemplate name {
 
