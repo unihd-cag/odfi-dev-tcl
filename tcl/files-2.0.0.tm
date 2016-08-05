@@ -49,7 +49,7 @@ namespace eval odfi::files {
     }
 
 
-    ## Copying 
+    ## Copying a list of file from a folder to another one
     proc mcopy { from baseFolder files filesList to outputBaseFolder} {
     
         foreach f $filesList {
@@ -57,6 +57,18 @@ namespace eval odfi::files {
             file copy -force $baseFolder/$f $outputBaseFolder/$f
         }
     
+    }
+
+    ## Return true if the provided file content contains the provided match
+    ## The match string is in the format of string match
+    proc fileContains {file match args} {
+
+        if {[file exists $file] && [string match *$match* [::odfi::files::readFileContent $file]]} {
+            return true
+
+        } else {
+            return false
+        }
     }
 
     ## Improved Glob, that can run recursively and executes provided closure on each file

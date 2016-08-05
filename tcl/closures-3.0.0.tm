@@ -129,6 +129,17 @@ namespace eval odfi::closures {
         return $resLine
     }
 
+    ################
+    ## Declosure
+    ##################
+
+    ## Declosure removed the odfi::closures::value calls that might habe been added by a global replace and not needed anymore
+    proc declosure value {
+
+        #puts "Declosuring $value"
+        return [regsub -all {\[(?:::)?odfi::closures::value+\s+([\w\d\.-_]+)\s+\]} "$value" "\$\\1"]
+    }
+
     #######################
     ## Special Functions for variables / overloaded in closure context 
     ####################
@@ -154,9 +165,11 @@ namespace eval odfi::closures {
 
     proc set {var value} {
 
-        if {[llength $value]>0} {
-            ::set value [list $value]
-        } else {
+        if {[catch {llength $value} res]>0} {
+            puts "Error in set closures: $res ($value)"
+            error $res
+        } elseif {$res>0} {
+             ::set value [list $value]
             #::set value "{}"
         }
         
