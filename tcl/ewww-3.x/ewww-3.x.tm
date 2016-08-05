@@ -84,6 +84,7 @@ namespace eval ::odfi::ewww {
                 +method init args {
                     next
                     :log:setPrefix "handler ${:path}"
+                    set :path [::odfi::ewww::Server::noDoubleSlash ${:path}]
                 }
 
                 +method serve {path sock ip request auth} {
@@ -101,7 +102,7 @@ namespace eval ::odfi::ewww {
                     #}
 
                         #set realBody [join $body]
-                        set encoded [encoding convertto utf-8 $body]
+                        ::set encoded [encoding convertto utf-8 $body]
         #
                         #odfi::common::logFine "--- Responding with content: $body , length [string length $body]"
 
@@ -131,16 +132,82 @@ namespace eval ::odfi::ewww {
 
                     +method accept path {
 
-                        if {[file exists $baseFolder/$path]} {
+                        #puts "Testing application accept of $path against self ${:path} "
+                        if {[string match ${:path}* $path]} {
                             return true 
                         } else {
                             return false
                         }
                     }
 
+
                     ## return {contentType length data}
                     +method render path {
-                        return [next]
+                        
+
+                        
+                        set finalPath ${:baseFolder}/$path
+
+                        if {[file exists $finalPath]} {
+
+                            ## handle Directory requests
+                            if {[file isdirectory $finalPath]} {
+
+                                set directoryIndexes {
+                                    index.html
+                                    index.htm
+                                }
+                                set found false
+                                foreach posssibleIndex $directoryIndexes {
+                                    if {[file exists $finalPath/$posssibleIndex]} {
+                                        set finalPath $finalPath/$posssibleIndex
+                                        set found true
+                                        break
+                                    }
+                                }
+
+                                ## If found, ok, otherwise handle directory indexes
+                                if {!$found} {
+                                    error "Cannot serve directory as file, need to adde directory indexes feature"
+                                }
+
+                            }
+
+                            ## Content Type
+                            switch -glob $finalPath {
+
+                                *.html {
+                                    set contentType text/html
+                                }
+
+                                *.css {
+                                    set contentType text/css
+                                }
+
+                                *.js {
+                                    set contentType text/javascript
+                                }
+
+                                default {
+                                    set contentType text/plain
+                                }
+                            }
+
+                            ## Result
+                            return [list $contentType [file size $finalPath] [::odfi::files::readFileContent $finalPath]]
+
+
+                        } else {
+                            return false                            
+                        }
+
+                        
+
+                        
+
+                       
+                        
+
 
                     }
 
@@ -227,6 +294,7 @@ namespace eval ::odfi::ewww {
             }
             ## EOF Handler Definition
 
+            ## Server Connection accept
             +method accept {sock ip port}  {
 
                 :log:fine "Accepted connection from $ip"
@@ -273,6 +341,7 @@ namespace eval ::odfi::ewww {
                 } else {return 1}
             }   
 
+            ## Server Serve
             +method serve {sock ip uri auth} {
 
                 ## Check authentication
@@ -302,7 +371,7 @@ namespace eval ::odfi::ewww {
 
                     :some handler {
 
-                        set localRequestPath [::odfi::ewww::Server::noDoubleSlash /[string map [list [$handler cget -path] "/" // /] "$requestPath"] ]
+                        set localRequestPath [::odfi::ewww::Server::noDoubleSlash /[string map [list [$handler path get] "/" // /] "$requestPath"] ]
                         
                         $server log:raw "Found handler for $requestPath -> $localRequestPath" 
                         
@@ -329,6 +398,18 @@ namespace eval ::odfi::ewww {
             #######################
             :application : Handler name path {
 
+                +exportToParent
+
+                +method accept path {
+
+                    #puts "Testing application accept of $path against self ${:path} "
+                    if {[string match ${:path}* $path]} {
+                        return true 
+                    } else {
+                        return false
+                    }
+                }
+
                 +method serve {path sock ip request auth} {
                     next
 
@@ -347,12 +428,41 @@ namespace eval ::odfi::ewww {
                             :log:warning "Multiple Handlers found to serve path $path , using first one [[$handlers at 0] info class]"
                         }
 
-                        ## Serve
-                        :log:raw "Using Handler [[$handlers at 0]  info class] "
-                        set res [[$handlers at 0] render $path]
+                        ## Serve or render using handler
+                        set selectedHandler [$handlers at 0]
 
-                        ## Respond
-                        :respond $sock 200 [lindex $res 1] [lindex $res end]
+                        ## Pass the request path stripped from the handler base path 
+                        set localRequestPath [::odfi::ewww::Server::noDoubleSlash /[string map [list [$selectedHandler path get] /] "${path}"] ]
+
+                        :log:raw "Using Handler [$selectedHandler  info class] "
+                        if {[lsearch -exact [$selectedHandler info lookup methods] render]>0} {
+
+
+
+                            set res [$selectedHandler render $localRequestPath]
+
+                            ## Respond
+                            if {$res==false} {
+                                :respond $sock 404 text/plain "Not Found: $path"
+                            } else {
+                                :respond $sock 200 [lindex $res 0] [lindex $res end]
+                            }
+                            
+
+
+                        } elseif {[lsearch -exact [$selectedHandler info lookup methods] serve]>0} {
+
+                            
+                            :log:raw "Found handler [$selectedHandler path get] for $path -> $localRequestPath" 
+
+                            $selectedHandler serve $localRequestPath $sock $ip $request $auth
+
+                        } else {
+
+                            :log:warning "Selected Handler has neither serve or render methods"
+                        }
+
+                        
 
                     }
 

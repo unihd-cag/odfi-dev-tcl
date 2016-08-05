@@ -537,16 +537,18 @@ namespace eval odfi::ewww::html {
             ## Create String and 
             
             
-            set res [:reducePlus {
+            set stringRes [:reducePlus {
                 
                 ## Reduce Produce present?
-                set res ""
+                #set res ""
                 if {[$node info lookup method reduceProduce]!=""} {
                     
                     #puts "REduce Procuce on [$node info class]"
-                    set res [$node reduceProduce $results]
+                    return [$node reduceProduce $results]
+                } else {
+                    return ""
                 }
-                return $res
+               
                 
                 #puts "Methods: [$node info lookup method reduceProduce]"
                 #exit
@@ -556,7 +558,7 @@ namespace eval odfi::ewww::html {
             #puts "RP: [$res info class]"
             #puts "Res: [$res at 0]"
             
-            set str [lindex [$res at 0] 1]
+            set str [lindex [$stringRes at 0] 1]
             
             ## File write?
             if {[llength $args]>0} {

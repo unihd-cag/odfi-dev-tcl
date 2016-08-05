@@ -547,6 +547,7 @@ namespace eval odfi::flist {
         }
 
         ## map elements and sort based on map result 
+        ## Returns a sorted list of original elements, not the mapped values
         :public method mapSort closure {
 
             ## Map to { {elt mappedValue} }
