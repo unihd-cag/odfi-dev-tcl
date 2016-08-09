@@ -17,6 +17,7 @@
 package provide odfi::richstream 3.0.0
 package require odfi::closures 3.0.0
 package require odfi::files 2.0.0
+package require Itcl
 
 namespace eval odfi::richstream {
     odfi::common::resetNamespaceClassesObjects ::odfi::richstream
@@ -170,6 +171,9 @@ namespace eval odfi::richstream {
 
 
     }
+
+
+    
 
     
 }
@@ -458,13 +462,18 @@ namespace eval odfi::richstream::template {
     proc stringToString {inputString {-level 2}} {
 
         ## Open source file
-        set inChannel  [odfi::common::newStringChannel $inputString]
+        set inSource [::new odfi::richstream::RichStream #auto]
+        $inSource puts $inputString
+        
+        #puts [$inSource getChannel] $inputString 
+        ##set inChannel  [odfi::common::newStringChannel $inputString]
 
         ## Replace and store result
-        set res [embeddedTclStream $inChannel -execLevel ${-level} ]
+        set res [embeddedTclStream [$inSource getChannel] -execLevel ${-level} ]
 
         ## Close
-        close $inChannel
+        $inSource close
+        #close $inChannel
 
         return $res
     }
@@ -480,15 +489,17 @@ namespace eval odfi::richstream::template {
         }
 
         ## Open source file
-        set inChannel  [odfi::common::newStringChannel $inputString]
+        set inSource [::new odfi::richstream::RichStream #auto]
+        $inSource puts $inputString
+        
         set outChannel [open $outputFile $append]
 
         ## Replace and store result
-        set res [embeddedTclStream $inChannel -execLevel 2 ]
+        set res [embeddedTclStream [$inSource getChannel] -execLevel 2 ]
         ::puts -nonewline $outChannel $res
             
         ## Close
-        close $inChannel
+        $inSource close
         flush $outChannel
         close $outChannel
 

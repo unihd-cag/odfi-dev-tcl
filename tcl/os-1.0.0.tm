@@ -90,13 +90,32 @@ namespace eval odfi::os {
 
     proc isWindows args {
         
-        if {[string match "*win*" [getOs]]} {
+        if {[string match "windows" $::tcl_platform(platform)]} {
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    proc isWindowsMsys args {
+    
+        if {[::odfi::os::isWindows] && [string match "*msys*" "$::tcl_library"]} {
+            return true
+        } else {
+            return false
+        }   
+    }
+    
+    proc processHasShell args {
+        if {[llength [array names ::env SHELL]] > 0} {
             return true
         } else {
             return false
         }
     }
 
+
+    
 
     ## Executes the provided switch input on getOs.
     ##  - If no match, outputs an error
@@ -138,5 +157,32 @@ namespace eval odfi::os {
         }
     }
 
+
+    ## Find Command in path
+    ##########
+    
+    proc isCommandInPath command {
+        
+        ## Separators and exe extension
+        if {[::odfi::os::isWindows] && ![::odfi::os::processHasShell]} {
+            set pathSeparator ";"
+            set exeExtension "exe"
+        } else {
+            set pathSeparator ":"
+            set exeExtension ""
+        }
+        
+        ## Get path and split
+        set envPaths [split $::env(PATH) $pathSeparator]
+        foreach envPath $envPaths {
+        
+            if {[file exists $envPath/${command}.$exeExtension]} {
+                return true
+            }
+        }
+        
+        return false
+    
+    }
 
 }

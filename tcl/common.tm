@@ -16,7 +16,7 @@
 #
 
 package provide odfi::common 1.0.0
-package require Itcl
+
 
 #package require textutil::adjust
 
@@ -899,19 +899,7 @@ namespace eval odfi::common {
     }
 
 
-    ## \brief If args provided, must be the initial content
-    proc newStringChannel args {
-
-        set result [chan create "write read" "odfi::common::[StringChannel #auto]"]
-        if {[string length [lindex $args 0]]>0} {
-            #puts "initial value for string channel [string length $args] pm $result "
-            puts $result "[lindex $args 0]"
-            flush $result
-        }
-
-        return $result
-
-    }
+   
 
 	proc execCommand {execCommand {targetChannel stdout}} {
 
@@ -998,85 +986,6 @@ namespace eval odfi::common {
 	
 
 
-    odfi::common::resetNamespaceClassesObjects [namespace current]
-
-    ## A String channel usable to create custom channel that outputs into a string
-    # Usage example:
-    #      set eout [chan create "write read" "odfi::common::[StringChannel #auto]"]
-    #      puts $eout
-    #      flush $eout
-    #      read $eout
-    #      close $eout
-    #
-    #      Don't forget that read won't return the correct result if not flushed before!!
-    #
-    itcl::class StringChannel {
-
-        variable data
-        variable pos
-
-        constructor args {
-            #if {$encoding eq ""} {set encoding [encoding system]}
-            #set data [encoding convertto $encoding $string]
-            set data ""
-            set pos 0
-        }
-
-        #public method setData fData {
-        #    set data $fData
-        #}
-
-        method initialize {ch mode} {
-            return "initialize finalize watch read seek write"
-        }
-        method finalize {ch} {
-            set data ""
-            set pos 0
-        }
-
-        method watch {ch events} {
-            # Must be present but we ignore it because we do not
-            # post any events
-        }
-
-        # Must be present on a readable channel
-        method read {ch count} {
-            set d [string range $data $pos [expr {$pos+$count-1}]]
-            incr pos [string length $d]
-            return $d
-        }
-
-        ## Must be present on write channel
-        method write {channelId nData} {
-
-            set data "$data$nData"
-            return [string length $nData]
-        }
-
-        # This method is optional, but useful for the example below
-        method seek {ch offset base} {
-            switch $base {
-                start {
-                    set pos $offset
-                }
-                current {
-                    incr pos $offset
-                }
-                end {
-                    set pos [string length $data]
-                    incr pos $offset
-                }
-            }
-            if {$pos < 0} {
-                set pos 0
-            } elseif {$pos > [string length $data]} {
-                set pos [string length $data]
-            }
-            return $pos
-        }
-
-
-    }
 
     ###############################
     ## Source file location utilities 
@@ -1097,7 +1006,8 @@ namespace eval odfi::common {
             
             set callerFrame [info frame -$level]
             
-            puts "Type -> [dict get $callerFrame type]"
+            #puts "Type -> [dict get $callerFrame type]"
+            
             ## If file -> finish
             ## If eval -> add line
             if {[dict get $callerFrame type]=="eval"} {

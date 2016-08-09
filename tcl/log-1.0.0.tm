@@ -173,7 +173,7 @@ namespace eval odfi::log {
     
         :object variable -accessor public levels {
             ERROR
-            WARN
+            WARNING
             INFO
             FINE
             FINER
@@ -201,22 +201,23 @@ namespace eval odfi::log {
             puts "[:prefix get] [:separator get] $msg"
         
         }
+        
+        foreach level ${::odfi::log::Logger::levels} {
+            
+            #puts "Adding $level [string tolower $level]"
+            if {$level=="ERROR"} {
+                :public method [string tolower $level] {msg args} "
+                    puts \"\[:prefix get\] \[:separator get\] \[:getCallingCommand\] \[:separator get\] $level >> \$msg\"
+                    error \$msg
+                "
+            } else {
+                :public method [string tolower $level] {msg args} "
+                    puts \"\[:prefix get\] \[:separator get\] \[:getCallingCommand\] \[:separator get\] $level >> \$msg\"
+                "
+            }
+            
+        }
     
-        :public method info msg {
-            puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] INFO >> $msg"
-        }
-        
-        :public method warning msg {
-            puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] WARNING >> $msg"
-        }
-        
-        :public method fine msg {
-            puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] FINE >> $msg"
-        }
-
-        :public method debug msg {
-            #puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] DEBUG >> $msg"
-        }
         
         :public method getCallingCommand args {
         
@@ -235,6 +236,27 @@ namespace eval odfi::log {
             
             return $commandName
         }
+        
+        
+        
+        #:public method warning msg {
+        #                   puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] WARNING >> $msg"
+        #}
+    
+        #:public method info msg {
+        #    puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] INFO >> $msg"
+        #}
+        
+       
+        
+        #:public method fine msg {
+        #    puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] FINE >> $msg"
+        #}
+
+        #:public method debug msg {
+        #    #puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] DEBUG >> $msg"
+        #}
+        
         
     }
  
