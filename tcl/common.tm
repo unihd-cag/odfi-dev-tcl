@@ -120,6 +120,58 @@ namespace eval odfi::common {
         ## Search
         return $result
     }
+    
+    proc isObject object {
+    
+        ## Search ITCL  and NX 
+        #########
+        
+        ## ITCL
+        set result false
+        if {[catch {set result [itcl::find objects $object -isa $className]}]} {
+        } else {
+            if {$result==""} {
+                set result false
+            } else {
+                return true
+            }
+            #set result true
+        }
+        
+        ## NX
+        if {![catch {package present nx}]} {
+            if {[::nsf::is object $object]} {
+                return true
+            } else {
+                #set nxRes 0
+            }
+        }
+        
+        return $result
+    
+    }
+    
+    proc objectHasMethod {object method} {
+        
+        if {[::odfi::common::isObject $object]} {
+        
+            if {![catch {package present nx}]} {
+                
+                if {[lsearch -exact [$object info lookup methods] $method]>=0} {
+                    return true
+                } else {
+                    return false
+                }
+                
+            } else {
+                puts "Cannot check object for method, only NX supported for now"
+                return false
+            }
+        } else {
+            return false
+        }
+        
+    }
 
     ## \brief Deletes object without outputing an error if the object is not found
     proc deleteObject object {
@@ -1031,26 +1083,95 @@ namespace eval odfi::common {
     ###############################
 
     ## @return {file line}
-    proc findFileLocation args {
+    proc findFileLocation {{baseLevel 1} {resetMatch ""}} {
 
-        set level 1
+        ## Resolve file and line
+        ## Start at -2
+        ## Look for frame level with file
+        ## If we find eval, add line to current line in file
+        set currentLineInFile 1
+        set foundFile ""
+        set maxlevel [info frame]
+        set level $baseLevel
+        while {$level<[expr $maxlevel]} {
+            
+            set callerFrame [info frame -$level]
+            
+            puts "Type -> [dict get $callerFrame type]"
+            ## If file -> finish
+            ## If eval -> add line
+            if {[dict get $callerFrame type]=="eval"} {
 
-        while {true} {
-
-            ## Get 
-            if {[catch [list set fd [info frame -$level]]]} {
-                break
-            } else {
-
-                ## If file, return 
-                if {[dict exists $fd file]} {
-                    return [list [dict get $fd file] [dict get $fd type]]
+                incr currentLineInFile [expr [dict get $callerFrame line] -1]
+              
+            } elseif {[dict get $callerFrame type]=="source"} {
+            
+                ## If File matches the reset match, keep going and reset everything
+                set foundFile  [dict get $callerFrame file]
+                if {$resetMatch!="" && [string match "*$resetMatch*" $foundFile]} {
+                    set currentLineInFile 1
+                    set foundFile ""
                 } else {
-                    incr level
+                    incr currentLineInFile [expr [dict get $callerFrame line] -1]
+                    break
                 }
-
+                
+                
             }
+            
+            incr level
+
         }
+        
+        return [list $foundFile $currentLineInFile]
+
+
+    }
+    
+    ## @return {file line}
+    proc findFileLocationSegments {{baseLevel 1}} {
+    
+    
+        set result {}
+        
+        ## Resolve file and line
+        ## Start at -2
+        ## Look for frame level with file
+        ## If we find eval, add line to current line in file
+        set currentLineInFile 1
+        set foundFile ""
+        set maxlevel [info frame]
+        set level $baseLevel
+        while {$level<[expr $maxlevel]} {
+            
+            set callerFrame [info frame -$level]
+            
+            ##puts "Type -> [dict get $callerFrame type]"
+            ## If file -> finish
+            ## If eval -> add line
+            if {[dict get $callerFrame type]=="eval"} {
+
+                incr currentLineInFile [expr [dict get $callerFrame line] -1]
+              
+            } elseif {[dict get $callerFrame type]=="source"} {
+            
+                ## If File matches the reset match, keep going and reset everything
+                set foundFile  [dict get $callerFrame file]
+                
+                incr currentLineInFile [expr [dict get $callerFrame line] -1]
+                lappend res [list $foundFile $currentLineInFile]
+                
+                set foundFile ""
+                set currentLineInFile 1
+                
+                
+            }
+            
+            incr level
+
+        }
+        
+        return $res
 
 
     }

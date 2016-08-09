@@ -6,13 +6,11 @@ namespace eval odfi::language::nx {
     
     ## Create new NX based language
     proc new {namespacename script} {
-
-        namespace eval $namespacename "
-          
-            odfi::language::Language default { 
-                $script 
-            }
-        "
+        
+        set targetScript  " odfi::language::Language default { $script }"       
+        #puts "Target SCript: $targetScript"
+        
+        namespace eval $namespacename $targetScript
     }
 
 }

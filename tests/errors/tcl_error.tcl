@@ -1,275 +1,567 @@
-#source tcl_error_sourced.tcl
+package provide odfi::error::tracer 1.0.0
 
-set location [file normalize [file dirname [info script]]]
+#package require Itcl
 
+#package require odfi::common
+
+#package require odfi::nx::domainmixin 1.0.0
+#package require Itcl
+package require odfi::closures 3.0.0 
+package require odfi::files    2.0.0 
 
 namespace eval odfi::errortrace {
 
-    variable all_functions {}
+    variable all_functions {} 
+  
+    proc testTracer args {
+        puts "Called: $args"
+    }
     
-    proc tracer args {
-        puts "In tracer at level [info frame]"
-        #puts "Tracer args: $args"
-        puts "Tracer for command: [lindex [lindex $args 0] 1]"
-        set callerFrame [info frame -2]
-        puts "Current frame: [dict get $callerFrame type] [dict get $callerFrame line] [dict get $callerFrame file]"
-        set currentFrame [list  [dict get $callerFrame type] [dict get $callerFrame line] [dict get $callerFrame file]]
-        puts $currentFrame
-        puts "Namespace: [uplevel namespace current]"
+    # still to implement
+    proc namespaceTracer args {
+    
+    }
+    
+
+   
+    ## Tracer for procedures
+    proc procTracer args {
+    
+        ## Resolve proc full name
         set current_namespace [uplevel namespace current]
-        if {$current_namespace=="::"} {
-            set current_namespace ""
-        }
-        
-        lappend ::odfi::errortrace::all_functions [list  ${current_namespace}::[lindex [lindex $args 0] 1] [dict get $callerFrame file] [dict get $callerFrame line]]
-        
-        #lappend all_functions $currentFrame
-        #lappend all_functions $current_namespace
-        #puts $all_functions   
-    }
-}
-
-
-trace add execution "::proc" enter "::odfi::errortrace::tracer" 
-
-proc b args {
-    #c
-    source tcl_error_sourced_2.tcl
-
-}
-
-foreach {type line file namespace} ${::odfi::errortrace::all_functions} {
-    
-    puts "TEST: $type $line $file $namespace"
-}
-
-
-exit
-
-proc a args {
-   b
-    
-}
-
-
-
-proc b args {
-    #c
-    source ${::location}/tcl_error_sourced_2.tcl
-
-}
-
-
-proc bgerror {message} {
-    puts "BGEror"
-}
-
-
-
-
-
-try {
-    a
-    puts "a was executed"
-} on error {res option} {
-    
-    #puts $res
-    #puts $option
-       
-    set stack [dict get $option -errorinfo ]
-    #set stackInfo [dict get $option -errorinfo ]
-    set stack_length [string length $stack]
-    
-    
-    #puts "Stack: $stack"
-    #puts "Statck Info: $stackInfo"
+        set procName "[lindex [lindex $args 0] 1]"
+        #puts $current_namespace
  
-    
-    
-    # save the error message in the variable stack
-    puts $stack
-    #puts "The length of the stack is: $stack_length"
-    puts "\v\v"
-    
-    array set sub_array {}
-    set x 0 
-    set index 0 
-    #puts $x
-    
-    
-    # save every row of the error message into an array
-    while {$index != -1} {
-        set index_tmp [string first "\n" $stack $index+1]
-        set sub_array($x) [string range $stack $index $index_tmp]
-        #puts "index_tmp: $index_tmp"
-        incr x
-        #puts "x: $x"        
-        if {$index_tmp == -1} {
-            set m [expr {$x-1}]
-            set sub_array($m) [string range $stack $index+1 end]
-            #puts $sub_list(0)
-        }  
-        set index $index_tmp
-    }
-    
         
-    # check whether the size of the array is odd or even an compute
-    # how many times the loop which swaps the array entries has to be executed
-    set array_size [array size sub_array]
-    if {int(fmod($array_size,2)) == 0} {
-        set n [expr {$array_size/2}]
-    } else {
-        set n [expr {($array_size-1)/2}]
-    }
-
-
-    # rearrange the array, so that the last element will become the first and so on.
-    # This is important, because the procedure or something else which started the error stack
-    # is always named at the end of the error message.
-    if 1 {
-    for {set i 0} {$i < $n} {incr i} {      
-        set tmp $sub_array($i)
-        set m [expr {$array_size-$i-1}]
-        set sub_array($i) $sub_array($m)
-        set sub_array($m) $tmp
-    }
-    }
-   
-    # ONLY FOR TEST:
-    # display the elements of the sub_list which contains the error message
-    if 0 {
-    for {set i 0} {$i < $array_size} {incr i} {
-        if {$sub_array($i) == {} } {
-            puts "Attention: empty string"
-        } else {
-        puts $sub_array($i)
-        }
-    }
-    }
     
-    
-    
-    
-    
-    
-    # check the sub_array due to characetristic expressions which most of the error
-    # messages contain. These expressions are especially keywords like "file", "procedure",
-    # "try"-blocks and "line". 
-    # if there is a keyword matched, then it is usual that the explicit name will follow 
-    # within quotes.
-    puts "The following error message gives you a hint what files, procedures or variables\nare involved due to the occured error:"
-    puts "Please note the following notation: "
-    puts "The line number is not that one which you see at your editor. The line number is just counted from\n\
-    the respective procedure or file."
-    puts "Usually there went something wrong within the last two points which are indicated.\nSo please check them\
-    carfully due to errors." 
-    
-    
-    # define a extra counting variable, so that at the output you can see how many 
-    # files, procedures and so on are involved. 
-    set count 0
-    
-    for {set i 0} {$i < $array_size} {incr i} {
-        set index_file [string first "file" $sub_array($i)]
-        set index_procedure [string first "procedure" $sub_array($i)]
-        set index_try [string first "try" $sub_array($i)]
-
-        if {$index_file != -1} {
-            incr count
-            # finding the indizes of the explicit name within the quotes.
-            set bracket_left [string first "\"" $sub_array($i)]
-            set bracket_right [string last "\"" $sub_array($i)]
+        ## Resolve file and line
+        ## Start at -2
+        ## Look for frame level with file
+        ## If we find eval, add line to current line in file
+        set currentLineInFile 1
+        set foundFile ""
+        set maxlevel [info frame]
+        set level 2
+        while {$level<[expr $maxlevel]} {
             
-            # extract the keyword from the string 
-            set file_name [string range $sub_array($i) $bracket_left $bracket_right]
-   
-            # if any line number exists, then extract it.
-            set index_line [string first "line" $sub_array($i)]
-            if {$index_line != -1} {
-                set index_line_end [string last ")" $sub_array($i)]
-                set index_line_end [expr {$index_line_end-1}]
-                set line_number [string range $sub_array($i) $index_line $index_line_end]
-                if {$count==1} {
-                    puts "\nThe following file started the error stack:"
-                    puts [concat $count ":" "file" $file_name]
-                    #puts "--> withing this try-block the next procedures or files were called:"
-                } else { 
-                    puts [concat $count ":" "file" $file_name]
-                }
+            set callerFrame [info frame -$level]
+           
+           # puts "---------------------"
+           # puts "$callerFrame"
+           
+            ## If file -> finish
+            ## If eval -> add line
+            if {[dict get $callerFrame type]=="eval"} {
+            
                 
+                incr currentLineInFile [expr [dict get $callerFrame line] -1]
+              
+            } elseif {[dict get $callerFrame type]=="source"} {
+                set foundFile  [dict get $callerFrame file]
+                incr currentLineInFile [expr [dict get $callerFrame line] -1]
+                break
             }
             
-            # name of the procedure, command file etc. which was called during the try-block
-            puts [concat "withing this file" $sub_array([expr {$i+1}]) "was executed at" $line_number]
-            puts ""
-        }
-
-        if {$index_procedure != -1} {
-            incr count
-            # finding the indizes of the explicit name within the quotes.
-            set bracket_left [string first "\"" $sub_array($i) ]
-            set bracket_right [string last "\"" $sub_array($i) ]
+            incr level
             
-            # extract the keyword from the string 
-            set procedure_name [string range $sub_array($i) $bracket_left $bracket_right]
-   
-            # if any line number exists, then extract it.
-            set index_line [string first "line" $sub_array($i) ]
-            if {$index_line != -1} {
-                set index_line_end [string last ")" $sub_array($i)]
-                set index_line_end [expr {$index_line_end-1}]
-                set line_number [string range $sub_array($i) $index_line $index_line_end]
-                if {$count==1} {
-                    puts "\nThe following procedure started the error stack:"
-                    puts [concat $count ":" "procedure" $procedure_name]
-                    #puts "--> withing this try-block the next procedures or files were called:"
-                } else { 
-                    puts [concat $count ":" "procedure" $procedure_name]
-                }
-                
-            }
-            
-            # name of the procedure, command file etc. which was called during the try-block
-            puts [concat "withing this procedure" $sub_array([expr {$i+1}]) "was executed at" $line_number]
-            puts ""
+        
         }
         
-        if {$index_try != -1} {
-            incr count
-            # finding the indizes of the explicit name within the quotes.
-            set bracket_left [string first "\"" $sub_array($i) ]
-            set bracket_right [string last "\"" $sub_array($i) ]
-            
-            # extract the keyword from the string 
-            set try_name [string range $sub_array($i) $bracket_left $bracket_right]
+        ## Clean Name
+        if {$current_namespace == "::"} {
+            set current_namespace ""
+        } 
+        
+        #puts "Found $current_namespace :: $procName at $foundFile -> $currentLineInFile"
+      
+        lappend ::odfi::errortrace::all_functions [list ${current_namespace}::$procName $foundFile $currentLineInFile]
+        
+       
+       return
+    
+    }
    
-            # if any line number exists, then extract it.
-            set index_line [string first "line" $sub_array($i) ]
-            if {$index_line != -1} {
-                set index_line_end [string last ")" $sub_array($i)]
-                set index_line_end [expr {$index_line_end-1}]
-                set line_number [string range $sub_array($i) $index_line $index_line_end]
-                if {$count==1} {
-                    puts "\nThe error stack was started within the following try-block:"       
-                    puts [concat $count ":" $try_name "- block"]
-                    #puts "--> withing this try-block the next procedures or files were called:"
-                } else { 
-                    puts [concat $count ":" $try_name "- block"]
+    
+    ## Tracer for ::nx::Class 
+    proc nxClassTracer args {
+        
+        #puts "NX tracer: $args"        
+      
+        if {[lindex [lindex $args 0] 1] == "create"} {
+
+            set className [lindex [lindex $args 0] 2]  
+            set callerFrame [info frame -2]
+            set currentNamespace [uplevel namespace current]
+            
+            ## Resolve file and line
+            ## Start at -2
+            ## Look for frame level with file
+            ## If we find eval, add line to current line in file
+            set currentLineInFile 1
+            set foundFile ""
+            set maxlevel [info frame]
+            set level 2
+            while {$level<[expr $maxlevel]} {
+                
+                set callerFrame [info frame -$level]
+
+                ## If file -> finish
+                ## If eval -> add line
+                if {[dict get $callerFrame type]=="eval"} {
+  
+                    incr currentLineInFile [expr [dict get $callerFrame line] -1]
+                  
+                } elseif {[dict get $callerFrame type]=="source"} {
+                    set foundFile  [dict get $callerFrame file]
+                    incr currentLineInFile [expr [dict get $callerFrame line] -1]
+                    break
                 }
                 
+                incr level
+
             }
             
-            # name of the procedure, command file etc. which was called during the try-block
-            puts [concat "withing this try-block" $sub_array([expr {$i+1}]) "was executed at" $line_number]
-            puts ""
-        }
+            
+            if {$currentNamespace == "::"} {
+                set currentNamespace ""
+            }
+            
+                       
+            #puts "Creating Class ${currentNamespace}::$className -> $foundFile at $currentLineInFile"
+            
+            
+            
+            ## Looking for method
+            ##  -> Split at line to easily get line number, and match line with regex to detect method definition
+            set lines [split $args \n]
+            set i 0
+            foreach l $lines {
+                #puts "Line $i: $l"
+                if {[regexp {.+method\s+([\w\d:_-]+).*} $l -> mname]} {
+                    #puts "Found method $mname"
+                    set correct_line_number [expr {[dict get $callerFrame line] + $i}]
+                    lappend ::odfi::errortrace::all_functions [list ${currentNamespace}::${className}::$mname  [dict get $callerFrame file] $correct_line_number]
+                }                      
+                incr i
+            }
+
+            # lappend ::odfi::errortrace::all_functions [list ${currentNamespace}::$className  [dict get $callerFrame file] [dict get $callerFrame line]]
+            ## Trace execution on class name for further method definition for example
+           
+            #trace add execution "${currentNamespace}::${className}" enter "::odfi::errortrace::testTracer"
+       }
     }
     
+    trace add execution "::proc" enter "::odfi::errortrace::procTracer" 
+    trace add execution "::nx::Class" leave "::odfi::errortrace::nxClassTracer"
 
-    #puts "Caught error: $stack"
-    #puts "Caught error: [dict get $options -errorstack]"
-    #puts $res
-    #puts [info errorstack]
-    #puts $stack
+    proc recordProcWithOutputType {name file line outputType} {
+        puts "Recording  $name $file $line OUTPUT $outputType"
+        lappend ::odfi::errortrace::all_functions [list $name $file $line OUTPUT $outputType ]
+    }
+
+    proc getOutputType {name} {
+        
+        set res ""
+        set index [lsearch -index 0 -exact ${::odfi::errortrace::all_functions} $name]
+        if {$index>0} {
+            set traceData [lindex ${::odfi::errortrace::all_functions} $index]
+            set outputIndex [lsearch -exact ${traceData} OUTPUT]
+            if {$outputIndex>=0} {
+                set res [lindex $traceData [expr $outputIndex +1]]
+                
+            }
+        }
+        
+        return $res
+        
+    }
+
+    proc errorToList {res option} {
+        
+        
+       
+        
+        
+        set stack [::odfi::closures::declosure [dict get $option -errorinfo]]
+        puts $stack
+        
+        # save the first line of the error stack         
+        set index_tmp_first [string first "\n" $stack]
+        #set first_error_stack_line [list [string range $stack 0 $index_tmp_first]]
+        
+        ## First ENTRY in Output list is MESSAGE
+        ##########
+        set first_error_stack_line [string range $stack 0 ${index_tmp_first}-1]
+        
+        puts "first error stack line: $first_error_stack_line"
+
+        set output_list [list [list MESSAGE "$first_error_stack_line"]]
+        
+        ## Next Entry is the start point in last file
+        ################
+        
+        ## Try to determine Start where this function is called
+        set callerLocation [::odfi::common::findFileLocation 3]
+        puts "Start point for error list: $callerLocation"
+        
+        lappend output_list [list INVOKE main [lindex $callerLocation 0] [lindex $callerLocation 1] ABSOLUTELINE  [lindex $callerLocation 1]]
+
+        ## TEST OUTPUT of all_functions
+        #foreach {output} $::odfi::errortrace::all_functions {
+            
+        #    puts "all_functions: $output"
+        #}
+      
+        
+        #set mres [regexp -all -inline {\s*\(.+\s+"([\w\d:\._-]+)"\s+.+(\d+)\s*\)\s*(?:invoked\s+from\s+within)\s+"(.+)"\n} $stack]
+        set mres [regexp -all -inline -line {\s*\(.+\s+"([\w\d:\._+-]+)"\s+.+(\d+)\s*\)\s*(?:invoked\s+from\s+within)\s+"(.+)"\n\s*(\(.+body\s+line\s+(\d+)\)\n?)?} $stack]
+
+        puts $mres
+        
+        
+        ## TEST OUTPUT of the matched regexp
+        #puts "TEST OUTPUT of the matched regexp: "
+        set i 0
+        foreach {invokeline invokematch mcall line name match} [lreverse $mres] {
+        
+            puts "Iteration i: $i"
+            #puts $match
+            puts "name: $name"
+            
+            set line [expr $line - 1 ]
+            puts "line: $line"
+            puts "called method or procedure: $mcall"
+            
+            if {$invokeline!=""} {
+                set line [expr $invokeline - 1 ]
+            }
+            puts "Invoked: $invokeline"
+            
+            ## Resolved name must be produced by search for this error stack level to be searched for location
+            set resolvedName ""
+            set resolvedType PROC
+                       
+            ## decide whether there is probably a method call or a procedure call
+            ## if in "mcall" there is only one entry, then it is probably a procedure call.
+            ## if there are more than one entries in "mcall" then it is probably a method 
+            ## call. In this case "name" and "mcall" at position one have to be equal.
+            ## 
+            
+            ## Cases: 
+            ##    - called name : $name
+            ##    - calling code: {NAME args}
+            ##
+            ##  a) PROC                     
+            ##         ->  $name == NAME and $name is like "test" or "::ns::path::test"  
+            ##  b) METHOD on unknown object ->
+            ##         ->  $name == NAME  and $name is like ":test" but not like
+            
+            ## If Calling code starts with function, it is a procedure if the name can match a procedure
+            if {[lsearch -exact $mcall $name] == 0} {
+                
+                puts "-- There was probably a procedure/method call."
+
+                ## Search as global procedure
+                set searchName $name
+                if {![string match "::*" $searchName]} {
+                       set searchName "::$searchName"
+               }
+               
+               ## Get index in tracer data
+               set search_index_name [lsearch -index 0 -exact $::odfi::errortrace::all_functions $searchName]
+              
+               ## If found -> happy
+               ## If not found:
+               ##   -> If previous entry in result list is OBJECT, then try to use its data
+               if {$search_index_name>=0} {
+                    
+                    ## Proc Found
+                    puts "--- Found "
+                    set resolvedName "$searchName"
+                    set resolveType  INVOKE
+                    
+               } elseif {[llength $output_list]>1} {
+                
+                    set latestError [lindex $output_list end]
+                    if {[lindex $latestError 0]=="OBJECT"} {
+                        
+                        puts "--- We are in a method call, and previous call was in an object"
+                        
+                        ## OBJECt name entry has class::path::method, so split and join to get only the class path
+                        set resolvedName "[join [lrange [split [lindex $latestError 1] :] 0 end-2] :]:$name"
+                        set resolvedType "OBJECT"
+                        puts "Target Name: $resolvedName"
+                        
+                    } elseif {[lindex $latestError 0]=="BUILD"} {
+                    
+                        puts "--- Previous Error was on error build"
+                        
+                        ## Get all builders
+                        set buildingType [lindex $latestError 1]
+                        set builders [$buildingType +builders get]
+                        if {[llength $builders]==1} {
+                        
+                            set builderFullName "${buildingType}::builder0"
+                            puts "--- There is only one builder, so pretty easy to figure out: $builderFullName"
+                            
+                            set resolvedName ${buildingType}::builder0
+                            set resolvedType BUILD
+                        
+                        }
+                    
+                    } else {
+                        
+                        puts "--- Previous element in list does not help for this function "
+                        
+                    }
+               
+               } else {
+               
+                    puts "-- Cannot find $searchName"
+                    lappend output_list [list INVOKE $searchName -1 -1]
+                    
+               }
+               
+                #puts $name
+                
+                # search the index within the result mres from the regexp expression
+                # Get Function location from error namespace if found
+                
+                #puts $search_index_name
+                
+                
+            
+            } elseif {[lsearch -exact $mcall $name] == 1} {
+                
+                puts "There was probably a method call on object."
+                
+                
+                ## We have a method call, we should find on which object
+                ##  -> Object is probably to be found in "invoked from within" calling code (mcall)
+                ##  -> $mcall has the format {OBJECT METHOD ARGUMENTS} -> get index 0 which will be the variable name holding the object
+                ##  -> OBJECT could be a variable if starts with "$", or it could be the name of the object if it looks like "::xxxx"
+                ##  -> if OBJECT is a variable name, this error parsing should be close enough to error source to still be able to find the variable
+                set objectName [lindex $mcall 0]
+                if {[string match "\$*" $objectName]} {
+                    
+                    set objectVariableName [string range $objectName 1 end]
+                       
+                    puts "Object is held in variable: $objectVariableName"
+                    
+                    ## Looking for variable b, which should be in the level or higer
+                    ## Use the closure resolver to find it 
+                    ## If a value if found: check it is an object, and check it has the method we are looking for
+                    ## This is a double check to make sure we are not finding something in the wrong location
+                    if {[catch {::odfi::closures::value $objectVariableName} object]} {
+                    
+                        ## Handle constructor builder case
+                        ## if call name is +build, and previous call is a method with output type, it might be the one
+                        if {$name=="+build"} {
+                            
+                            set previousCall [lindex $output_list end]
+                            set outputType   [::odfi::errortrace::getOutputType [lindex $previousCall 1]]
+                            puts "---Previous call is: $previousCall -> $outputType"
+                            if {$outputType!=""} {
+                                puts "--- In constructor and type has been found"
+                                
+                                ## Record something special
+                                lappend output_list [list BUILD $outputType [lindex $previousCall 2] 0  ABSOLUTELINE [lindex $previousCall end]]
+                                #continue
+                            }
+                        
+                        } else {
+                            puts "---Sadly, variable $objectVariableName cannot be found, cannot resolve this error"
+                        }
+                    
+                        
+                        
+                        
+                    } else {
+                        puts "---The object has been found: $object"
+                        
+                        ## Recheck object for method
+                        if {[::odfi::common::objectHasMethod $object $name]} {
+                            puts "Object seems ok and is [$object info class]"
+                            set resolvedName [$object info class]::$name
+                            set resolvedType  OBJECT
+                        }
+                        
+                    }
+                    
+                    
+                    
+                } else {
+                    puts "!!! in object call case resolution, method call $mcall is not recognised !!!"
+                }
+                               
+               
+                
+                
+              
+                
+            } else {
+            
+                puts "ERROR!"
+                puts "Neither a procedure nor a method call could be matched"
+            }
+            
+            ## Search for location based on resolved name
+            if {$resolvedName!=""} {
+                
+                ## Ensure fully qualified
+                if {![string match "::*" $resolvedName]} {
+                    set resolvedName "::$resolvedName"
+                }
+                
+                ## Look in tracer list
+                set tracerLocationIndex [lsearch -index 0  -exact $::odfi::errortrace::all_functions $resolvedName]
+                if {$tracerLocationIndex>=0} {
+                    
+                    set traceData [lindex $::odfi::errortrace::all_functions $tracerLocationIndex]
+                    
+                    
+                    ## Line Resolution
+                    ## if INVOKE: get actual latest trace and add absolute line
+                    if {$invokeline!=""} {
+                        set relativeLine $invokeline
+                    } else {
+                        set relativeLine $line
+                    }
+                    
+                    puts "--- resolution of  [lindex $traceData 2 ]"
+                    
+                    ## If not invoke or else, take trace data line to calculate absolute
+                    set absoluteLine [expr [lindex $traceData 2 ] + $relativeLine] 
+                    if {$resolvedType=="INVOKE"} {
+                        
+                        set actualAbsoluteLineIndex [lsearch -exact [lindex $output_list end] ABSOLUTELINE]
+                        if {$actualAbsoluteLineIndex>=0} {
+                            set absoluteLine [lindex [lindex $output_list end] [expr $actualAbsoluteLineIndex+1]]
+                            incr absoluteLine $relativeLine
+                        }
+                    } 
+                    
+                    ## TYPE NAME FILE LINEINFILE+ERRORLINE
+                    lappend output_list [list $resolvedType $resolvedName [lindex $traceData 1 ] $relativeLine ABSOLUTELINE $absoluteLine ]
+                    
+                } else {
+                    puts "$resolvedName cannot be found in tracer data"
+                    lappend output_list [list $resolvedType $resolvedName -1 -1 ]
+                }
+            }
+            
+            
+            #puts "total output_list:"   
+            #puts $output_list
+            incr i
+            
+            puts ""
+            
+        }
+        return $output_list
+   
+    }   
+        
+
+
+    proc printErrorList {output_list} {
+    
+        # Output of output_list
+        # the first line of the error stack will be always printed
+        set errorMessage [lindex $output_list 0]
+        set errorStack   [lrange $output_list 1 end]
+        
+        puts [lindex $errorMessage 1]
+        set i 0
+        foreach stackData $errorStack {
+            
+            ::extractVars $stackData type name file line_number kw absoluteLine
+            
+            if {$type!="INVOKE"} {
+                #continue
+            }
+            
+            set tab [join [lrepeat $i "  "]]
+            if {$i>0} {
+              set tab "$tab|"
+            }
+            
+            puts stderr "${tab}---> on  $name $type , in (file \"$file\" line $absoluteLine)" 
+            incr i
+            #error "rrr"
+        }
+        
+        ## Hints
+        ::odfi::errortrace::errorHints $errorMessage $errorStack
+    }
+    
+    ## Try to give some more error hints
+    ############
+    proc errorHints {message stack} {
+        
+        ::extractVars [lindex $stack end] type name file line_number kw absoluteLine
+        
+        ## Regexps
+        ###############
+        
+        set cantReadVariable {"([\w\d\.:_-]+)"\s*:\s+no\s+such\s+variable}
+        
+        ## Tests
+        ############
+        set hint ""
+        set efile [lindex [lindex $stack end] 2]
+        set line  [lindex [lindex $stack end] 3]
+        if {[regexp $cantReadVariable $message -> varName]} {
+            
+            ## Get location of error in line
+            set lineInFile [string trim [::odfi::files::getFileLine $efile $absoluteLine]]
+            set varNamePosInLine [string first $varName $lineInFile]
+            
+            ## Create String to point out error
+            set showString "[string map {__ _} [join [lrepeat [expr $varNamePosInLine-1] _ ] _]]/^\\____Right there"
+            
+            lappend hint "You are using a variable called $varName which does not exist, maybe you have a typo?"
+            lappend hint "Check:"
+            lappend hint "$lineInFile"
+            lappend hint "$showString"
+        }
+        
+        ## Print
+        ################
+        if {$hint!=""} {
+            puts ""
+            ::odfi::common::println "A resolution hint was found for this error:"
+            ::odfi::common::printlnIndent
+            ::odfi::common::println "On (file \"$efile\" line $absoluteLine)"
+            foreach h $hint {
+                ::odfi::common::println $h
+            }
+            
+            ::odfi::common::printlnOutdent
+        }
+        
+    }
+    
+    proc printErrorListReverse {output_list} {
+    
+        set i 0
+          foreach {line_number file name} [lreverse [lrange $output_list 1 end]] {
+          
+              set tab [join [lrepeat $i "  "]]
+              if {$i>0} {
+                set tab "$tab^"
+              }
+              puts stderr "${tab}--- on  $name , in (file \"$file\" line $line_number)" 
+              incr i
+              #error "rrr"
+          }
+    
+    }
+
+# end of namespace odfi::errortrace
 }
+
+
+
 

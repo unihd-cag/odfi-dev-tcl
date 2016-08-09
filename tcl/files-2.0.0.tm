@@ -47,6 +47,27 @@ namespace eval odfi::files {
 
 
     }
+    
+    proc getFileLine {path line} {
+        
+        set fd [open $path]
+        set i 1
+        while {![eof $fd]} {
+           
+           set lineContent [gets $fd]
+           
+           if {$i==$line} {
+                
+                close $fd
+                return $lineContent
+           }
+           
+           incr i
+        }
+        close $fd
+        return ""
+        
+    }
 
 
     ## Copying a list of file from a folder to another one

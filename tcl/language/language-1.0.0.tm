@@ -8,6 +8,20 @@ namespace eval odfi::language {
 
     variable debug false
 
+    
+    ## Closure Line stack to know where we are
+    variable closureLines {}
+    
+    proc getCurrentClosureLine args {
+        
+        #puts "Current lines [:closureLines get]"
+        set total 0 
+        foreach v ${::odfi::language::closureLines} {
+            incr total $v
+        }
+        return $total
+    
+    }
 
     ##################
     ## Real Def
@@ -264,8 +278,28 @@ namespace eval odfi::language {
         }
 
         ## Unknown method used to create class
+        #######
+        
+        
+        ## Method
         :method unknown {called_method args} {
-            #puts "Unknown method '$called_method' called"
+        
+            puts "Unknown method '$called_method' called -> [::odfi::common::findFileLocationSegments]"
+            
+            ## Get File Locations and closure line
+            ########################
+            set fileSegments [::odfi::common::findFileLocationSegments]
+            
+            ## First entrwy of files is this API, so take next one
+            set fileAndLine [lindex $fileSegments 1] 
+            
+            ## Caller frame tells us where we are in the closure
+            ## Look for all Unknown method calls up to sum up the final line
+            set closureLine [dict get [info frame -1] line] 
+            lappend ::odfi::language::closureLines $closureLine
+            
+            #set code    [info frame -6]
+            #puts "In Closure line: [dict get $inLine line] -> [dict get $code cmd]"
 
             set targetNamespace [[:getRoot] cget -+targetNamespace ]
             
@@ -323,11 +357,6 @@ namespace eval odfi::language {
 
             ##
             
-            #puts "Calling $called_method + args leads to $targetType and $languageElementName"
-        
-            
-            
-
             ## Create Class Name
             ################
             set root [:getRoot]
@@ -372,44 +401,55 @@ namespace eval odfi::language {
             #puts "Creating Type: $canonicalName"
             set newType [LanguageElement new -+name $canonicalName -+originalName $languageElementName] 
             
-            ## Set type: Target type and FlexNode         
-            $newType apply {
-                if {$targetType!=""} {
-                    lappend :+superclasses $targetType
-                } else {
-                    lappend :+superclasses ::odfi::flextree::FlexNode
-                }
-                
-                #if {$targetType=="" || [llength [ $targetType info superclasses -closure ::odfi::flextree::FlexNode]==0]} 
+            ## Record File locations
+            $newType file set [lindex $fileAndLine 0] 
+            $newType line set [expr [lindex $fileAndLine 1] + [::odfi::language::getCurrentClosureLine]]
+            
+            ## Set type: Target type and FlexNode  
+            try {       
+                $newType apply {
+                    if {$targetType!=""} {
+                        lappend :+superclasses $targetType
+                    } else {
+                        lappend :+superclasses ::odfi::flextree::FlexNode
+                    }
+                    
+                    #if {$targetType=="" || [llength [ $targetType info superclasses -closure ::odfi::flextree::FlexNode]==0]} 
+                       
+                    #
                    
-                #
-               
-            }
-         
-            #$newType object mixins add LanguageElement
+                }
             
-            ## Method arguments are to be type vars
-            ##########
-            foreach arg $realArgs {
-                if {[llength $arg]==1} {
-                    $newType apply {
-                        :+var $arg
+           
+         
+                #$newType object mixins add LanguageElement
+                
+                ## Method arguments are to be type vars
+                ##########
+                foreach arg $realArgs {
+                    if {[llength $arg]==1} {
+                        $newType apply {
+                            :+var $arg
+                        }
+                    } else {
+                        puts "---> Adding parameter arg [lindex $arg 0] [lindex $arg 1]"
+                        $newType apply {
+                            :+var [lindex $arg 0] [lindex $arg 1]
+                        }
                     }
-                } else {
-                    puts "---> Adding parameter arg [lindex $arg 0] [lindex $arg 1]"
-                    $newType apply {
-                        :+var [lindex $arg 0] [lindex $arg 1]
-                    }
+                    
                 }
                 
+                ## Add Type to current parent
+                :addChild $newType
+                
+                ## Apply Configuration to current Type
+                $newType apply $configClosure
+            
+            } finally {
+                ## Remove current line for current type from stack
+                set ::odfi::language::closureLines [lrange ${::odfi::language::closureLines} 0 end-1]
             }
-            
-            ## Add Type to current parent
-            :addChild $newType
-            
-            ## Apply Configuration to current Type
-            $newType apply $configClosure
-            
             return 
             ## Add Type to current stack or top language
             ################
@@ -445,6 +485,9 @@ namespace eval odfi::language {
         :property -accessor public +mergeWith
 
         :property -accessor public +builders
+        
+        :property -accessor public {file ""}
+        :property -accessor public {line 0}
 
         :method init args {
 
@@ -463,7 +506,23 @@ namespace eval odfi::language {
         ##############
         :public method +builder closure {
             #puts "Adding builder: $closure"
-            lappend :+builders $closure
+            
+            ## Get File Locations and closure line
+            ########################
+            set fileSegments [::odfi::common::findFileLocationSegments]
+            
+            ## First entrwy of files is this API, so take next one
+            set fileAndLine [lindex $fileSegments 1] 
+            
+            ## Caller frame tells us where we are in the closure
+            ## Look for all Unknown method calls up to sum up the final line
+            set closureLine [dict get [info frame -1] line] 
+            
+            set absoluteLine [expr [lindex $fileAndLine 1] + $closureLine - 1  + [::odfi::language::getCurrentClosureLine]]
+            
+            #puts "+builder at $absoluteLine ( [::odfi::language::getCurrentClosureLine]) <- $fileAndLine"
+            
+            lappend :+builders [list $closure [lindex $fileAndLine 0]  $absoluteLine  ]
         }
 
         ## Create a Class Field 
@@ -821,10 +880,28 @@ namespace eval odfi::language {
                         
                     }"
                     
+                    set i 0
                     foreach bc [$node cget -+builders] {
 
                         #puts "Setting BC $bc"
-                        $className +builder $bc
+                        
+                        set builder [lindex $bc 0]
+                        set bfile   [lindex $bc 1]
+                        set line    [lindex $bc 2]
+                        $className +builder $builder
+                        
+                        ## Record builder in error tracer
+                        ##################
+                        if {![catch {package present odfi::error::tracer}]} {
+                            if {[file exists $bfile]} {
+                                #puts "NX: Error tracer loaded and file has been recorder"
+                                #puts "Outputing $methodName to [$node cget -file]:[$node cget -line] produces ${className}"
+                                ::odfi::errortrace::recordProcWithOutputType ${className}::builder$i $bfile $line ${className}
+                            }
+                        }
+                        
+                        incr i
+                        
                     }
 
                     #### Mixins
@@ -1107,9 +1184,22 @@ namespace eval odfi::language {
 
                         if {[$node cget -+exportToPublic]!=false} { 
 
+                            set methodName [string tolower [$node cget -+name]]
+                            
+                            ## Error Tracer
+                            ##################
+                            if {![catch {package present odfi::error::tracer}]} {
+                                if {[file exists [$node cget -file]]} {
+                                    #puts "NX: Error tracer loaded and file has been recorder"
+                                    #puts "Outputing $methodName to [$node cget -file]:[$node cget -line] produces ${className}"
+                                    ::odfi::errortrace::recordProcWithOutputType $methodName [$node cget -file] [$node cget -line] ${className}
+                                }
+                            }
+
+
                             ## Create Public Builder 
                             ###############
-                            set methodName [string tolower [$node cget -+name]]
+                            
                             #puts "Creating public builder: $methodName -> $realArgs // [join $constructorArgs] // exp code: $exposeCode"
                             set pBuilder "proc $methodName {$realArgs args} {
                                 
