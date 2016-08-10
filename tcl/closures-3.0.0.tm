@@ -137,7 +137,11 @@ namespace eval odfi::closures {
     proc declosure value {
 
         #puts "Declosuring $value"
-        return [regsub -all {\[(?:::)?odfi::closures::value+\s+([\w\d\.-_]+)\s+\]} "$value" "\$\\1"]
+        ::set tres [regsub -all {\[(?:::)?odfi::closures::value+\s+([\w\d\.-_]+)\s+\]} "$value" "\${\\1}"]
+        
+        ::set tres [string map {::odfi::closures::set set} $tres]
+        
+        return $tres
     }
 
     #######################

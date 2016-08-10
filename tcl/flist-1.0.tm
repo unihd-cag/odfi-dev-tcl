@@ -56,7 +56,7 @@ namespace eval odfi::functional::pattern {
             #}
         }
 
-        :protected method some {varName closure {-level 2}} {
+        :protected method some {varName closure {-level 3}} {
             if {!${:none}} {   
                odfi::closures::withITCLLambda $closure $level {
                     $lambda apply [list $varName "${:content}"]
@@ -123,7 +123,7 @@ namespace eval odfi::flist {
                 if {$elseIndex>=0 && [llength $args]>$elseIndex} {
                     set elseScript [lindex $args [expr $elseIndex +1]]
                     
-                    odfi::closures::withITCLLambda $elseScript 1 {
+                    odfi::closures::withITCLLambda $elseScript 0 {
                         $lambda apply
                     }
             

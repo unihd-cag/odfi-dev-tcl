@@ -146,13 +146,18 @@ namespace eval odfi::files {
         set saved [pwd]
         cd $path
 
-        set catched [catch [list odfi::closures::runITCLLambda 1 $closure] res resOptions]
+        #set catched [catch [list odfi::closures::runITCLLambda 1 $closure] res resOptions]
+        
+        set catched [catch [list uplevel $closure] res resOptions]
+        
         cd $saved
 
         ## handle error
-        if {$catched} {
+        if {$catched==1} {
             error $res
         }
+        
+        return $res
 
 
     }

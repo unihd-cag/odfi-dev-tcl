@@ -522,7 +522,7 @@ namespace eval odfi::language {
             
             #puts "+builder at $absoluteLine ( [::odfi::language::getCurrentClosureLine]) <- $fileAndLine"
             
-            lappend :+builders [list $closure [lindex $fileAndLine 0]  $absoluteLine  ]
+            lappend :+builders [list [::odfi::closures::declosure $closure]  [lindex $fileAndLine 0]  $absoluteLine  ]
         }
 
         ## Create a Class Field 
@@ -574,7 +574,7 @@ namespace eval odfi::language {
         ####################
         :public method +method {name args body} {
 
-            set typeMethod [TypeMethod new -+name $name -+args $args -+body $body]
+            set typeMethod [TypeMethod new -+name $name -+args $args -+body [::odfi::closures::declosure $body]]
 
             :addChild $typeMethod
 
@@ -880,14 +880,14 @@ namespace eval odfi::language {
                         
                     }"
                     
-                    set i 0
+                    ::set i 0
                     foreach bc [$node cget -+builders] {
 
                         #puts "Setting BC $bc"
                         
-                        set builder [lindex $bc 0]
-                        set bfile   [lindex $bc 1]
-                        set line    [lindex $bc 2]
+                        ::set builder [lindex $bc 0]
+                        ::set bfile   [lindex $bc 1]
+                        ::set line    [lindex $bc 2]
                         $className +builder $builder
                         
                         ## Record builder in error tracer
@@ -900,7 +900,7 @@ namespace eval odfi::language {
                             }
                         }
                         
-                        incr i
+                        ::incr i
                         
                     }
 
