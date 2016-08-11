@@ -281,6 +281,14 @@ namespace eval ::odfi::ewww {
                         } else {
 
                             #puts "Render result: [$res info class]"
+                            
+                            ## Change Deployment path
+                            set containerApp [:parent]
+                            if {$containerApp!="" && [$containerApp isClass ::odfi::ewww::Handler]} {
+                                #puts "HTML View in inside a handler -> [$containerApp path get]"
+                                $res addResourceServingPrefix [$containerApp path get]
+                            }
+                            
                             set resString [$res toString]
                             return [list [string length $resString] text/html $resString]
 
@@ -413,7 +421,7 @@ namespace eval ::odfi::ewww {
                 +method serve {path sock ip request auth} {
                     next
 
-                    :log:raw "Serving $path"
+                    :log:raw "Serving $path from [current object]"
 
                     ## Look for Handlers which would accept the path 
                     set handlers [[:shade ::odfi::ewww::Handler children] filter { $it accept $path}]
@@ -425,7 +433,8 @@ namespace eval ::odfi::ewww {
                     } else {
 
                         if {[$handlers size]>1} {
-                            :log:warning "Multiple Handlers found to serve path $path , using first one [[$handlers at 0] info class]"
+                            puts "On current: [:info class]"
+                            :log:warning "Multiple Handlers found to serve path $path , using first one [[$handlers at 0] info class] ([$handlers at 0]) -> [[$handlers at 0] path get] "
                         }
 
                         ## Serve or render using handler

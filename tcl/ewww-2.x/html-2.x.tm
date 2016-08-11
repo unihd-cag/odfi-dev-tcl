@@ -17,6 +17,11 @@ namespace eval odfi::ewww::html {
         +type HTMLNode {
             +var attributes {}
 
+            +method init args {
+                next
+                :registerEventPoint addServePrefix prefix
+            }
+
             +method id id {
                 :attribute id $id
             }
@@ -178,6 +183,76 @@ namespace eval odfi::ewww::html {
                     return ${:content}  
                 }
             }
+            
+            
+            ######################
+            ## Utilities
+            #######################
+            +method applyTargetPathPrefix prefix {
+                            
+                set urlRegexp {^\/[\w].*}
+
+                puts "Applying prefix $prefix"
+                
+                ## Global Scripts and Stylesheets
+                :shade ::odfi::ewww::html::Script walkDepthFirstPreorder {
+                    
+                    #puts "Updating Script Prefix from [$node getAttribute src]"
+                    if {[$node getAttribute src]!="" && [regexp $urlRegexp [$node getAttribute src]]} {
+                        $node @ src $prefix/[$node getAttribute src]
+                    }
+                    
+                    
+                    return true
+                }   
+                
+                :shade ::odfi::ewww::html::Img walkDepthFirstPreorder {
+                                    
+                    #puts "Updating Script Prefix"
+                    if {[$node getAttribute src]!="" && [regexp $urlRegexp [$node getAttribute src]]} {
+                        $node @ src $prefix/[$node getAttribute src]
+                    }
+                    
+                    
+                    return true
+                }   
+                
+                :shade ::odfi::ewww::html::Stylesheet walkDepthFirstPreorder {
+                                    
+                    #puts "Updating Script Prefix"
+                    if {[regexp $urlRegexp [$node location get]]} {
+                        $node location set $prefix/[$node location get]
+                    }
+                    
+                    
+                    return true
+                }   
+                
+                
+                ## Links 
+                :shade ::odfi::ewww::html::A walkDepthFirstPreorder {
+                                                    
+                    #puts "Updating Script Prefix"
+                    if {[regexp $urlRegexp [$node getAttribute href]]} {
+                        $node @ href $prefix/[$node getAttribute href]
+                    }
+                    
+                    
+                    return true
+                } 
+                
+            }
+            
+            ## This method is called when serving the Site for testing for example, if the serving path needs an additional prefix
+            +method addResourceServingPrefix prefix {
+            
+                ## Local 
+                :callAddServePrefix $prefix
+                
+                ## Global
+                :applyTargetPathPrefix $prefix
+                
+            }
         }
 
         +type HTMLTransparentNode {
@@ -240,7 +315,7 @@ namespace eval odfi::ewww::html {
                     +exportTo Javascript
                     +builder {
                         if {${:path}!=""} {
-                            :@ src $path
+                            :@ src ${:path}
                         }
                        
                     }
