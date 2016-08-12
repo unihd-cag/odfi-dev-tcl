@@ -3,7 +3,7 @@ set location [file dirname [info script]]
 source $location/tcl_error.tcl
 
 package require odfi::language::nx 1.0.0
-
+package require odfi::errortrace
 #source E:/Common/Projects/git/odfi-manager-3/private/odfi.tm
 
 

@@ -19,7 +19,7 @@ namespace eval odfi::flextree {
     }
     
     ## A Mixin trait to make a class a FlexTree Node
-    nx::Class create FlexNode -superclasses {odfi::epoints::EventPointsSupport} {
+    nx::Class create FlexNode -superclasses {::odfi::epoints::EventPointsSupport} {
 
         ## Reference to the parents
         :property -accessor public parents
@@ -1671,6 +1671,8 @@ namespace eval odfi::flextree {
             return $res
         }
         
+        
+        ## @shade
         :public method findFirstInTreeLevelOrder closure {
             
             set foundResult ""
@@ -1702,6 +1704,28 @@ namespace eval odfi::flextree {
             
         
         }
+        
+        ## #path is a list of values
+        ## Look in children for a child with the first value in path matching the given property name.
+        ## If found, look into the found Child's children etc...like a filesystem
+        ## @shade
+        :public method findInSubTreeAlongPath {property path} {
+            
+            set current [current object]
+            set res ""
+            foreach p $path {
+                set res [$current findChildByProperty $property $p]
+                if {$res==""} {
+                    break
+                } else {
+                    set current $res
+                }
+            }
+            
+            return $res
+        
+        }
+        
         
         
         ## Shading

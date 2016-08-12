@@ -406,7 +406,7 @@ namespace eval odfi::nx::domainmixin {
 
             ## Call 
             #set result [:$method $methodArgs]
-            #::set current [eval "$current $method {$methodArgs}"]
+            #::set current [eval "$current $method $methodArgs"]
             ::set current [$current $method $methodArgs]
 
             ## Call next, or return 

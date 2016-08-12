@@ -56,6 +56,7 @@ package ifneeded odfi::os 1.0.0  [list source [file join $dir os-1.0.0.tm]]
 
 package ifneeded odfi::powerbuild 1.0.0 [list source [file join $dir powerbuild-1.x/powerbuild-1.x.tm]]
 
+package ifneeded odfi::errortracer 1.0.0 [list source [file join $dir errortracer-1.x.tm]]
 
 ## Ewww stuf ####################
 set packages {

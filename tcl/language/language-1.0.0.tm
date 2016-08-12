@@ -574,7 +574,14 @@ namespace eval odfi::language {
         ####################
         :public method +method {name args body} {
 
-            set typeMethod [TypeMethod new -+name $name -+args $args -+body [::odfi::closures::declosure $body]]
+            ## Get File Locations and closure line
+            ########################
+            set fileSegments [::odfi::common::findFileLocationSegments]
+            set fileAndLine [lindex $fileSegments 1] 
+            set closureLine [dict get [info frame -1] line] 
+            set absoluteLine [expr [lindex $fileAndLine 1] + $closureLine - 1  + [::odfi::language::getCurrentClosureLine]]
+
+            set typeMethod [TypeMethod new -+name $name -+args $args -+body [::odfi::closures::declosure $body] -+file [lindex $fileAndLine 0] -+line $absoluteLine]
 
             :addChild $typeMethod
 
@@ -707,6 +714,8 @@ namespace eval odfi::language {
         :property -accessor public +args
         :property -accessor public +body
         :property -accessor public {+target false}
+        :property -accessor public {+file -1}
+        :property -accessor public {+line 0}
 
     }
     
@@ -892,7 +901,7 @@ namespace eval odfi::language {
                         
                         ## Record builder in error tracer
                         ##################
-                        if {![catch {package present odfi::error::tracer}]} {
+                        if {![catch {package present odfi::errortracer}]} {
                             if {[file exists $bfile]} {
                                 #puts "NX: Error tracer loaded and file has been recorder"
                                 #puts "Outputing $methodName to [$node cget -file]:[$node cget -line] produces ${className}"
@@ -1188,7 +1197,7 @@ namespace eval odfi::language {
                             
                             ## Error Tracer
                             ##################
-                            if {![catch {package present odfi::error::tracer}]} {
+                            if {![catch {package present odfi::errortracer}]} {
                                 if {[file exists [$node cget -file]]} {
                                     #puts "NX: Error tracer loaded and file has been recorder"
                                     #puts "Outputing $methodName to [$node cget -file]:[$node cget -line] produces ${className}"
@@ -1336,6 +1345,16 @@ namespace eval odfi::language {
                       
                         #puts "Add Method [$it cget -+name]  parameter to [$node cget -+name]"
                         [$node cget -+name] public method [$it cget -+name] [$it cget -+args] [$it cget -+body]
+                        
+                        ## Record builder in error tracer
+                        ##################
+                        if {![catch {package present odfi::errortracer}]} {
+                            if {[file exists [$it cget -+file]]} {
+                                #puts "NX: Error tracer loaded and file has been recorder"
+                                #puts "Outputing $methodName to [$node cget -file]:[$node cget -line] produces ${className}"
+                                ::odfi::errortrace::recordProc [$node cget -+name]::[$it cget -+name] [$it cget -+file] [$it cget -+line]
+                            }
+                        }
                     }
                     
                     ## Type Object Method

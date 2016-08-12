@@ -260,4 +260,144 @@ namespace eval odfi::files {
 
     }
 
+
+    ########################
+    ## Monitoring
+    ## File Monitor is implemented using polling to be easily compatible with all systems
+    #############################
+    
+    ::nx::Class create FileMonitor {
+        
+        #:domain-mixins add ::odfi::log::Logger -prefix log
+        
+        :property -accessor public closure:required
+        :property -accessor public target:required
+        
+        # FOrmat { {FILE LASTMOD} ... }
+        :variable -accessor public files {}
+        
+        ## Running function monitor
+        :variable -accessor public afterId ""
+        :variable -accessor public pollTimeMS 500
+        
+        :method init args {
+            next 
+            
+            #:log:setPrefix "fileMonitor"
+            set :closure [::odfi::closures::newITCLLambda ${:closure}]
+            
+        
+        }
+        
+        :public method start args {
+            if {${:afterId}==""} {
+                set :afterId [after ${:pollTimeMS} "[current object] run"]
+            }
+        }
+        
+        :public method stop args {
+            if {${:afterId}!=""} {
+                after cancel ${:afterId}
+                set :afterId ""
+            }
+        }
+        
+        :public method run args {
+            
+            #puts "Testing files"
+            
+  
+            
+            ## go through files and regather fiels in new list
+            ## This is because we are doing removal during foreach, so indexes have to match in :files
+            ## 
+            try {
+                set i 0
+                foreach fileDef ${:files} {
+                
+                    lassign $fileDef filePath lastModificationTime
+                    
+                    ## If file does not exist anymore remove
+                    ## If actual mtime is newer, call closure and update
+                    ## Otherwise just keep file
+                    if {![file exists $filePath]} {
+                        
+                        ## Replace in main files, and don't increment i because list is one shorter now
+                        set :files [lreplace ${:files} $i $i]
+                        
+                        ## Call closure
+                        ${:closure} apply [list f $filePath]
+                        
+                    
+                    } elseif {[file mtime $filePath]> $lastModificationTime} {
+                          
+                          ## Update
+                          lset :files $i [list $filePath [file mtime $filePath]]
+                          
+                          ## Call closure
+                          ${:closure} apply [list f $filePath]
+                          
+                          incr i
+                                       
+                    } else {
+                        incr i
+                    }
+                    
+                    
+                }
+            } finally {
+                ## Reschedule, use after idle to avoid starving other event listeners
+                set :afterId [after idle [list after ${:pollTimeMS} [current object] run ] ] 
+            }
+            
+            
+        }
+        
+        :public method addFiles files {
+            foreach f $files {
+                if {[file exists $f]} {
+                
+                    lappend :files [list $f [file mtime $f ]]
+                    
+                } else {
+                
+                    puts "Cannot monitor non existing file: $f"
+                    
+                }
+                
+            }
+        }
+        
+    }
+    
+    ## FORMAT: list of monitors objects
+    variable monitors {}
+    
+    proc startFileMonitor args {
+    
+    }
+    
+    proc stopFileMonitor args {
+    
+    }
+    
+    proc newFileMonitor {target files closure} {
+    
+        ## Create
+        set m [FileMonitor new -target $target -closure $closure]
+        
+        ## Add files
+        $m addFiles $files
+        
+        #lappend ::odfi::files::monitors 
+        
+        return $m
+    }
+    
+    
+    
+    
+    
+    
+
 }

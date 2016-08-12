@@ -10,7 +10,7 @@ namespace eval odfi::functional::pattern {
     nx::Class create Option {
 
         :property content:required
-        :property {none:boolean false}
+        :property {none:boolean true}
 
         ## Matches 
         ##############
@@ -18,7 +18,13 @@ namespace eval odfi::functional::pattern {
             return ${:none}
         }
         :public method isDefined args {
-            return [expr ! ${:none}]
+            if {${:none}==true} {
+                return false
+            } else {
+                return true
+            }
+           
+            
         }
 
         :public method getContent args {
@@ -119,11 +125,17 @@ namespace eval odfi::flist {
             if {[:size]>0} {
             
                 ## Run code in else case?
-                set elseIndex [lsearch -exact $args else ]
+                set elseIndex [lsearch -glob $args else* ]
                 if {$elseIndex>=0 && [llength $args]>$elseIndex} {
+                
                     set elseScript [lindex $args [expr $elseIndex +1]]
                     
-                    odfi::closures::withITCLLambda $elseScript 0 {
+                    set level 1
+                    if {[lindex $args $elseIndex]=="elseOnList"} {
+                        set level 0
+                    }
+                    
+                    odfi::closures::withITCLLambda $elseScript $level {
                         $lambda apply
                     }
             
@@ -751,28 +763,27 @@ namespace eval odfi::flist {
             #set timeCall [clock milliseconds]
 
             ## Loop
-            set returnRes [odfi::functional::pattern::Option::none]
-            odfi::closures::withITCLLambda $searchClosure $level {
+            return [odfi::closures::withITCLLambda $searchClosure $level {
 
-
+                set returnRes [odfi::functional::pattern::Option::none]
                 ::foreach it ${:content} {
 
                     set res [$lambda apply [list it "$it"]]
                     if {$res} {
                         #puts "$timeCall -> Returning Found"
+                        #puts "Found"
                         set returnRes [odfi::functional::pattern::Option some $it]
                         break
                     }
             
                 }
+                #puts "Returning from findOption -> [$returnRes cget -none]"
+                return  $returnRes
                     
             
-            }
+            }]
 
-            ## Return empty
-            #puts "$timeCall -> Returning $returnRes"
-            return  $returnRes
-
+           
             
 
 
