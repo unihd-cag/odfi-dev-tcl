@@ -102,6 +102,36 @@ namespace eval odfi::flist {
     ################################################################################
     odfi::common::resetNamespaceClasses [namespace current]
 
+    
+    ###################################
+    ## Utilities
+    #######################
+    
+    proc lsearchExactAssign {lst vars} {
+    
+        foreach {search name} $vars {
+            set index [lsearch -exact $lst $search]
+            if {$index!=-1} {
+                set val [lindex $lst [expr $index+1]]
+                if {[llength $val]>1} {
+                    uplevel set $name [list $val]
+                } else {
+                    uplevel set $name $val
+                }
+                
+            } else {
+                uplevel set $name ""
+            }
+        }
+    
+    }
+    
+    ## Normal split but returns a Functional List
+    proc split {lst separator} {
+        
+        set __s [::split $lst $separator]
+        return [::odfi::flist::MutableList::fromList $__s]
+    }
 
     #####################
     ## Functional List 
@@ -119,6 +149,7 @@ namespace eval odfi::flist {
            return [llength ${:content}]
         }
         
+        
         ## Return true or false. can be used as: isEmpty script else script
         :public method isEmpty args {
         
@@ -130,14 +161,41 @@ namespace eval odfi::flist {
                 
                     set elseScript [lindex $args [expr $elseIndex +1]]
                     
-                    set level 1
-                    if {[lindex $args $elseIndex]=="elseOnList"} {
-                        set level 0
+                    ## Options:
+                    ## else/default, runs closure on uplevel like a normal else
+                    ## elseOnList, runs closure on list
+                    ## elseForeach, runs closure on each element of the list
+                    set __t [current object]
+                    switch -exact [lindex $args $elseIndex] {
+                        elseOnList {
+                        
+                            odfi::closures::withITCLLambda $elseScript 0 {
+                                $lambda apply
+                            }
+                        }
+                        
+                        elseForeach {
+                            
+                            :foreach $elseScript
+                        }
+                        
+                        default {
+                        
+                            odfi::closures::withITCLLambda $elseScript 1 {
+                                $lambda apply [list list $__t]
+                            }
+                        
+                        }
                     }
                     
-                    odfi::closures::withITCLLambda $elseScript $level {
-                        $lambda apply
-                    }
+                    #set level 1
+                    #if {[lindex $args $elseIndex]=="elseOnList"} {
+                    #    set level 0
+                    #}
+                    
+                    #odfi::closures::withITCLLambda $elseScript $level {
+                    #    $lambda apply
+                    #}
             
                 }
                 return false
@@ -154,6 +212,45 @@ namespace eval odfi::flist {
                 return true
             }
 
+        }
+        ## EOF isEmpty
+        
+        ## closures:  {LENGTHMATCHER CLOSURE LENGTHMATCHER CLOSURE}
+        ## LENGTHMATCHER: digit , >digit , <digit , digit<>digit range
+        :public method matchSize closures {
+            
+            foreach {lengthMatcher cl} $closures {
+            
+                switch -glob $lengthMatcher -- {
+                
+                
+                    ## Exact
+                    "[0-9]+" {
+                        apply $cl
+                    }
+                    
+                    ## > 
+                    ">[0-9]+" {
+                        apply $cl                
+                    }
+                    ## < 
+                    "<[0-9]+" {
+                        apply $cl                                    
+                    }
+                    
+                    ##range
+                    "[0-9]+<>[0-9]+" {
+                        apply $cl                                             
+                    }
+                    
+                    default {
+                        error "Match Size format not recognised: $lengtMatcher"
+                    }
+                }
+            
+                
+            }
+        
         }
        
         ## Operators 
@@ -457,6 +554,31 @@ namespace eval odfi::flist {
             return $resList
 
         }
+        
+        ## Returns a list with two sublists, one with the elements matchgin the closure, the otherone with the others
+        ## Return a TCL list, with the two sublist
+        :public method splitFilterAsList closure {
+            
+            set matching [MutableList new]
+            set nonMatching [MutableList new]
+            odfi::closures::withITCLLambda $closure 0 {
+            
+                ::foreach it ${:content} {
+
+                    set res [$lambda apply [list it $it]]
+                    if {$res || $res==true} {
+                        $matching += $it
+                    } else {
+                        $nonMatching += $it
+                    }
+
+                }
+
+            }
+            
+            return [list $matching $nonMatching]
+            
+        }
 
         ## Positioning
         #############################
@@ -466,11 +588,23 @@ namespace eval odfi::flist {
             ## Get position
             set actualIndex [:indexOf $child]
             
-            ## Insert
-            set :content [linsert ${:content} $position $child]
-            
+            ## Remove
             ## Remove old position (which si now +1)
-            set :content [lreplace ${:content} [expr $actualIndex+1] [expr $actualIndex+1]]
+            set :content [lreplace ${:content} [expr $actualIndex] [expr $actualIndex]]
+            
+            ## If inserting before actual index, use index
+            ## If inserting after, use target position +1
+            if {$actualIndex <= $position} {
+                ## Insert
+                set :content [linsert ${:content} $position $child]
+            } else {
+                ## Insert
+                set :content [linsert ${:content} [expr $position +1] $child]
+            }
+            
+           
+            
+            
             
             return             
             
@@ -758,7 +892,7 @@ namespace eval odfi::flist {
         
         ## \brief Returns  the first match of the closure on the list
         ## @return The resulting object, or a None value
-        :public method findOption {searchClosure {-level 1}} {
+        :public method findOption {searchClosure {-level 1} {-remove false}} {
 
             #set timeCall [clock milliseconds]
 
@@ -772,6 +906,9 @@ namespace eval odfi::flist {
                     if {$res} {
                         #puts "$timeCall -> Returning Found"
                         #puts "Found"
+                        if {$remove} {
+                            :remove $it
+                        }
                         set returnRes [odfi::functional::pattern::Option some $it]
                         break
                     }

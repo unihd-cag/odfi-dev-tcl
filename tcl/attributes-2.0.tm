@@ -134,7 +134,29 @@ namespace eval odfi::attributes {
                         return false
                     }
                     
+            }
+            
+            ## Returns found object or empty string if none
+            +method findChildByAttribute {group name match} {
+                [:shade ::odfi::attributes::AttributesContainer children] @> findOption {$it attributeMatch $group $name $match} @> match {
+                    :none {
+                        return ""
+                    } 
+                    
+                    :some v {
+                        return $v
+                    }
                 }
+            }
+            
+            +method findChildrenByAttribute {group name match} {
+                return [[:shade ::odfi::attributes::AttributesContainer children] filter {$it attributeMatch $group $name $match}]
+            }
+            
+            +method findChildrenByAttributeNot {group name match} {
+                return [[:shade ::odfi::attributes::AttributesContainer children] filterNot {$it attributeMatch $group $name $match}]
+            }
+
 
            
         }

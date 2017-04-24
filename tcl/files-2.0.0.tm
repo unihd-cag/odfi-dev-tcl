@@ -26,6 +26,56 @@ namespace eval odfi::files {
     ## File Utilities
     #############################################################################
 
+    proc ::rsource f {
+            
+        if {[::odfi::files::isRelative $f ]} {
+            lassign [::odfi::common::findFileLocation] caller line up
+            puts "Rsource: [file dirname $caller]/$f"
+            puts "Rsource [uplevel namespace current]"
+            uplevel [list source [file normalize [file dirname $caller]/$f]]
+        } else {
+            uplevel [list source $f]
+        }
+        
+       
+        
+    }
+    
+    proc fileRelativeToCaller f {
+        if {[odfi::files::isRelative $f]} {
+       
+            lassign [::odfi::common::findFileLocation] rf
+            set f [file normalize [file dirname $rf]/$f]
+        }
+        return $f
+    }
+
+    ## return true if the file path has a format of a relative path
+    proc isRelative f {
+        
+        if {[string match "/*" $f] || [string match "\[A-Z\]:/*" $f]} {
+            return false
+        } else {
+            return true
+        }
+    
+    }
+    
+    ## The filePath is transformed if neccessary, and made absolute using the caller's call file
+    ## It is useful to create absolute file from a passed relative file, which logically should not be relative to the execution location
+    ## but from the file where the code was written
+    proc absolutePathFromCallLocation filePath {
+    
+        if {[::odfi::files::isRelative $filePath]} {
+            lassign [::odfi::common::findFileLocation 2] buildFile buildLine
+            #puts "Caller location: $buildFile"
+            set filePath [file normalize [file dirname $buildFile]/${filePath}]
+        }
+        
+        return $filePath
+    
+    }
+
     ## Write Given Content to file
     proc writeToFile {f content} {
 
@@ -48,6 +98,7 @@ namespace eval odfi::files {
 
     }
     
+    ## @line line number from file
     proc getFileLine {path line} {
         
         set fd [open $path]

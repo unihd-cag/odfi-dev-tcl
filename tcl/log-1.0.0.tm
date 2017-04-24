@@ -187,7 +187,7 @@ namespace eval odfi::log {
             next
             set :separator ">>"
             :separator set ">>"
-            puts "Set separator"
+            #puts "Set separator"
         }
     
         :public method setPrefix p {
@@ -199,6 +199,7 @@ namespace eval odfi::log {
         :public method raw msg {
         
             puts "[:prefix get] [:separator get] $msg"
+            ::flush stdout
         
         }
         
@@ -208,11 +209,13 @@ namespace eval odfi::log {
             if {$level=="ERROR"} {
                 :public method [string tolower $level] {msg args} "
                     puts \"\[:prefix get\] \[:separator get\] \[:getCallingCommand\] \[:separator get\] $level >> \$msg\"
+                    ::flush stdout
                     error \$msg
                 "
             } else {
                 :public method [string tolower $level] {msg args} "
                     puts \"\[:prefix get\] \[:separator get\] \[:getCallingCommand\] \[:separator get\] $level >> \$msg\"
+                    ::flush stdout
                 "
             }
             
@@ -238,25 +241,7 @@ namespace eval odfi::log {
         }
         
         
-        
-        #:public method warning msg {
-        #                   puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] WARNING >> $msg"
-        #}
     
-        #:public method info msg {
-        #    puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] INFO >> $msg"
-        #}
-        
-       
-        
-        #:public method fine msg {
-        #    puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] FINE >> $msg"
-        #}
-
-        #:public method debug msg {
-        #    #puts "[:prefix get] [:separator get] [:getCallingCommand] [:separator get] DEBUG >> $msg"
-        #}
-        
         
     }
  

@@ -150,16 +150,22 @@ namespace eval odfi::closures {
     
     proc incr {var {val 1}} {
         
-
-        ## Resolve variable, to find out if we must link before calling top incr
-        ::set levels [resolve $var 1]
-
-        #::puts "Inside special incr for $var -> $levels"
-
-        ## Upvar if the first found level is > 1
-        if {[lindex $levels 0]>0} {
-            uplevel upvar [expr [lindex $levels 0]] "$var" "$var"
-        } 
+        if {[catch [list uplevel [list set $var] ]]} {
+            
+            #puts "resolving variable"
+            ## Resolve variable, to find out if we must link before calling top incr
+            ::set levels [resolve $var 1]
+    
+            #::puts "Inside special incr for $var -> $levels"
+    
+            ## Upvar if the first found level is > 1
+            if {[lindex $levels 0]>0} {
+            #puts "incr linkin"
+                uplevel upvar [expr [lindex $levels 0]] "$var" "$var"
+            } 
+        }
+        
+        
 
         ## Then just call the top version 
         uplevel ::incr $var $val
@@ -239,18 +245,33 @@ namespace eval odfi::closures {
     proc lappend {var args} {
         
         #::puts "Inside Closure LAPPEND for $var"
+        if {[catch [list uplevel [list ::set $var] ]]} {
+                    
+            #puts "resolving variable"
+            ## Resolve variable, to find out if we must link before calling top incr
+            ::set levels [resolve $var 1]
+    
+            #::puts "Inside special incr for $var -> $levels"
+    
+            ## Upvar if the first found level is > 1
+            if {[lindex $levels 0]>0} {
+                #puts "incr linkin"
+                uplevel upvar [expr [lindex $levels 0]] "$var" "$var"
+            } 
+        }
         
         ## Resolve variable, to find out if we must link before calling top incr
-        ::set levels [resolve $var 1]
+        #::set levels [resolve $var 1]
         
         #::puts " ->available levels for $var: $levels"
         
         ## Upvar if the first found level is > 1
-        if {[lindex $levels 0]>0} {
-            uplevel [list upvar [expr [lindex $levels 0]] "$var" "$var"]
-        } 
+        #if {[lindex $levels 0]>0} {
+        #    uplevel [list upvar [expr [lindex $levels 0]] "$var" "$var"]
+        #} 
         
         ## Then just call the top version 
+        #uplevel [list foreach arg $args [list ::lappend $var $args] ]
         foreach arg $args {
             uplevel [list ::lappend $var $arg]        
         }
@@ -262,40 +283,53 @@ namespace eval odfi::closures {
     ## Resolves the provided variable and returns its value 
     proc value {var {initResolveLevel 1}} {
 
+        if {[catch [list uplevel [list ::set $var] ]]} {
+                            
+            #puts "resolving variable"
+            ## Resolve variable, to find out if we must link before calling top incr
+            ::set levels [resolve $var 1]
+    
+            #::puts "Inside special incr for $var -> $levels"
+    
+            if {[lindex $levels 0]>0} {
+                        
+                if {[string index $var 0]==":"} {
+                    
+                    return [uplevel [expr [lindex $levels 0]+1] ::set $var]                   
+                } else {
+                    uplevel upvar [lindex $levels 0] $var $var                  
+                    return [uplevel ::set $var]                
+                }
+                #return [uplevel [expr [lindex $levels 0]+1] ::set $var]                     
+            
+                uplevel upvar [lindex $levels 0] $var $var  
+                if {![catch [list uplevel ::set $var] res]} {
+                    return $res
+                } else {
+                    return [uplevel [expr [lindex $levels 0]+1] ::set $var]                               
+                }
+    #            return [uplevel ::set $var]      
+                          
+                #::set v  [uplevel [expr [lindex $levels 0]+1] ::set $var]         
+                #return $v    
+                           
+                  
+            } else {
+                return [uplevel ::set $var]             
+            }  
+        } else {
+           return [uplevel ::set $var]       
+        }
+        
         
         ## Resolve variable, to find out if we must link before calling top incr
-        ::set levels [resolve $var 1]
+        #::set levels [resolve $var 1]
         
         #return "0"
         #return 0
         
-        ##::puts "(CL) Resolving value of $var Available levels $levels"        
-        if {[lindex $levels 0]>0} {
-            
-            if {[string index $var 0]==":"} {
-                
-                return [uplevel [expr [lindex $levels 0]+1] ::set $var]                   
-            } else {
-                uplevel upvar [lindex $levels 0] $var $var                  
-                return [uplevel ::set $var]                
-            }
-        #return [uplevel [expr [lindex $levels 0]+1] ::set $var]                     
-        
-            uplevel upvar [lindex $levels 0] $var $var  
-            if {![catch [list uplevel ::set $var] res]} {
-                return $res
-            } else {
-                return [uplevel [expr [lindex $levels 0]+1] ::set $var]                               
-            }
-#            return [uplevel ::set $var]      
-                      
-            #::set v  [uplevel [expr [lindex $levels 0]+1] ::set $var]         
-            #return $v    
-                       
-              
-        } else {
-            return [uplevel ::set $var]             
-        }     
+        #::puts "(CL) Resolving value of $var Available levels $levels"        
+           
         
 
 
@@ -877,27 +911,31 @@ namespace eval odfi::closures {
         public variable level 0
         public variable lambdaArgs {}
 
-        public method prepare args {
+        public variable runOriginal false
 
+        public method prepare args {
+            
+            ::set runOriginal false
+            
             ## Find Input Arguments
             ###############
-            set lambda [string trim [regsub -all {("|\})]} ${definition} "\\1 \]" ] ]
+            ::set lambda [string trim [regsub -all {(\\x{22}|\})]} ${definition} "\\1 \]" ] ]
 
             #set splittedLambda [split [string trim $lambda]]
             #puts "Lambda splited: $splittedLambda \n"
-            set lambdaArgs {}
+            ::set lambdaArgs {}
             try {
                 if {[lindex $lambda 1]=="=>" || [lindex $lambda 1]=="->"} {
 
-                    set _def [lrange $lambda 0 1]
+                    ::set _def [lrange $lambda 0 1]
                     #puts "Found def: $_def"
 
                     ## Get Arguments 
-                    set lambdaArgs [lindex $lambda 0]
+                    ::set lambdaArgs [lindex $lambda 0]
 
                     ## Extract implementation
                     #puts "Extract lambda from: [string length $_def] to end"
-                    set definition "[string range [string trim $lambda] [string length $_def] end]"
+                    ::set definition "[string range [string trim $lambda] [string length $_def] end]"
 
                     #puts "Now lambda is $lambda"
                 }
@@ -908,7 +946,7 @@ namespace eval odfi::closures {
 
             ## Find variables using regexp
             #set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_\$-]+)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
-            set preparedClosure [regsub -all {([^\\])\$(?:(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)|(?:\{(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
+            ::set preparedClosure [regsub -all {([^\\])\$(?:(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)|(?:\{(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
             
             #set preparedClosure [regsub -all {([^\\])\$(?:\{?(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)\}?)} ${definition} "\\1\[odfi::closures::value {\\2\\3} \]"]
             
@@ -1031,6 +1069,17 @@ namespace eval odfi::closures {
 
                 #puts "Running closure  ${preparedClosure}"
                 ::set _c_res_ [uplevel $execLevel ${preparedClosure}]
+                #if {!$runOriginal} {
+                    
+                    #puts "Running closure  ${preparedClosure}"
+                    #::set _c_res_ [uplevel $execLevel ${preparedClosure}]
+                    #::set runOriginal true
+                #} else {
+                    # ${definition}
+                   # puts "Running closure  ${definition}"
+                   # ::set _c_res_ [uplevel $execLevel ${preparedClosure}]
+                #}
+                
 
                 #puts "Exec res: $_c_res_"
 
@@ -1092,7 +1141,7 @@ namespace eval odfi::closures {
 
     ## Lambda Pool
     set lambdaPool {}
-    for {set _i 0} {$_i<50} {::incr _i} {
+    for {set _i 0} {$_i<200} {::incr _i} {
         ::lappend lambdaPool [::new LambdaITCL #auto]
     }
     variable currentLambda 0
@@ -1143,6 +1192,7 @@ namespace eval odfi::closures {
            
            #puts "Defi $definition is a lambda class"
            ::set lambda $definition
+           $lambda configure -level $level
 
         } else {
             ## Build 
@@ -1432,6 +1482,267 @@ namespace eval odfi::closures {
                 uplevel odfi::closures::restore $larg
             }
         }
+    }
+    
+    package require TclOO
+    oo::class create OOLambda {
+    
+    
+        
+
+        constructor {} {
+            my variable definition
+            set definition ""
+            my variable preparedClosure
+            set preparedClosure ""
+    
+            ## Extra level to be added to uplevel
+            my variable level
+            set level 0 
+            my variable lambdaArgs
+            set lambdaArgs {}
+    
+            my variable runOriginal
+            set runOriginal false
+            
+        }
+        
+        method define content {
+            my variable definition
+            set definition $content
+        }
+
+         method prepare args {
+            my variable definition
+            my variable preparedClosure
+            my variable lambdaArgs
+            my variable level
+            
+            ::set runOriginal false
+            
+            ## Find Input Arguments
+            ###############
+            ::set lambda [string trim [regsub -all {(\\x{22}|\})]} ${definition} "\\1 \]" ] ]
+
+            #set splittedLambda [split [string trim $lambda]]
+            #puts "Lambda splited: $splittedLambda \n"
+            ::set lambdaArgs {}
+            try {
+                if {[lindex $lambda 1]=="=>" || [lindex $lambda 1]=="->"} {
+
+                    ::set _def [lrange $lambda 0 1]
+                    #puts "Found def: $_def"
+
+                    ## Get Arguments 
+                    ::set lambdaArgs [lindex $lambda 0]
+
+                    ## Extract implementation
+                    #puts "Extract lambda from: [string length $_def] to end"
+                    ::set definition "[string range [string trim $lambda] [string length $_def] end]"
+
+                    #puts "Now lambda is $lambda"
+                }
+            } on error {res resOptions} {
+                ::puts "An error occured while detecting lambda format ($res): $lambda"
+                error $res
+            }
+
+            ## Find variables using regexp
+            #set preparedClosure [regsub -all {([^\\])\$(?:([a-zA-Z0-9:_]+)|(?:\{([a-zA-Z0-9:_\$-]+)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
+            ::set preparedClosure [regsub -all {([^\\])\$(?:(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)|(?:\{(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)\}))} ${definition} "\\1\[odfi::closures::value \\2\\3 \]"]
+            
+            #set preparedClosure [regsub -all {([^\\])\$(?:\{?(:?[a-zA-Z0-9][a-zA-Z0-9:_\$-]*)\}?)} ${definition} "\\1\[odfi::closures::value {\\2\\3} \]"]
+            
+
+
+            ## Replace Variable set and pull functions
+            set preparedClosure [regsub -all -line {^\s*(incr|set|lappend)} ${preparedClosure} "::odfi::closures::\\1"]
+
+        }
+
+         method apply args {
+            
+            my variable definition
+            my variable preparedClosure
+            my variable lambdaArgs
+            my variable level
+            
+            ## Set Some Basic Parameters
+            ################
+            ::set execLevel [expr ${level}+1]
+
+            #set targetLevel [uplevel $execLevel info level]
+            #set execNamespace [uplevel $execLevel namespace current]
+
+            #puts "Target Level: $targetLevel"
+            #puts "Exec NS: $execNamespace // [namespace current]"
+            
+            ## Prepare Args 
+            ####################
+
+            ## Check Provided Args match the required lambda args 
+            ###########
+            if {[llength $lambdaArgs]>0 && [llength $args]!=[llength $lambdaArgs]} {
+                error "Cannot call lambda function with [llength $lambdaArgs] input arguments ($lambdaArgs), [llength $args] arguments provided to applyLambda call. Please respect applyLamba lambda arg0? ... argn? format"
+            }
+
+            ## Protect Variable names of input lambda 
+            ###############
+            foreach larg $lambdaArgs {
+                #puts "Protecting: $larg"
+                uplevel $execLevel odfi::closures::protect $larg
+            }
+
+            ## Set input args values (fancy varname here to ensure no conflict will happpen) 
+            ##  - Go through args and match to required input arguments
+            ##  - If an argument is provided as a {varname value} pair, and the lambda does not enforce the input parameters, set to the applyLambda call set varname
+            #########
+            ::set generatedLambdaArgs {}
+            for {::set _i 0} {$_i < [llength $args ]} {::incr _i} {
+
+                ## Get Arg name and value 
+                ::set arg      [lindex $args $_i]
+                #puts "INPUT ARGUMENT $arg ([llength $arg]) // [lindex $arg 0] // $args"
+                if {[llength $arg]==1} {
+                    ::set argValue [lindex $arg 0]
+                    ::set argName  "arg$_i"
+                } else {
+                    ::set argValue [lindex $arg 1]
+                    ::set argName  [lindex $arg 0]
+                }
+                #::set argValue [expr [llength $arg]==1 ? [lindex $arg 0] : [lindex $arg 1]]
+                #::set argName  [expr [llength $arg]==1 ?  ""             : [lindex $arg 0]]
+
+                ## Match lambda input 
+                if {[llength $lambdaArgs]>0} {
+                    
+                    #::puts "Varset: $argValue -> [llength $argValue]"
+                    if {[llength $argValue]>1} {
+
+                        #uplevel [list ::set [lindex $lambdaArgs $_i] {}]
+                        #::foreach _av $argValue {
+                        #    uplevel ::lappend [lindex $lambdaArgs $_i] $_av
+                        #}
+                        uplevel $execLevel ::set [lindex $lambdaArgs $_i] [list $argValue]
+
+                    } elseif {[llength $argValue] ==0 && $argValue==""} {
+                        #::puts "Setting [lindex $lambdaArgs $_i] to $argValue"
+                        uplevel $execLevel [list ::set [lindex $lambdaArgs $_i] {}]
+                    } else {
+                        #::puts "Setting [lindex $lambdaArgs $_i] to $argValue"
+                        uplevel $execLevel ::set [lindex $lambdaArgs $_i] $argValue
+                    }
+                    
+                } else {
+
+                    ## Check there is a var name, otherwise set default name argx
+                   # set targetName [expr $argName=="" ? "arg$_i" : $argName]
+
+                    ## Set Value 
+                    #puts "SETTING AUTOMATIC INPUT ARGUMENT: $argName $argValue"
+                    uplevel $execLevel odfi::closures::protect $argName
+                    ::lappend generatedLambdaArgs $argName
+                    
+                    if {[llength $argValue]>1} {
+                       # ::puts "----- Setting arg $argName $argValue"
+                        
+                        uplevel $execLevel ::set $argName [list $argValue]
+                        
+
+                    } elseif {[llength $argValue] ==0 && $argValue==""} {
+                        #::puts "Setting $argName to $argValue 8force empty"
+                        #upvar $argName $var
+                        #::set $var {}
+                        uplevel $execLevel [list ::set $argName {}]
+                    } else {
+                        #::puts "Setting $argName to $argValue"
+                        uplevel $execLevel ::set $argName $argValue
+                    }
+                    
+                    #uplevel ::set  $argName $argValue
+                }
+
+            }
+
+
+  
+
+            ## Import Overwrites  // && $execNamespace!="::"
+            #########
+            #if {$execLevel>0 && $targetLevel!=0 && $execNamespace!=[namespace current] } {
+               # uplevel $execLevel namespace import -force ::odfi::closures::incr ::odfi::closures::set ::odfi::closures::lappend
+            #}
+
+            try {
+
+                #puts "Running closure  ${preparedClosure}"
+                ::set _c_res_ [uplevel $execLevel ${preparedClosure}]
+                #if {!$runOriginal} {
+                    
+                    #puts "Running closure  ${preparedClosure}"
+                    #::set _c_res_ [uplevel $execLevel ${preparedClosure}]
+                    #::set runOriginal true
+                #} else {
+                    # ${definition}
+                   # puts "Running closure  ${definition}"
+                   # ::set _c_res_ [uplevel $execLevel ${preparedClosure}]
+                #}
+                
+
+                #puts "Exec res: $_c_res_"
+
+                ## Normal return 
+                uplevel $execLevel [list ::return $_c_res_]
+                #return $_c_res_
+
+            } on break {res resOptions} {
+
+                #::puts "(CL) Caught break"
+                uplevel $execLevel return -code break 0
+
+            } on continue {res resOptions} {
+
+                #::puts "(CL) Caught Continue"
+                uplevel $execLevel return -code continue 0
+
+            } on error {res resOptions} {
+
+                ::set line [dict get $resOptions -errorline]
+                ::set stack [dict get $resOptions -errorstack]
+                ::set errorInfo [dict get $resOptions -errorinfo]
+                ::set errorInfo [::odfi::closures::declosure $errorInfo]
+                #puts "(CL) Found error: $res at line $line"
+                #puts "(CL) last stack: $stack"
+
+                dict set resOptions replace -errorinfo $errorInfo
+
+                error $errorInfo
+
+            } on return res {
+
+                #puts "Caught return $res" 
+                #uplevel $execLevel return $res
+                uplevel $execLevel [list ::return $res]
+                #::return $res
+
+            } finally {
+
+                    ## Unprotect args 
+                    ######################
+                    foreach argInput $args {
+                        uplevel $execLevel odfi::closures::restore [lindex $argInput 0]
+                    }
+
+                    ## Remove overwrites 
+                    ##  - Don't remove if the target execution level in in this context
+                    ############################
+                      
+                }
+                
+
+            }
+        
+    
     }
 
 

@@ -350,6 +350,24 @@ namespace eval odfi::flextree {
             #return [[$parents map { return [$it name get]}] mkString $separator]
 
         }
+        
+        ## Returns a hierarchy string by running a closure on each parent, including on own 
+        ## @shade
+        :public method formatFullHierarchyString {closure separator} {
+
+            #set res [:formatHierarchyString $closure $separator]
+          
+            odfi::closures::withITCLLambda $closure 0 {
+               set res [[:getPrimaryParents] map $closure]
+               set res [$res mkString $separator]
+               set res ${res}${separator}[$lambda apply [list it [current object]]]
+               return $res
+            }
+            
+            return $res
+
+
+        }
 
         ## Returns true if the node is the "left"; i.e first child of at least on parent
         ## @shade
@@ -437,7 +455,13 @@ namespace eval odfi::flextree {
 
         ##@:shade 
         :public method firstChild args {
-            return [[:children] first] 
+        
+            set fs [[:children] first]
+            if {$fs=="" && [lsearch -exact $args -error]>=0} {
+                error [lindex $args [expr [lsearch -exact $args -error] + 1]]
+            }
+            return $fs
+            
         }
 
         ## @shade
@@ -538,6 +562,43 @@ namespace eval odfi::flextree {
         }
         
         ## Add the node as child of this, and adds itself to the possible parents
+        :public method addOrphanChild nodes  {
+
+            foreach node $nodes {
+
+                if {$node=="" || $node==[current object]} {
+                    continue
+                }
+
+                ## Return if node is empty 
+                #puts "Trying to add $node"
+                ## Check node is a flexnode
+                if {![odfi::common::isClass $node [namespace current]::FlexNode]} {
+                    error "Cannot add node $node to [[curren$at object] info class] if it is not a FlexNode"
+                }
+                
+                ## If already a child, ignore 
+                if {![${:children} contains $node]} {
+
+                       # puts "adding $node"
+                        ${:children} += $node
+
+                        ## Event point 
+                        #puts "Calling event point"
+                        :callChildAdded $node
+                    
+
+                }   
+            }
+
+
+            next
+            
+            return $nodes
+            
+        }
+        
+        ## Add the node as child of this, and adds itself to the possible parents
         :public method add node {
 
             return [:addChild $node ]
@@ -567,6 +628,10 @@ namespace eval odfi::flextree {
         ## @noshade
         :public method clearChildren args {
             
+            set __p [current object]
+            ${:children} foreach {
+                $it detachFrom  ${__p}
+            }
             ${:children} clear
         }
 
@@ -609,6 +674,8 @@ namespace eval odfi::flextree {
          
         }
         
+       
+        
         ## Find a child by testing a closure
         ## @shade
         :public method findFirstChild closure {
@@ -624,6 +691,9 @@ namespace eval odfi::flextree {
         :public method findChildrenByProperty {name value {-match false}} {
 
             ## Prepare Filder Closure
+            if {[string first * $value]>=0} {
+                set match true
+            }
             if {$match} {
                 set filterClosure "string match $value \[\$it $name get\]"
             } else {
@@ -1095,45 +1165,45 @@ namespace eval odfi::flextree {
             
             ## If no reduce closure, then map to reduceProduce function
             if {$reduceClosure==""} {
-                set reduceClosure {return [$it reduceProduce $args]}
+                ::set reduceClosure {return [$it reduceProduce $args]}
             }
 
             ## Create reduce Object 
             #set reduceLambda [odfi::closures::Lambda::build $reduceClosure]
-            set reduceLambda  [::new odfi::closures::LambdaITCL #auto]
+            ::set reduceLambda  [::new odfi::closures::LambdaITCL #auto]
             $reduceLambda configure -definition $reduceClosure
             $reduceLambda prepare
 
             ## Prepare list : Pairs of Parent / node
             ##################
-            set componentsFifo [odfi::flist::MutableList new]
-            set componentsFifoList [list [list [:parent] [current object]] ]
+            ::set componentsFifo [odfi::flist::MutableList new]
+            ::set componentsFifoList [list [list [:parent] [current object]] ]
 
             #$componentsFifo += [:children]
             $componentsFifo push [list [:parent] [current object] ]
 
             #puts "CFifo Size: [$componentsFifo size]"
             ## Parents Stack Reducing parents
-            set parentStack [odfi::flist::MutableList new]
+            ::set parentStack [odfi::flist::MutableList new]
 
-            set topNode [current object]
+            ::set topNode [current object]
 
             ## Results Depth list 
             ## Format: 
             ##   - Each entry stores the results of a specific depth 
             ##   - Each entry is a list of temp results 
             ##   - Entries are cleared when parent is merged
-            set resultsList [odfi::flist::MutableList new]
-            set emptyResults [odfi::flist::MutableList new]
-            set currentLevel 0
+            ::set resultsList [odfi::flist::MutableList new]
+            ::set emptyResults [odfi::flist::MutableList new]
+            ::set currentLevel 0
 
-
-            set leafResults {}
-            set nodeResults {}
-            set lastNode [current object]
+            ::set stopList {}
+            ::set leafResults {}
+            ::set nodeResults {}
+            ::set lastNode [current object]
 
             #::odfi::log::fine "Reduce Start with shade ${:currentShading}"
-            set shade ${:currentShading}
+            ::set shade ${:currentShading}
 
             ## Go on FIFO 
             ##################
@@ -1141,9 +1211,9 @@ namespace eval odfi::flextree {
             #$componentsFifo popAll
                             
                 #node => 
-                    set nodeAndParent [lindex $componentsFifoList 0]  
-                    set parent [lindex $nodeAndParent 0]   
-                    set node [lindex $nodeAndParent 1]  
+                    ::set nodeAndParent [lindex $componentsFifoList 0]  
+                    ::set parent [lindex $nodeAndParent 0]   
+                    ::set node [lindex $nodeAndParent 1]  
                     ::set componentsFifoList [lreplace $componentsFifoList 0 0]
 
                     ## Work on the node using the actually defined Shade
@@ -1157,11 +1227,12 @@ namespace eval odfi::flextree {
                         ## Otherwise, go deeper in the tree
                         if {[$parentStack peek]==$node} {
                             
+                            #puts "Back to top container  [$node info class]"
                             #::odfi::log::info "On Top: $nodeAndParent, [$node info class]"
 
                             ## WARNING: Level increase is independent from shading
                             ## Decrease level 
-                            set currentLevel [expr $currentLevel-1]
+                            ::set currentLevel [expr $currentLevel-1]
 
                             if {[$node shadeMatch $shade]} {
 
@@ -1172,22 +1243,32 @@ namespace eval odfi::flextree {
 
                                 if {[$resultsList size]==[expr $currentLevel+1]} {
                                     $resultsList += [odfi::flist::MutableList new]
-                                    set tempResults [$resultsList at [expr $currentLevel+1] ]
+                                    ::set tempResults [$resultsList at [expr $currentLevel+1] ]
                                     #$resultsList setAt [expr $currentLevel+1] [odfi::flist::MutableList new]
                                 } else {
-                                    set tempResults [$resultsList at [expr $currentLevel+1] ]
+                                    ::set tempResults [$resultsList at [expr $currentLevel+1] ]
                                     $resultsList setAt [expr $currentLevel+1] [odfi::flist::MutableList new]
                                 }
                                 
                                 
-                               # ::odfi::log::info "Reduced back to Parent [$node info class] -> $tempResults"
+                                #puts "Reduced back to Parent [$node info class] -> $tempResults ([$tempResults size])"
                                 ## Produce using leaf results 
                                 ::set reduceRes [$reduceLambda apply [list it $node] [list results $tempResults]]
-                               
+                                #$tempResults clear
+
+                                #puts "Results parent:  $reduceRes"
 
                                 ## Results: Set to parent's node level, which is the current level 
                                 ## Now we are a node, so add to node results
-                                [$resultsList at $currentLevel] +=  [list $node $reduceRes]
+                                if {[string first \{ [string trim $reduceRes]]==0} {
+                                    foreach r $reduceRes {
+                                       [$resultsList at $currentLevel] +=  [list [lindex $r 0] [lindex $r 1]]
+                                   }
+                                } else {
+                                    [$resultsList at $currentLevel] +=  [list $node $reduceRes]
+                                }
+                               
+                                
                                 #$resultsList appendAt $currentLevel [list $node $reduceRes]
 
                            
@@ -1208,13 +1289,14 @@ namespace eval odfi::flextree {
                             
                             if {[$node noShade isLeaf] && [$node shadeMatch $shade]} {
                                 
-                               # ::odfi::log::info "On Node [$node info class] which is a leaf at level $currentLevel"
-
+                                #puts "On Node [$node info class] which is a leaf under [$parent info class] at level $currentLevel"
+                                #puts "Level $currentLevel, results list max level: [expr [$resultsList size] -1]"
                                 ## Produce result, and add as as result list
                                 ##########
+                                
                                 ::set reduceRes [$reduceLambda apply [list it $node ] [list results $emptyResults] ]
-
-                                set lastNode $node
+                                #$emptyResults clear
+                                ::set lastNode $node
 
                                 #odfi::log::fine "Reduce Res on leaf: $reduceRes"
                                 ## Add Results to current Level results 
@@ -1222,17 +1304,32 @@ namespace eval odfi::flextree {
 
                                 ## The Results list of this level might not have been opened 
                                 ## Open level 
-                                if {[$resultsList size]<= $currentLevel} {
-                                    $resultsList += [odfi::flist::MutableList new]
+                                
+                               
+                                #if {[$resultsList size]<= $currentLevel} {
+                                #   $resultsList += [odfi::flist::MutableList new]
+                                #}
+                                
+                                ## Results: Set to parent's node level, which is the current level 
+                                ## Now we are a node, so add to node results
+                               
+                                if {[string first \{ [string trim $reduceRes]]==0} {
+                                    foreach r $reduceRes {
+                                       [$resultsList at $currentLevel] +=  [list [lindex $r 0] [lindex $r 1]]
+                                   }
+                                } else {
+                                    [$resultsList at $currentLevel] +=  [list $node $reduceRes]
                                 }
-
-                                [$resultsList at $currentLevel] +=  [list $node $reduceRes]
-                                #$resultsList appendAt $currentLevel $reduceRes
-
+                                
+                                #[$resultsList at $currentLevel] +=  [list $node $reduceRes]
+                                
+                               
                                
                                 
                                 
                             } elseif {![$node noShade isLeaf]} {
+                                
+                               # puts "On Node [$node info class] which is a parents at level $currentLevel"
                                 
                                 ## Parent:
                                 ##  - Set children to be processed 
@@ -1242,18 +1339,24 @@ namespace eval odfi::flextree {
 
                                 ## Children 
 
-                                set componentsFifoList [concat [list [list $parent $node]] $componentsFifoList]
-
-                                #::odfi::log::info "Adding children, before readd node and parent: $componentsFifoList"
-                                set childrenOfCurrent [$node noShade children]
-
-                                #::odfi::log::info "On Node size: [$childrenOfCurrent size] "
-
-                                foreach it [lreverse [$childrenOfCurrent asTCLList]] {
-                                    #::odfi::log::info "Adding node $it"
-                                    
-                                    #$componentsFifo addFirst $it 
-                                    set componentsFifoList [concat [list  [list $node $it]] $componentsFifoList]
+                                ::set componentsFifoList [concat [list [list $parent $node]] $componentsFifoList]
+                                
+                                ## Only add children if not in stop list 
+                                if {[lsearch -exact $stopList $node]==-1} {
+                                
+                                    #::odfi::log::info "Adding children, before readd node and parent: $componentsFifoList"
+                                    ::set childrenOfCurrent [$node cget -children]
+    
+                                    #::odfi::log::info "On Node size: [$childrenOfCurrent size] "
+    
+                                    foreach it [lreverse [$childrenOfCurrent asTCLList]] {
+                                        #::odfi::log::info "Adding node $it"
+                                        
+                                        #$componentsFifo addFirst $it 
+                                        ::set componentsFifoList [concat [list  [list $node $it]] $componentsFifoList]
+                                    }
+                                    ## Add to stop list now
+                                    #::lappend stopList $node
                                 }
 
                                 ## Open level 
@@ -1262,7 +1365,14 @@ namespace eval odfi::flextree {
                                 }
 
                                 ## Increase level
-                                incr currentLevel
+                                ::incr currentLevel
+                                
+                                ## Open target level
+                                if {[$resultsList size]<= $currentLevel} {
+                                    $resultsList += [odfi::flist::MutableList new]
+                                } else {
+                                    [$resultsList at $currentLevel] clear
+                                }
                                 
                                 ## Add our selves to the stack
                                 $parentStack push $node
@@ -1918,10 +2028,11 @@ namespace eval odfi::flextree::utils {
         :public method printAll args {
             
             [current object] walkDepthFirstPreorder {
-            
+                
                 set tab "----[lrepeat [$node getTreeDepth $parent] ----]"
-            
-                ::puts "$tab[$node info class]"
+                
+                catch {$node name get} res
+                ::puts "$tab[$node info class] ($res)"
             
             }
         }

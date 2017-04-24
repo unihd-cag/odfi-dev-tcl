@@ -59,6 +59,7 @@ namespace eval ::odfi::ewww {
 
                     set :socket  [socket -server "[current object] accept" ${:port}]
                     set :started true
+                    :log:raw "Server Started..."
                 }
 
             }
