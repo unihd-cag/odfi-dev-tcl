@@ -919,7 +919,7 @@ namespace eval odfi::closures {
             
             ## Find Input Arguments
             ###############
-            ::set lambda [string trim [regsub -all {(\\x{22}|\})]} ${definition} "\\1 \]" ] ]
+            ::set lambda [string trim [regsub -all {(\x22|\})]} ${definition} "\\1 \]" ] ]
 
             #set splittedLambda [split [string trim $lambda]]
             #puts "Lambda splited: $splittedLambda \n"
