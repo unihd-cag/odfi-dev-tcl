@@ -66,6 +66,20 @@ namespace eval odfi::attributes {
                 }
             }
 
+            +method attributeAppend {groupN name value} {
+
+                ## Update actual
+                set actual [:getAttribute $groupN $name ""]
+                if {$actual!=""} {
+                    lappend actual $value
+                } else {
+                    set actual $value
+                }
+
+                ## Save
+                :attribute $groupN $name $actual
+            }
+
             +method attribute {groupN name {value ""}} {
 
                 ## Find Group 
