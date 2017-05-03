@@ -258,6 +258,7 @@ namespace eval odfi::flextree {
 
         ## Returns the parents from the primary line, using shading 
         ## @shaded
+        ## item 0 is the topmost parent
         :public method getPrimaryParents args {
 
             ## Create result list 
@@ -288,6 +289,7 @@ namespace eval odfi::flextree {
 
         ## Find Parent that matches a closure from the primary line
         ## @noshade
+        ## Return "" if nothing found
         :public method findParentInPrimaryLine cl {
 
             set result ""
