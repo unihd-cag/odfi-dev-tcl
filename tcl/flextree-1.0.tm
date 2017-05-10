@@ -404,7 +404,7 @@ namespace eval odfi::flextree {
             if {${:currentShading}==""} {
                 return [${:children} copy]
             } else {
-                set res [odfi::flist::MutableList new]
+                ::set res [odfi::flist::MutableList new]
                 ${:children} foreach {
                     #puts "is $it of type $select"
                     #if {[odfi::common::isClass $it ${:currentShading}]}
@@ -881,23 +881,23 @@ namespace eval odfi::flextree {
 
             ## Prepare list : Pairs of Parent / node
             ##################
-            set componentsFifo [odfi::flist::MutableList new]
+            ::set componentsFifo [odfi::flist::MutableList new]
             #$componentsFifo += [:children]
             $componentsFifo += [list "false" [current object]]
 
             #puts "CFifo Size: [$componentsFifo size]"
 
              ## Create Walk Closure Object 
-            set walkLambda  [::new odfi::closures::LambdaITCL #auto]
+            ::set walkLambda  [::new odfi::closures::LambdaITCL #auto]
             $walkLambda configure -definition $wclosure
             $walkLambda configure -level $level
             $walkLambda prepare
 
             ## Visited list 
-            set visited {}
+            ::set visited {}
 
             ## Common Shade 
-            set shade ${:currentShading}
+            ::set shade ${:currentShading}
 
             #odfi::log::info "Starting with shade $shade"
 
@@ -908,8 +908,8 @@ namespace eval odfi::flextree {
                 parentAndNode => 
 
                     #puts "PANODE $parentAndNode"
-                    set node [lindex $parentAndNode 1]
-                    set parent [lindex $parentAndNode 0]
+                    ::set node [lindex $parentAndNode 1]
+                    ::set parent [lindex $parentAndNode 0]
                 
                     #odfi::log::info "On node [$node info class], which has own shading: [$node currentShading get]"
                     
@@ -923,7 +923,7 @@ namespace eval odfi::flextree {
                         ## Shade match 
                         ::set continue true 
                         if {[$node shadeMatch $shade]} {
-                            set tres [$walkLambda apply [list node $node] [list parent $parent]]
+                            ::set tres [$walkLambda apply [list node $node] [list parent $parent]]
                             if {$tres!="" && [string is boolean $tres]} {
                                 ::set continue  $tres
                             }
@@ -935,10 +935,11 @@ namespace eval odfi::flextree {
                         ## Add children of current to back 
                         if {$continue} {
                             ## WARNING: If a child has already been visited, don't add it to avoid cycles
-                            set currentDepth [$node getPrimaryTreeDepth]
-                            set nodeChildren [$node noShade children]
+                            #::set currentDepth [$node getPrimaryTreeDepth]
+                            ::set nodeChildren [$node noShade children]
 
                             ## AddFirst to proceed by depth first, but reverse children order otherwise is reverses the order
+                            ::set toAdd {}
                             foreach c [lreverse [$nodeChildren asTCLList]] {
                            
                                 #puts "---> adding chuld of depth [$it noShade getPrimaryTreeDepth] from $currentDepth "
@@ -946,10 +947,12 @@ namespace eval odfi::flextree {
                                 #    $componentsFifo += [list $node $it] 
                                 #}
                                 if {[lsearch -exact $visited $c]==-1} {
-                                    $componentsFifo addFirst [list $node $c] 
+                                    #$componentsFifo addFirst [list $node $c] 
+                                    ::lappend toAdd [list $node $c]
                                 }
                                 
                             }
+                            $componentsFifo addAllFirst $toAdd
                         }
                         
                     #}
@@ -1866,13 +1869,13 @@ namespace eval odfi::flextree {
             ## Check shading, it must be a closure 
             ## If it is a type, adapt the closure 
             if {[::nsf::is class $select]} {
-                set select "odfi::common::isClass \$it $select"
+                ::set select "odfi::common::isClass \$it $select"
                 #puts "Changed shading to $select"
             }
 
             ## Set shading 
             #set :currentShading $select 
-            set :currentShading  [odfi::closures::buildITCLLambda $select]
+            ::set :currentShading  [odfi::closures::buildITCLLambda $select]
 
             ## Propagate and make sure shading is resetted 
             try {
@@ -1881,20 +1884,20 @@ namespace eval odfi::flextree {
                 eval ":$method $args"
             } finally {
                 odfi::closures::redeemITCLLambda ${:currentShading}
-                set :currentShading ""
+                ::set :currentShading ""
             }
         }   
 
         ## Run a closure with no shading activated. Shading is restored if was set before 
         :public method noShade {method args} {
 
-            set savedShading ${:currentShading}
-            set :currentShading ""
+            ::set savedShading ${:currentShading}
+            ::set :currentShading ""
             ## Propagate and make sure shading is resetted 
             try {
                 :$method [lindex $args  0]
             } finally {
-                set :currentShading $savedShading
+                ::set :currentShading $savedShading
             }
         }
 
