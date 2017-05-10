@@ -960,14 +960,16 @@ namespace eval odfi::language {
                         ## Gather Required Type Variables
                         set realArgs {}
                         set constructorArgs {}
+                        #puts "Looking for args"
                         $node shade odfi::language::TypeVar eachChild {
-                            #puts "Testing TypeVar $it"
+                            #puts "Testing TypeVar $it [$it cget -+required]"
                             if {[$it cget -+required]==true} {
                                 lappend realArgs [$it cget -+name]
                                 lappend constructorArgs -[$it cget -+name] \$[$it cget -+name]
                             }
                         }
                         set constructorArgs [join $constructorArgs]
+                        #puts "Real args: $realArgs"
 
                         ## Expose code ?
                         ## Expose argument can be :
@@ -984,10 +986,10 @@ namespace eval odfi::language {
                                     set exposeCode "uplevel set [lindex $realArgs $exposeArg] \$inst"
                                     #odfi::log::fine "expose code: $exposeCode"
                                 }
-                                } else {
-                                    set exposeCode "uplevel set \[\$inst cget -$exposeArg\] \$inst"
-                                    #odfi::log::fine "expose code: $exposeCode"
-                                }
+                            } else {
+                                set exposeCode "uplevel set \[\$inst cget -$exposeArg\] \$inst"
+                                #odfi::log::fine "expose code: $exposeCode"
+                            }
                             
                         }
 
@@ -1062,7 +1064,10 @@ namespace eval odfi::language {
                             upvar realArgs realArgs
                             upvar constructorArgs constructorArgs
                             upvar node node
-
+                            upvar uniqueCode uniqueCode
+                            upvar exposeCode exposeCode
+                            upvar exposeToObjectCode exposeToObjectCode
+                            upvar createInstanceCode createInstanceCode
                             ## Method name: Original Name from language definition
                             #set methodName [lindex [split [$node cget -+name] ::] end]
                             #if {[llength $methodName]==1 || ![string is upper $methodName]} {
@@ -1114,15 +1119,22 @@ namespace eval odfi::language {
                                 
                                 :addChild \$inst
 
+                                #puts \"CL before building: \$cl\"
                                 \$inst +build
-
+                                #puts \"CL after building: \$cl\"
                                 #puts \" instance [$node cget -+name] after build \$inst\"
 
 
               
                                 ## Apply Closure
                                 ::unset args
-                                \$inst apply \$cl
+                                try {
+                                    \$inst apply \$cl
+                                }  on error {res option} {
+                                    ::puts stderr \"Error during creation of $methodName\"
+                                    ::puts stderr \"The closure was: \n\$cl\"
+                                    error \$res
+                                }
                                 \$inst callBuildDone
                                 
                                 
@@ -1212,28 +1224,38 @@ namespace eval odfi::language {
                             #puts "Creating public builder: $methodName -> $realArgs // [join $constructorArgs] // exp code: $exposeCode"
                             set pBuilder "proc $methodName {$realArgs args} {
                                 
+                                puts \"Public builder for ${className} called from \[uplevel {info level}\] -> \[uplevel {namespace current}\]\"
+                                if {\[catch {uplevel {current object}} parentObject\]} {
+                                    set parentObject \"\"
+                                }
+                                
                                 ## Get Closure and Parameters overwrite
-                                set overwrites {}
-                                set cl {}
+                                ::set overwrites {}
+                                ::set cl {}
                                 if {\[llength \$args\] >0} {
 
                                     ## Closure is the last arg 
-                                    set cl \[lindex \$args end\]
-                                    set args \[lrange \$args 0 end-1\]  
+                                    ::set cl \[lindex \$args end\]
+                                    ::set args \[lrange \$args 0 end-1\]  
 
                                     #puts \"---> CL is \$cl\"
                                     ## overwrite
-                                    set overwrites \[split \$args\]
+                                    ::set overwrites \[split \$args\]
 
                                     ##
                                     #\$inst apply \[lindex \$args 0\] 
                                 }
 
                                 ## Create instance of class
-                                set inst \[${className} new [join $constructorArgs]\]
+                                ::set inst \[${className} new [join $constructorArgs]\]
                                 foreach {n v} \$overwrites {
                                     #puts \"Overwrite \$n\"
                                     \$inst \[string range \$n 1 end\] set \$v
+                                }
+                                
+                                ## Add to parent then build
+                                if {\$parentObject!=\"\" && \[\$parentObject isClass ::odfi::flextree::FlexNode\]} {
+                                    \$parentObject addChild \$inst
                                 }
                                 \$inst +build
 
@@ -1317,10 +1339,11 @@ namespace eval odfi::language {
                             } else {
 
                                 if {[$it cget -+multiple]==true} {
-                                    puts "Multiple value"
+                                   # puts "Multiple value"
                                     [$node cget -+name] property -accessor public [list [$it cget -+name]  {}]
                                 } else {
-                                    [$node cget -+name] property -accessor public [list [$it cget -+name] [$it cget -+default]]  
+                                    #puts "Adding var  [$it cget -+name] with default [$it cget -+default] "
+                                    [$node cget -+name] property -accessor public [list [$it cget -+name] [join [$it cget -+default]]]  
                                 }
                                 
 

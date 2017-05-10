@@ -346,6 +346,26 @@ namespace eval odfi::nx::domainmixin {
         return [odfi::common::isClass [current object] $test]
 
     }
+    ::nx::Object public method hasMixin test {
+
+        return [:info has mixin $test]
+
+    }
+    ::nx::Object public method classMatchExpression args {
+        
+        set res true
+        foreach test $args {
+            set not [string match "!*" $test]
+            #puts "testing $not against [string range $test 1 end]"
+            if { (!$not && ![:isClass $test]) ||  ($not && [:isClass [string range $test 1 end]])} {
+                set res false
+                break
+            }
+        }
+        return $res 
+      
+
+    }
 
     ::nx::Object public method notClass test {
 
@@ -402,7 +422,7 @@ namespace eval odfi::nx::domainmixin {
 
             #puts "Calling $method"
 
-            #puts "Calling $method , with arg $methodArgs , and next is $args"
+           # puts "Calling $method , with arg $methodArgs , and next is $args"
 
             ## Call 
             #set result [:$method $methodArgs]

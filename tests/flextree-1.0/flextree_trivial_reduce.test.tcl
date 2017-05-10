@@ -2,9 +2,6 @@
 package require odfi::flextree 1.0.0
 
 nx::Class create A -superclass odfi::flextree::FlexNode {
-
-
-
 }
 
 A create a 

@@ -336,6 +336,8 @@ namespace eval odfi::common {
             return false
         }
     }
+    
+    
 
     ### Handle request for a single argument
     proc handleCommandLineOption askedArgument {
@@ -881,6 +883,20 @@ namespace eval odfi::common {
         puts $channelId $indentation$str
 
     }
+    
+    proc ::println {str {channelId -1} args} {
+        variable indentation
+
+        ## No channelId outputs to stdout
+        if {$channelId==-1} {
+            set channelId "stdout"
+        }
+
+        ## Output
+        puts $channelId $str
+
+    }
+    
 
     ## Equivalent to puts with an extra second new line
     proc printlnln {str {channelId -1}} {
@@ -991,8 +1007,16 @@ namespace eval odfi::common {
     ## Source file location utilities 
     ###############################
 
+    proc describeCallerLocation args {
+
+        set loc [::odfi::common::findFileLocation 2]
+
+        return "File: [lindex $loc 0], Line: [lindex $loc 1]"
+
+    }
+
     ## @return {file line}
-    proc findFileLocation {{baseLevel 1} {resetMatch ""}} {
+    proc findFileLocation {{baseLevel 2} {resetMatch ""}} {
 
         ## Resolve file and line
         ## Start at -2
@@ -1002,22 +1026,48 @@ namespace eval odfi::common {
         set foundFile ""
         set maxlevel [info frame]
         set level $baseLevel
-        while {$level<[expr $maxlevel]} {
+        
+        set realLevel [expr $baseLevel + 1]
+
+        while { $level < [expr $maxlevel] } {
             
             set callerFrame [info frame -$level]
             
+            #puts "current level: $level"
+            #puts "Found [dict get $callerFrame type] at $level"
             #puts "Type -> [dict get $callerFrame type]"
             
             ## If file -> finish
             ## If eval -> add line
-            if {[dict get $callerFrame type]=="eval"} {
-
+            if {[dict get $callerFrame type]=="proc"} {
+                
+                #puts "Found proc: $callerFrame"
+                ## real last eval is the target level where method was called from file?
+                if {[dict exists $callerFrame level]} {
+                    set realLevel [dict get $callerFrame level]
+                    #puts "Found proc level : [dict get $callerFrame level]"
+                }
+                
+            } elseif {[dict get $callerFrame type]=="eval"} {
+                
+                #puts "Found eval: $callerFrame"
+                #puts "Found eval 
                 incr currentLineInFile [expr [dict get $callerFrame line] -1]
+                
+                
+                
               
             } elseif {[dict get $callerFrame type]=="source"} {
             
+                #puts "Found source: $callerFrame"
+            
                 ## If File matches the reset match, keep going and reset everything
                 set foundFile  [dict get $callerFrame file]
+                if {[dict exists  $callerFrame level]} {
+                    #set realLevel  [dict get $callerFrame level]
+                    #puts "Found real level : [dict get $callerFrame level]"
+                }
+                
                 if {$resetMatch!="" && [string match "*$resetMatch*" $foundFile]} {
                     set currentLineInFile 1
                     set foundFile ""
@@ -1033,7 +1083,8 @@ namespace eval odfi::common {
 
         }
         
-        return [list $foundFile $currentLineInFile]
+        return [list $foundFile $currentLineInFile $level [expr $realLevel - $baseLevel]]
+        #return [list $foundFile $currentLineInFile $level [expr $realLevel -$baseLevel]]
 
 
     }
@@ -1069,7 +1120,7 @@ namespace eval odfi::common {
                 set foundFile  [dict get $callerFrame file]
                 
                 incr currentLineInFile [expr [dict get $callerFrame line] -1]
-                lappend res [list $foundFile $currentLineInFile]
+                lappend res [list $foundFile $currentLineInFile $level]
                 
                 set foundFile ""
                 set currentLineInFile 1
@@ -1118,65 +1169,7 @@ namespace eval odfi::common {
 
     }
 
-    ## @return {file line}
-    proc getFileLocationStack args {
-
-        set maxlevel [info frame]
-        #puts "Max search level: $maxlevel"
-        set level 1
-        set res {}
-        while {$level<[expr $maxlevel]} {
-
-           # puts "level: $level"
-            ## Get 
-            if {[catch [list set fd [info frame $level]]]} {
-                break
-            } else {
-
-                ## If file, return 
-                if {[dict exists $fd file]} {
-
-                    lappend res [list [dict get $fd file] [dict get $fd line] [dict get $fd cmd]]
-                } else {
-                    
-                }
-
-            }
-
-            incr level
-        }
-
-        return $res 
-
-    }
-
-    ## Black magic to find out the file location for the currently active script 
-    proc findUserCodeLocation args {
-
-        ## Active script 
-        set script [info script]
-       # puts "Active Script: $script"
-
-        ## Get Frame stack 
-        set stack [getFileLocationStack]
-
-        #foreach s $stack {
-
-         #   puts "*** $s"
-        #}
-
-        ## Find the entry with the file 
-        foreach entry $stack {
-
-            if {[string match *$script* [lindex $entry 0]]} {
-                return $entry
-            }
-
-        }
-
-        return {"" 0}
-
-    }
+   
 
 
 }

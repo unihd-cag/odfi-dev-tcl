@@ -50,6 +50,8 @@ namespace eval odfi::ewww::html {
                 set attr [:getOrCreateAttribute $attr]
                 $attr setValue [concat $value $args]
                 
+                return [current object]
+                
             }
 
             ## Append to an attribute's value
@@ -62,7 +64,8 @@ namespace eval odfi::ewww::html {
                     }
                 }
                
-
+                
+                return [current object]
                 #puts "Adding value to $attr -> [concat $value $args] -> [$attr value get]"
                 
                 
@@ -77,7 +80,7 @@ namespace eval odfi::ewww::html {
 
                 #puts "Adding value to $attr -> [concat $value $args] -> [$attr value get]"
                 
-                
+                return [current object]
             }
 
             ## Append a CSS class 
@@ -86,11 +89,15 @@ namespace eval odfi::ewww::html {
                     :@+ class $cl
                 }
                 
+                return [current object]
+                
             }
             +method classes args {
                 foreach cl $args {
                     :@+ class $cl
                 }
+                
+                return [current object]
                 
             }
 
@@ -254,6 +261,8 @@ namespace eval odfi::ewww::html {
                 
             }
         }
+        
+        ## EOF HTMLNODe
 
         +type HTMLTransparentNode {
             +superclasses set odfi::ewww::html::HTMLNode
@@ -422,31 +431,34 @@ namespace eval odfi::ewww::html {
 
                 :table : HTMLNode {
                     +exportTo HTMLNode
+                    +exportToPublic
 
                     ## HTML 
                     :thead : HTMLNode {
-                        :tr : HTMLNode {
-
-                            :th : HTMLNode {
-
-                            }
-                        }
+                        
                     }
 
                     :tbody : HTMLNode {
                         
                     }
-
+                    
                     :tr : HTMLNode {
-                        +exportToParent
-                        :th : HTMLNode {
-
-                        }
+                        +exportTo Thead
+                        +exportTo Tbody
 
                         :td : HTMLNode {
-
+                            +method colspan value {
+                                :@ colspan $value
+                            }
                         }
+                        
+                        :th : HTMLNode {
+                       
+                       }
+                       
                     }
+
+                    
                     
                     ## Utils 
                     +method onTBody cl {
@@ -459,7 +471,8 @@ namespace eval odfi::ewww::html {
                     ## Build: add a tr for header automatically 
                     +var headerRow ""
                     +builder {
-
+                    
+                        return
                         ## Added header 
                         :thead {
                             :tr {
@@ -590,12 +603,9 @@ namespace eval odfi::ewww::html {
 
             #<% return [string map {\{ "" \} ""} [reduceJoin0 $args \n]] %>
             set res [odfi::richstream::template::stringToString {
-                <<% return ${:+originalName} %> <% return $attrs %>>
-
-                    
-                    <% return [$results @> map { return [lindex $it 1]} @> mkString] %>
-                    
-                </<% return ${:+originalName} %>>
+<<% return ${:+originalName} %> <% return $attrs %>>
+    <% return [$results @> map { return [lindex $it 1]} @> mkString] %>  
+</<% return ${:+originalName} %>>
             }]
 
             #puts "Reducing to ${:+originalName} -> $res"
@@ -635,14 +645,20 @@ namespace eval odfi::ewww::html {
             
             set str [lindex [$stringRes at 0] 1]
             
+            ## REmove empty lines
+            set str [regsub -all {[\t ]*\n\r?} $str ""]
+            
             ## File write?
             if {[llength $args]>0} {
                
                 set f [lindex $args 0]
+                if {$f!="" && ([file exists $f] || [file exists [file dirname $f]])} {
+                    odfi::files::writeToFile $f $str
+                }
                 
                 #puts "Output to file"
                 
-                odfi::files::writeToFile $f $str
+               
             }
             
             return $str
