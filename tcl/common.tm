@@ -1007,6 +1007,14 @@ namespace eval odfi::common {
     ## Source file location utilities 
     ###############################
 
+    proc describeCallerLocation args {
+
+        set loc [::odfi::common::findFileLocation 2]
+
+        return "File: [lindex $loc 0], Line: [lindex $loc 1]"
+
+    }
+
     ## @return {file line}
     proc findFileLocation {{baseLevel 2} {resetMatch ""}} {
 
@@ -1018,8 +1026,10 @@ namespace eval odfi::common {
         set foundFile ""
         set maxlevel [info frame]
         set level $baseLevel
-        set realLevel [expr $baseLevel +1]
-        while {$level<[expr $maxlevel]} {
+        
+        set realLevel [expr $baseLevel + 1]
+
+        while { $level < [expr $maxlevel] } {
             
             set callerFrame [info frame -$level]
             
