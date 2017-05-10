@@ -259,14 +259,13 @@ namespace eval odfi::flist {
 
         :public method += args {
 
+
             foreach arg $args {
-                #if {[odfi::common::isClass $arg [namespace current]::MutableList]} {
-                #    set :content [concat ${:content} [$arg content get]]
-                #} else {
-                    lappend :content $arg
-                #}
+               
+                ::lappend :content $arg
                 
             }
+
             return [current object]
             
             #puts "Appending $element"
@@ -328,16 +327,43 @@ namespace eval odfi::flist {
             
         }
         
+        :public method addAllFirst lst {
 
+            set nl ${:content}
+            #puts "[llength $lst]"
+            foreach arg $lst {
+                set nl [linsert $nl 0 $arg]
+            }
+            set :content $nl
+        }
         :public method addFirst args {
+
+            #set :content [linsert ${:content} 0 $args]
+            #return 
+
             set :content [concat $args ${:content}]
+            return 
+
+            if {[llength $args]==1} {
+                #::set newC $args 
+                #::lappend newC ${:content}
+                #::set :content $newC
+                foreach c ${:content} {
+                    ::lappend args $c
+                }
+                ::set :content $args
+            }
+            
+
+            #set :content [concat $args ${:content}]
         }
         
         :public method removeFirst args {
             
             if {[:size]>0} {
-                set first [lindex ${:content} 0]
-                set :content [lrange ${:content} 1 end]
+                set c  ${:content}
+                set first [lindex $c 0]
+                set :content [lrange $c 1 end]
                 return $first
             } else {
                 error "Cannot remove first of empty list"
@@ -451,9 +477,13 @@ namespace eval odfi::flist {
         ## Pop the first and run closure on it, until empty
         :public method popAll {closure} {
             
+
             odfi::closures::withITCLLambda $closure 1 {
+                
                 while {[:size]>0} {
+                     
                      $lambda apply [list it [:pop]]
+                
                 }
 
             }
@@ -694,7 +724,7 @@ namespace eval odfi::flist {
 
         ## map elements and sort based on map result 
         ## Returns a sorted list of original elements, not the mapped values
-        :public method mapSort closure {
+        :public method mapSort {closure args} {
 
             ## Map to { {elt mappedValue} }
             set eltAndMapped {}
