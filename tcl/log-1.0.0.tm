@@ -61,7 +61,7 @@ namespace eval odfi::log {
     ## If the level for path is smaller than the tested level, refuse
     proc isLevelEnabled {path level} {
         
-        if {[getLogLevelValue $path]<[getLevelValue $level]} {
+        if {[getLevelValue $level]<[getLogLevelValue $path]} {
             return false
         } else {
             return true
@@ -79,32 +79,32 @@ namespace eval odfi::log {
     proc getLogPath args {
   
 
-            ## Get Log Realm
-            set argRealm [lsearch -exact $args -realm]
-            if {$argRealm!=-1} {
-                set logRealm [lindex $args [expr $argRealm+1]]
-            } else {
-                set logRealm [uplevel 2 namespace current]  
-            }
+        ## Get Log Realm
+        set argRealm [lsearch -exact $args -realm]
+        if {$argRealm!=-1} {
+            set logRealm [lindex $args [expr $argRealm+1]]
+        } else {
+            set logRealm [uplevel 2 namespace current]  
+        }
 
-            set logRealm [regsub -all {::} $logRealm "."]
+        set logRealm [regsub -all {::} $logRealm "."]
 
-            ## Get Command path 
-            set frameInfo [::info frame -2]
+        ## Get Command path 
+        set frameInfo [::info frame -2]
 
-            ## Get 'method', otherwise pick first element in cmd
-            set methodIndex [lsearch -exact $frameInfo method] 
-            if {$methodIndex!=-1} {
-                set commandName [lindex $frameInfo [expr $methodIndex+1]]
-            } else {
-                set commandName [lindex [lindex $frameInfo 5] 0]
-            }
+        ## Get 'method', otherwise pick first element in cmd
+        set methodIndex [lsearch -exact $frameInfo method] 
+        if {$methodIndex!=-1} {
+            set commandName [lindex $frameInfo [expr $methodIndex+1]]
+        } else {
+            set commandName [lindex [lindex $frameInfo 5] 0]
+        }
 
-            set commandName [regsub -all {:} $commandName ""]
+        set commandName [regsub -all {:} $commandName ""]
 
-            #::puts "Log frame info: $frameInfo"
-            
-            return $logRealm.$commandName
+        #::puts "Log frame info: $frameInfo"
+        
+        return $logRealm.$commandName
     }
     proc info {message args} {
 
@@ -182,20 +182,31 @@ namespace eval odfi::log {
         
         :variable -accessor public prefix "" 
         :variable -accessor public separator ">>" 
-        
+        :variable -accessor public logLevel WARNING
+
         :method init args {
             next
             set :separator ">>"
             :separator set ">>"
-            puts "Set separator"
+            :logLevel set WARNING
+            #puts "Set separator"
         }
     
         :public method setPrefix p {
             set :prefix $p
             :prefix set $p
             :separator set ">>"
+            :logLevel set WARNING
         }
-    
+        
+        ## If the defined level is higer in list than requested; it is masked and not displays
+        :public method logEnabled level {
+            if {[lsearch -exact ${::odfi::log::Logger::levels} $level] < [lsearch -exact ${::odfi::log::Logger::levels} [:logLevel get]]} {
+                return true
+            } else {
+                return false
+            }
+        }
         :public method raw msg {
         
             puts "[:prefix get] [:separator get] $msg"
@@ -212,9 +223,13 @@ namespace eval odfi::log {
                 "
             } else {
                 :public method [string tolower $level] {msg args} "
-                    puts \"\[:prefix get\] \[:separator get\] \[:getCallingCommand\] \[:separator get\] $level >> \$msg\"
+                    if {\[:logEnabled $level\]} { puts \"\[:prefix get\] \[:separator get\] \[:getCallingCommand\] \[:separator get\] $level >> \$msg\" }
                 "
             }
+
+            :public method enable[string tolower $level 1 end] args "
+                set :logLevel $level
+            "
             
         }
     

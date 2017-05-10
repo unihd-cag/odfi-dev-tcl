@@ -17,6 +17,13 @@ namespace eval odfi::functional::pattern {
         :public method isNone args {
             return ${:none}
         }
+        :public method isEmpty args {
+            if {${:none}==true} {
+                return true
+            } else {
+                return false
+            }
+        }
         :public method isDefined args {
             if {${:none}==true} {
                 return false
@@ -560,7 +567,12 @@ namespace eval odfi::flist {
 
         ## map elements and sort based on map result 
         ## Returns a sorted list of original elements, not the mapped values
-        :public method mapSort closure {
+        :public method mapSort {closure args} {
+
+            set reverse false 
+            if {[lsearch -exact $args -reverse]!=-1} {
+                set reverse true
+            }
 
             ## Map to { {elt mappedValue} }
             set eltAndMapped {}
@@ -574,6 +586,9 @@ namespace eval odfi::flist {
             ## Sort 
             #puts "unsorted: $eltAndMapped"
             set eltAndMapped [lsort -index 1 -nocase $eltAndMapped]
+            if {$reverse} {
+                set eltAndMapped [lreverse $eltAndMapped]
+            }
             #puts "sorted: $eltAndMapped"
 
             ## Set Result 
