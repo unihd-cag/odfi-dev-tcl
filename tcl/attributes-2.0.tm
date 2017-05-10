@@ -32,7 +32,7 @@ namespace eval odfi::attributes {
                         set attr [:attribute $name]
                     }
                     
-                    #puts "Set attribute $name to $attr"
+                    #puts "Set attribute $name to [llength $value]"
                    
                     ## Set value 
                     $attr value set $value
@@ -69,6 +69,7 @@ namespace eval odfi::attributes {
             +method attributeAppend {groupN name value} {
 
                 ## Update actual
+                #puts "********* Attribute append $groupN $name [llength $value]"
                 set actual [:getAttribute $groupN $name ""]
                 if {$actual!=""} {
                     lappend actual $value
@@ -76,8 +77,13 @@ namespace eval odfi::attributes {
                     set actual $value
                 }
 
+                
+
                 ## Save
                 :attribute $groupN $name $actual
+
+                #puts "********* Attribute append done [llength [:getAttribute $groupN $name ""]]"
+
             }
 
             +method attribute {groupN name {value ""}} {
